@@ -192,9 +192,15 @@ def check(reqt):
         okay = False
 
     # optional stuff:
-    # TODO: if depends is used, are all reqts known?
-    # TODO: if implies is used, are all reqts known?
-    # TODO: if implies is used, is it a non-empty string?
+    # NB: these relationships are checked when the fields are added
+    # if depends is used, are all reqts known?
+    # if implies is used, are all reqts known?
+
+    # if reference is used, is it a non-empty string?
+    if 'reference' in rdict.keys():
+        if not rdict['reference']:
+            print("? reference field needs a value if used")
+            okay = False
 
     return okay
 
