@@ -1,0 +1,157 @@
+= Defining Requirements
+:author: Al Stone
+:email: ahs3@redhat.com
+:revnumber: 0.1
+:revdate: November 2020
+:doctype: book
+
+== Introduction
+In the first part, we describe the formalism for writing an individual
+requirement for a feature or behavior.  In the second part, we show how
+to use those requirements to define a profile or a platform.
+
+== Writing A Requirement
+A brief example:
+
+--------
+%YAML 1.2
+---
+reqt:
+    name: r0000
+    description: full ebbr compliance
+    revision: 0
+    class: firmware
+    level: mandatory
+    test: unknown
+    reference: https://github.com/ARM-software/ebbr
+    details: >
+        The platform must be in compliance with all requirements
+        of the Embedded Base Boot Requirements (EBBR) specification,
+	version v1.0.1.
+--------
+
+=== Mandatory Fields:
+Each requirement is a mapping in YAML, using the key `reqt`, as above.
+Each requirement must be a single YAML document.
+
+It must then contain a collection of these key-value pairs:
+
+[horizontal]
+`name: <reqt-id>`:: all requirements must have a unique identifier;
+the ID must be in the form _rNNNN_ where N is a hexadecimal digit.
+These are used to build specification content and to provide some
+analysis and checking of the requirements.
+
+`description: <one line comment>`:: a short, one-line description of the
+overall requirement
+
+`revision: <number>`:: the current revision level of this requirement;
+it must increment on any change to the requirement.
+
+`type: {platform | profile}`:: how this requirement is to be used, either
+in the definition of a `profile` or the definition of a `platform`.  These
+are the only allowed values, and only one may be used.
+
+`class: <class-type>`:: what kind of requirement this is, either `hardware`,
+`software` or `firmware` (`hw`, `sw`, or `fw`, respectively, are acceptable
+alternatives).  These are currently the only allowed classes.
+
+`level: <strictness>`:: whether this requirement is `mandatory` (or `must`),
+`recommended` (or `should`), or `optional` (`may`).  This does mean that a
+requirement that is mandatory in one scenario and optional in another must
+be written as two separate requirements.
+
+`test: <string>`:: how to test if this requirement has been met; the value
+`tbd` is allowed as a temporary value but must ultimately be filled in
+before the requirement can be considered complete.
+
+`details: <string>`:: the actual language of the requirement as it should
+appear in a specification.
+
+
+=== Optional Fields:
+These key-value pairs may or may not be present in a requirement.  There
+are no default values for these elements.  Please note the dot notation
+for referring to requirements.  The name `r0000` could be ambiguous; there
+may be more than one revision.  The dot notation indicates a specific
+revision, e.g., `r0000.9` is revision 9 of requirement `r0000`.  If not
+revision is provided, the largest revision number is assumed.
+
+[horizontal]
+`depends: <reqt-id-list>`:: there are cases where a requirement may
+be impossible to meet if some other set of requirements are not met;
+the list here would be references to those requirement IDs (e.g.,
+`[ r00a5.0, r0b3c.1 ]`).  This would be a _strong_ coupling of the
+requirements.
+
+`implies: <reqt-id-list>`:: there are cases where one requirement 
+implies that other requirements must also be met, but there may not
+be a dependency; the list here would be references to those requirement
+IDs (e.g., `[ r00a5.2, r0b3c.3 ]`).  This is *not* the inverse of `depends`;
+i.e., if requirement _A_ `depends` on requirement _B_, there is no
+assumption that _B_ `implies` _A_.  This is a _weak_ coupling of
+the requirements.
+
+`reference: <string>`:: text that can be used as a reference to other
+original material, such as a URL to an existing specification, or a
+description of a written document.
+
+=== Analyses
+When requirements are added, they will be checked for:
+
+[horizontal]
+*uniqueness*:: is the identifier unique? are there requirements where the
+mandatory fields are identical?
+
+*correctness*:: perform some basic checks
+    * are all mandatory fields present?
+    * are only defined fields used?
+    * is this of an allowed `type`?
+    * is this of an allowed `class`?
+    * is this of an allowed `level`?
+    * is the revision number numeric?
+
+*relationships*:: for any `depends` or `implies` relationships, do
+the referenced requirements actually exist?
+
+== Writing a Specification
+A brief example:
+
+--------
+%YAML 1.2
+---
+specification:
+    name: embedded-linux
+    type: platform
+    version: 0.1
+    status: draft
+    mandatory:
+        - *r0000
+        - *r0001
+    recommended:
+        - *r0002
+        - *r0003
+    optional:
+        - *r0004
+        - *r0005
+--------
+
+=== Mandatory Fields:
+A specification is a YAML collection, and starts with the keyword
+`specification`.  There are no optional fields at this time.  The
+collection must contain the following elements:
+
+[horizontal]
+`name: <string>`:: a uniquely identifying name for the specification.
+
+`type: {platform | profile}`:: whether this is a description of a `platform`
+or a `profile`.  These are the only allowed values.
+
+`version: <version-string>`:: this is the version of this specification;
+this is the value that will be used as a reference point for this content.
+Normal RVIA conventions apply.
+
+`status: <status-string>`:: this is the current state of this specification;
+values can be one of `proposed`, `draft`, `review`, `vote`,`approved`.  The
+changing of this value to `approved` is only done after the TSC has officially
+signed off on the specification.

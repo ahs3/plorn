@@ -1,0 +1,21 @@
+#!/usr/bin/env python3
+#=============================================================================
+# 
+# SPDX-License-Identifier: MIT
+# 
+# Copyright (c) 2020 Al Stone <ahs3@redhat.com>
+# 
+#=============================================================================
+#
+# Main module for the plorn toolset
+#
+
+import lib.env
+import lib.env.config
+import lib.cmds.cmdline
+
+if __name__ == "__main__":
+    lib.env.config.readrc()
+    lib.cmds.cmdline.get()
+    lib.cmds.cmdline.run()
+

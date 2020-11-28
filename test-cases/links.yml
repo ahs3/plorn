@@ -1,0 +1,19 @@
+---
+reqt:
+    name: links
+    revision: 1
+    description: example reqt using depends and such
+    type: platform
+    class: software
+    level: may
+    depends:
+        - r0000.1
+        - r0001.1
+    implies:
+        - r0002.1
+    reference: random book in the library
+    test: do something clever
+    details: >
+        this is just to test out the ideas
+        and find weird bugs
+...
