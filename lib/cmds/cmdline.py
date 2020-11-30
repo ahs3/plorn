@@ -11,6 +11,7 @@
 import sys
 
 import lib.cmds.add
+import lib.cmds.adoc
 import lib.cmds.check
 import lib.cmds.config
 import lib.cmds.dump
@@ -61,6 +62,16 @@ def run():
 
         lib.db.closedb()
 
+    elif __cmd == "adoc":
+        db = lib.env.config.get_dbpath()
+        lib.db.opendb(db)
+
+        if len (__args) > 0:
+            lib.cmds.adoc.run(__args)
+        else:
+            print("? adoc command requires a file for a spec")
+
+        lib.db.closedb()
     elif __cmd == "check":
         db = lib.env.config.get_dbpath()
         lib.db.opendb(db)

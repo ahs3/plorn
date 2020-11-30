@@ -89,9 +89,20 @@ def closedb():
 def find_dependency(reqt_id, dep_id):
     global dbcon
 
-    key = str(name) + '-' + str(revision)
-    sql = """SELECT reqt_id, dep_id FROM reqts
+    sql = """SELECT reqt_id, dep_id FROM dependencies
              WHERE reqt_id = '%s' and dep_id = '%s'""" % (reqt_id, dep_id)
+    dbcon.row_factory = sqlite3.Row
+    cur = dbcon.cursor()
+    cur.execute(sql)
+    result = cur.fetchone()
+
+    return result
+
+def find_implication(reqt_id, impl_id):
+    global dbcon
+
+    sql = """SELECT reqt_id, impl_id FROM implications
+             WHERE reqt_id = '%s' and impl_id = '%s'""" % (reqt_id, impl_id)
     dbcon.row_factory = sqlite3.Row
     cur = dbcon.cursor()
     cur.execute(sql)
@@ -176,6 +187,36 @@ def add_reqt(reqt):
 
     return result
 
+def get_dependencies(reqt_id):
+    global dbcon
+
+    rlist = []
+    sql = """SELECT dep_id reference FROM dependencies
+             WHERE reqt_id = \"%s\" """ % reqt_id
+    dbcon.row_factory = sqlite3.Row
+    cur = dbcon.cursor()
+    cur.execute(sql)
+    result = cur.fetchone()
+    while result:
+        rlist.append[list(result)[0]]
+        result = cur.fetchone()
+    return rlist
+
+def get_implications(reqt_id):
+    global dbcon
+
+    rlist = []
+    sql = """SELECT impl_id reference FROM implications
+             WHERE reqt_id = \"%s\" """ % reqt_id
+    dbcon.row_factory = sqlite3.Row
+    cur = dbcon.cursor()
+    cur.execute(sql)
+    result = cur.fetchone()
+    while result:
+        rlist.append[list(result)[0]]
+        result = cur.fetchone()
+    return rlist
+
 def write_yaml_dependencies(f, reqt_id):
     global dbcon
 
@@ -213,6 +254,7 @@ def write_yaml_implications(f, reqt_id):
 def write_yaml_list(f, info):
     for ii in info:
         print('    - %s' % ii)
+    return
 
 def write_yaml_string(f, info):
     last = 0

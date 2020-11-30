@@ -19,8 +19,8 @@ config['user'] = { "name" : "",
                    "email" : "",
 		   "db" : "",
                  }
-config['definitions'] = { "path" : "."
-		       }
+config['asciidoc'] = { "start_section_level" : "."
+		     }
 
 def readrc():
     global config
@@ -38,8 +38,8 @@ def readrc():
     if config.get("user", "db") == "":
         config.set("user", "db", 'plorn.db')
 
-    config.set("definitions", "path",
-    	os.path.expandvars(config.get("definitions", "path")))
+    if config.get("asciidoc", "start_section_level") == '.':
+        config.set("asciidoc", "start_section_level", '3')
 
     return
 
@@ -61,10 +61,10 @@ def get_user():
 
     return who
 
-def get_definitions_path():
+def get_start_section_level():
     global config
 
-    return config.get("definitions", "path")
+    return int(config.get("asciidoc", "start_section_level"))
 
 def get_dbpath():
     global config
