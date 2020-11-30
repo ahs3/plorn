@@ -1,0 +1,12 @@
+-- When writing strings to the db (e.g., 'mandatory' or 'must') make sure
+   to write a canonical value so searches work properly (i.e., we don't
+   have to search for both keywords, just the canonical one)
+
+-- Verify that when depends/implies relationships are added, the reqts
+   already exist
+
+-- Provide a check function for spec YAML, not just reqt YAML
+
+-- Document spec YAML like reqt YAML
+
+-- Add db indexes for search?
