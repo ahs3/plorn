@@ -14,6 +14,14 @@ import sys
 
 dbcon = ''
 
+level_map = { 'mandatory': 'mandatory',
+              'must': 'mandatory',
+              'recommended': 'recommended',
+              'should': 'recommended',
+              'optional': 'optional',
+              'may': 'optional',
+	    }
+
 def add_dependencies_table(cur):
     table_sql = """
     CREATE TABLE dependencies (
@@ -179,7 +187,8 @@ def add_reqt(reqt):
          refs = reqt['reference']
 
     cur.execute(sql, (reqt['name'], reqt['revision'],
-                      reqt['type'], reqt['class'], reqt['level'],
+                      reqt['type'].lower(), reqt['class'].lower(),
+		      level_map[reqt['level'].lower()],
                       reqt['description'], reqt['test'], reqt['details'],
 		      dep_id, impl_id, refs))
     dbcon.commit()

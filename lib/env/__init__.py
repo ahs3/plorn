@@ -9,7 +9,7 @@
 #
 
 __progname = "plorn"
-__version = "0.3.1"
+__version = "0.3.2"
 
 def print_version():
     print("%s, v%s" % (__progname, __version))

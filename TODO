@@ -1,7 +1,5 @@
--- When writing strings to the db (e.g., 'mandatory' or 'must') make sure
-   to write a canonical value so searches work properly (i.e., we don't
-   have to search for both keywords, just the canonical one)
-
+TODO:
+-----
 -- Verify that when depends/implies relationships are added, the reqts
    already exist
 
@@ -12,4 +10,10 @@
 -- Add db indexes for search?
 
 -- Add reqt status and revision info to the asciidoc text on output
+
+DONE:
+-----
+-- When writing strings to the db (e.g., 'mandatory' or 'must') make sure
+   to write a canonical value so searches work properly (i.e., we don't
+   have to search for both keywords, just the canonical one) [v0.3.2]
 

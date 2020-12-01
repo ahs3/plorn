@@ -1,0 +1,43 @@
+%YAML 1.2
+---
+reqt:
+    name: r1000
+    description: full ebbr compliance
+    revision: 0
+    type: platform
+    class: software
+    level: must
+    test: tbd
+    reference: https://github.com/arm-software/ebbr
+    details: >
+        The platform must be in compliance with all requirements
+        of the embedded base boot requirements (ebbr) specification,
+        version v1.0.1.
+---
+reqt:
+    name: r1001
+    description: recommended ebbr compliance
+    revision: 0
+    type: platform
+    class: hardware
+    level: should
+    test: tbd
+    reference: https://github.com/arm-software/ebbr
+    details: >
+        The platform should be in compliance with all requirements
+        of the embedded base boot requirements (ebbr) specification,
+        version v1.0.1.
+---
+reqt:
+    name: r1002
+    description: optional ebbr compliance
+    revision: 0
+    type: platform
+    class: software
+    level: may
+    test: tbd
+    reference: https://github.com/arm-software/ebbr
+    details: >
+        The platform may be in compliance with all requirements
+        of the embedded base boot requirements (ebbr) specification,
+        version v1.0.1.
