@@ -16,18 +16,18 @@ checks the YAML for desired structure and content -- this is the
 
 The usage model is fairly simple:
 
-    * First, create an empty database with `plorn init`; you can either
-      provide a data base name -- e.g., plorn.db -- or provide a db entry
-      in `~/.plornrc`.
+* First, create an empty database with `plorn init`; you can either
+  provide a data base name -- e.g., plorn.db -- or provide a db entry
+  in `~/.plornrc`.
 
-    * Now, add requirements.  Write YAML into a file and then add each
-      file into the data base with `plorn add filename` (a list of files
-      can be provided, too).  Multiple YAML documents per file are also
-      allowed.
+* Now, add requirements.  Write YAML into a file and then add each
+  file into the data base with `plorn add filename` (a list of files
+  can be provided, too).  Multiple YAML documents per file are also
+  allowed.
 
-    * That's it.  More features are being added.  The next release
-      will allow for generating asciidoc output from the requirements
-      in the data base.  At some point, additional analysis will also
-      be available.
+* That's it.  More features are being added.  The next release
+  will allow for generating asciidoc output from the requirements
+  in the data base.  At some point, additional analysis will also
+  be available.
 
 There is also the `plorn help` command to show what else is available.
