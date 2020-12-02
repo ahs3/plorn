@@ -1,0 +1,23 @@
+%YAML 1.2
+---
+specification:
+    name: embedded linux
+    title: Embedded Linux Platforms
+    type: platform
+    version: 0.1
+    status: draft
+    mandatory:
+        - r0000.0
+        - r0001.0
+    recommended:
+        - r0002.0
+        - r0003.0
+    optional:
+        - r0004.0
+        - r0005.0
+    details: |
+        This is the specification for developing an embedded Linux
+        platform for RISC-V.  Herein we describe the hardware, software,
+        and firmware required to be compliant.
+        .
+        This is a second paragraph just so we can be sure this works.
