@@ -9,6 +9,9 @@ TODO:
 -- Print graph of reqts -> dependencies | implications, looking for
    cycles (i.e., condition impossible to meet)
 
+-- Add a section: to the spec YAML; the idea would be to provide a way
+   to insert a subsection, and nest them if needed
+
 
 DONE:
 -----
