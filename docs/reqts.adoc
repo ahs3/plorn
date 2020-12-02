@@ -1,8 +1,8 @@
 = Defining Requirements
 :author: Al Stone
 :email: ahs3@redhat.com
-:revnumber: 0.1
-:revdate: November 2020
+:revnumber: 0.2
+:revdate: December 2020
 :doctype: book
 
 == Introduction
@@ -24,7 +24,7 @@ reqt:
     level: mandatory
     test: unknown
     reference: https://github.com/ARM-software/ebbr
-    details: >
+    details: |
         The platform must be in compliance with all requirements
         of the Embedded Base Boot Requirements (EBBR) specification,
 	version v1.0.1.
@@ -66,8 +66,10 @@ be written as two separate requirements.
 before the requirement can be considered complete.
 
 `details: <string>`:: the actual language of the requirement as it should
-appear in a specification.
-
+appear in a specification.  Since the assumption is that this is text that
+will be passed into the asciidoc, use the YAML '|' operator and not '>';
+the former preserves all formatting and any asciidoc indicators while the
+latter will fold the text into essentially a single line of text.
 
 === Optional Fields:
 These key-value pairs may or may not be present in a requirement.  There
@@ -94,7 +96,11 @@ the requirements.
 
 `reference: <string>`:: text that can be used as a reference to other
 original material, such as a URL to an existing specification, or a
-description of a written document.
+description of a written document.  Since the assumption is that this
+is text that will be passed into the asciidoc, use the YAML '|' operator
+and not '>' if more than a short line of text is needed; the former
+preserves all formatting and any asciidoc indicators while the
+latter will fold the text into essentially a single line of text.
 
 === Analyses
 When requirements are added, they will be checked for:
@@ -121,19 +127,25 @@ A brief example:
 %YAML 1.2
 ---
 specification:
-    name: embedded-linux
+    name: embedded linux
     type: platform
     version: 0.1
     status: draft
     mandatory:
-        - *r0000
-        - *r0001
+        - r0000.0
+        - r0001.0
     recommended:
-        - *r0002
-        - *r0003
+        - r0002.0
+        - r0003.0
     optional:
-        - *r0004
-        - *r0005
+        - r0004.0
+        - r0005.0
+    details: |
+        This is the specification for developing an embedded Linux
+        platform for RISC-V.  Herein we describe the hardware, software,
+        and firmware required to be compliant.
+        .
+        This is a second paragraph just so we can be sure this works.
 --------
 
 === Mandatory Fields:
@@ -155,3 +167,17 @@ Normal RVIA conventions apply.
 values can be one of `proposed`, `draft`, `review`, `vote`,`approved`.  The
 changing of this value to `approved` is only done after the TSC has officially
 signed off on the specification.
+
+=== Optional Fields:
+These fields may not be needed for any particular chunk of specification
+in the YAML file:
+
+[horizontal]
+`details: <string>`:: text as it should appear in a specification, as
+needed for a section.  Since the assumption is that this is text that
+will be passed into the asciidoc, use the YAML '|' operator and not '>';
+the former preserves all formatting and any asciidoc indicators while the
+latter will fold the text into essentially a single line of text.  If
+more than one paragraph is needed, use a '.' at the same indent to indicate
+where a blank line should be in the asciidoc.
+

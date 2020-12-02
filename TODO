@@ -2,8 +2,6 @@ TODO:
 -----
 -- Provide a check function for spec YAML, not just reqt YAML
 
--- Document spec YAML like reqt YAML
-
 -- Add db indexes for search?
 
 -- Add reqt status and revision info to the asciidoc text on output
@@ -22,4 +20,6 @@ DONE:
 
 -- Verify that when depends/implies relationships are added, the reqts
    already exist [v0.3.2]
+
+-- Document spec YAML like reqt YAML [v0.3.2]
 

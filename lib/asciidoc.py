@@ -54,13 +54,12 @@ def write_para_text(f, reqt):
         print('This section temporarily left blank.', file=f)
     return
 
-def write_para_title(f, section_level, reqt):
-    stype = reqt['type']
+def write_para_title(f, section_level, spec):
+    stype = spec['type']
     print("> type of spec: %s" % stype )
     title = "#" * section_level
-    title += " %s Specification: %s, v%s (%s)" % \
-             (stype.capitalize(), reqt['name'].title(), reqt['version'],
-              reqt['status'].capitalize())
+    title += " %s, v%s (%s)" % \
+             (spec['title'].capitalize(), spec['version'], spec['status'])
     print(title, file=f)
     return
 

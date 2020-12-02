@@ -292,20 +292,16 @@ def write_yaml_list(f, info):
         print('    - %s' % ii)
     return
 
-def write_yaml_string(f, info):
-    last = 0
-    raw = info.strip().split()
-    ln = ''
-    for ii in raw:
-        if last + len(ii) > 60:
-            print('        %s' % ln.strip(), file=f)
-            ln = ii + ' '
-            last = 0
-        else:
-            ln += ii + ' '
-        last += len(ii)
-    if len(ln) > 0:
-        print('        %s' % ln.strip(), file=f)
+def write_yaml_text(f, text):
+    if reqt['details']:
+        para = reqt['details'].split('\n')
+        for ii in para:
+            if ii == '.':
+                print('', file=f)
+            else:
+                print(ii, file=f)
+    else:
+        print('This section temporarily left blank.', file=f)
     return
 
 def write_yaml(f, reqt):
@@ -321,10 +317,10 @@ def write_yaml(f, reqt):
     print('    class: %s' % reqt['class'], file=f)
     print('    level: %s' % reqt['level'], file=f)
     print('    details: >', file=f)
-    write_yaml_string(f, reqt['details'])
+    write_yaml_text(f, reqt['details'])
     if 'reference' in reqt.keys():
         print('    reference: >', file=f)
-        write_yaml_string(f, reqt['reference'])
+        write_yaml_text(f, reqt['reference'])
     if 'depends' in reqt.keys():
         write_yaml_dependencies(f, reqt['depends'])
     if 'implies' in reqt.keys():
