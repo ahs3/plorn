@@ -20,7 +20,7 @@ level_map = { 'mandatory': 'mandatory',
               'should': 'recommended',
               'optional': 'optional',
               'may': 'optional',
-	    }
+            }
 
 def add_dependencies_table(cur):
     table_sql = """
@@ -45,18 +45,18 @@ def add_implications_table(cur):
 def add_reqts_table(cur):
     reqts_table_sql = """
     CREATE TABLE reqts (
-	name text NOT NULL,
-	revision integer NOT NULL,
-	type text NOT NULL,
-	class text NOT NULL,
-	level text NOT NULL,
-	description text NOT NULL,
-	test text NOT NULL,
-	details text NOT NULL,
-	depends text,
-	implies text,
-	reference text,
-	PRIMARY KEY (name, revision),
+        name text NOT NULL,
+        revision integer NOT NULL,
+        type text NOT NULL,
+        class text NOT NULL,
+        level text NOT NULL,
+        description text NOT NULL,
+        test text NOT NULL,
+        details text NOT NULL,
+        depends text,
+        implies text,
+        reference text,
+        PRIMARY KEY (name, revision),
         FOREIGN KEY (depends) REFERENCES dependencies (id),
         FOREIGN KEY (implies) REFERENCES implications (id))"""
     cur.execute(reqts_table_sql)
@@ -98,7 +98,8 @@ def find_dependency(reqt_id, dep_id):
     global dbcon
 
     sql = """SELECT reqt_id, dep_id FROM dependencies
-             WHERE reqt_id = '%s' and dep_id = '%s'""" % (reqt_id, dep_id)
+             WHERE reqt_id = '%s' and dep_id = '%s'""" \
+             % (reqt_id.lower(), dep_id.lower())
     dbcon.row_factory = sqlite3.Row
     cur = dbcon.cursor()
     cur.execute(sql)
@@ -110,7 +111,8 @@ def find_implication(reqt_id, impl_id):
     global dbcon
 
     sql = """SELECT reqt_id, impl_id FROM implications
-             WHERE reqt_id = '%s' and impl_id = '%s'""" % (reqt_id, impl_id)
+             WHERE reqt_id = '%s' and impl_id = '%s'""" \
+             % (reqt_id.lower(), impl_id.lower())
     dbcon.row_factory = sqlite3.Row
     cur = dbcon.cursor()
     cur.execute(sql)
@@ -124,12 +126,18 @@ def find_reqt(name, revision):
     key = str(name) + '-' + str(revision)
     sql = """SELECT name, revision, type, class, level, description,
              test, details, depends, implies, reference FROM reqts
-             WHERE name = '%s' and revision = '%s'""" % (name, revision)
+             WHERE name = '%s' and revision = '%s'""" \
+             % (name.lower(), str(revision).lower())
     dbcon.row_factory = sqlite3.Row
     cur = dbcon.cursor()
     cur.execute(sql)
     result = cur.fetchone()
 
+    return result
+
+def find_reqt_id(reqt_id):
+    rid = reqt_id.split('.')
+    result = find_reqt(rid[0].lower(), int(rid[1]))
     return result
 
 def add_dependency(reqt_id, dep_id):
@@ -141,7 +149,9 @@ def add_dependency(reqt_id, dep_id):
     VALUES (?, ?)"""
 
     cur = dbcon.cursor()
-    cur.execute(sql, (reqt_id, dep_id))
+    cur.execute(sql, (reqt_id.lower(), dep_id.lower()))
+    cur.close()
+    dbcon.commit()
 
     return cur.lastrowid
 
@@ -154,7 +164,9 @@ def add_implication(reqt_id, impl_id):
     VALUES (?, ?)"""
 
     cur = dbcon.cursor()
-    cur.execute(sql, (reqt_id, impl_id))
+    cur.execute(sql, (reqt_id.lower(), impl_id.lower()))
+    cur.close()
+    dbcon.commit()
 
     return cur.lastrowid
 
@@ -164,7 +176,7 @@ def add_reqt(reqt):
     sql = """
     INSERT INTO reqts
         (name, revision, type, class, level, description,
-	 test, details, depends, implies, reference)
+         test, details, depends, implies, reference)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
 
     cur = dbcon.cursor()
@@ -174,25 +186,40 @@ def add_reqt(reqt):
     impl_id = reqt['name'] + '.' + str(reqt['revision'])
     if 'depends' in reqt.keys():
          for ii in reqt['depends']:
-             print('%s depends on %s' % (reqt_id, ii))
-             if not find_dependency(reqt_id, ii):
-                 add_dependency(reqt_id, ii)
+             print('%s depends on %s' % (reqt_id.lower(), ii.lower()))
+             if find_reqt_id(ii.lower()):
+                 if not find_dependency(reqt_id.lower(), ii.lower()):
+                     add_dependency(reqt_id.lower(), ii.lower())
+                 else:
+                     print('? duplicate: %s already depends on %s' %
+                           (reqt_id.lower(), ii.lower()))
+             else:
+                     print('? cannot depend on non-existent reqt %s' %
+                           (ii.lower()))
     if 'implies' in reqt.keys():
          for ii in reqt['implies']:
-             print('%s implies %s' % (reqt_id, ii))
-             if not find_implication(reqt_id, ii):
-                 add_implication(reqt_id, ii)
+             print('%s implies %s' % (reqt_id.lower(), ii.lower()))
+             if find_reqt_id(ii.lower()):
+                 if not find_implication(reqt_id.lower(), ii.lower()):
+                     add_implication(reqt_id.lower(), ii.lower())
+                 else:
+                     print('? duplicate: %s already implies %s' %
+                           (reqt_id.lower(), ii.lower()))
+             else:
+                     print('? cannot imply a non-existent reqt %s' %
+                           (ii.lower()))
     refs = ''
     if 'reference' in reqt.keys():
          refs = reqt['reference']
 
-    cur.execute(sql, (reqt['name'], reqt['revision'],
+    cur.execute(sql, (reqt['name'].lower(), str(reqt['revision']).lower(),
                       reqt['type'].lower(), reqt['class'].lower(),
-		      level_map[reqt['level'].lower()],
+                      level_map[reqt['level'].lower()],
                       reqt['description'], reqt['test'], reqt['details'],
-		      dep_id, impl_id, refs))
-    dbcon.commit()
+                      dep_id.lower(), impl_id.lower(), refs))
     result = cur.lastrowid
+    cur.close()
+    dbcon.commit()
 
     return result
 
@@ -201,7 +228,7 @@ def get_dependencies(reqt_id):
 
     rlist = []
     sql = """SELECT dep_id reference FROM dependencies
-             WHERE reqt_id = \"%s\" """ % reqt_id
+             WHERE reqt_id = \"%s\" """ % reqt_id.lower()
     dbcon.row_factory = sqlite3.Row
     cur = dbcon.cursor()
     cur.execute(sql)
@@ -216,7 +243,7 @@ def get_implications(reqt_id):
 
     rlist = []
     sql = """SELECT impl_id reference FROM implications
-             WHERE reqt_id = \"%s\" """ % reqt_id
+             WHERE reqt_id = \"%s\" """ % reqt_id.lower()
     dbcon.row_factory = sqlite3.Row
     cur = dbcon.cursor()
     cur.execute(sql)
@@ -230,7 +257,7 @@ def write_yaml_dependencies(f, reqt_id):
     global dbcon
 
     sql = """SELECT dep_id reference FROM dependencies
-             WHERE reqt_id = \"%s\" """ % reqt_id
+             WHERE reqt_id = \"%s\" """ % reqt_id.lower()
     dbcon.row_factory = sqlite3.Row
     cur = dbcon.cursor()
     cur.execute(sql)
@@ -247,7 +274,7 @@ def write_yaml_implications(f, reqt_id):
     global dbcon
 
     sql = """SELECT impl_id reference FROM implications
-             WHERE reqt_id = \"%s\" """ % reqt_id
+             WHERE reqt_id = \"%s\" """ % reqt_id.lower()
     dbcon.row_factory = sqlite3.Row
     cur = dbcon.cursor()
     cur.execute(sql)
@@ -309,7 +336,7 @@ def write_yaml(f, reqt):
 def find_highest_revision(reqt):
     global dbcon
 
-    sql = """SELECT revision FROM reqts WHERE name = '%s'""" % reqt
+    sql = """SELECT revision FROM reqts WHERE name = '%s'""" % reqt.lower()
     dbcon.row_factory = sqlite3.Row
     cur = dbcon.cursor()
     cur.execute(sql)
@@ -339,7 +366,7 @@ def dump_reqts_yaml(dname):
 
     sql = """SELECT name, revision, type, class, level,
                     description, test, details, depends, implies,
-		    reference FROM reqts"""
+                    reference FROM reqts"""
     dbcon.row_factory = sqlite3.Row
     cur = dbcon.cursor()
     cur.execute(sql)

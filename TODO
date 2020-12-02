@@ -1,8 +1,5 @@
 TODO:
 -----
--- Verify that when depends/implies relationships are added, the reqts
-   already exist
-
 -- Provide a check function for spec YAML, not just reqt YAML
 
 -- Document spec YAML like reqt YAML
@@ -11,9 +8,18 @@ TODO:
 
 -- Add reqt status and revision info to the asciidoc text on output
 
+-- Print graph of reqts -> dependencies | implications, looking for
+   cycles (i.e., condition impossible to meet)
+
+
 DONE:
 -----
 -- When writing strings to the db (e.g., 'mandatory' or 'must') make sure
    to write a canonical value so searches work properly (i.e., we don't
    have to search for both keywords, just the canonical one) [v0.3.2]
+
+-- Add db commits for transactions [v0.3.2]
+
+-- Verify that when depends/implies relationships are added, the reqts
+   already exist [v0.3.2]
 
