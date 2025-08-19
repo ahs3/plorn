@@ -1,2 +1,4 @@
+.*.swp
 archive
 __pycache__
+plorn.log
