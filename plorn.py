@@ -42,7 +42,7 @@ class Plorn(Tk):
         blanks = "      "
         mheader = ttk.Label(self.mainframe, width=30, text=f"{blanks:^30}")
         mheader.grid(column=1, row=0)
-        value = f"version {plorn_config.version}"
+        value = f"version {plorn_config.version} "
         rheader = ttk.Label(self.mainframe, width=30, text=f"{value:>30}")
         rheader.grid(column=2, row=0, sticky=(E))
         sep1 = ttk.Separator(self.mainframe, orient=HORIZONTAL)
@@ -71,7 +71,6 @@ class Plorn(Tk):
         sep4.grid(column=0, row=5, columnspan=3, sticky=(W+E))
         b = ttk.Button(self.mainframe, text="Quit", command=self.destroy)
         b.grid(column=1, row=6)
-
 
     def startup(self):
         if self.is_new:
