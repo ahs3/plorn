@@ -61,6 +61,8 @@ class Plorn(Tk):
         self.settings = ttk.Frame(self.notebook, padding="5 5 5 5")
         self.settings["borderwidth"] = 2
         self.settings["relief"] = "groove"
+        self.settings.columnconfigure(0, weight=1)
+        self.settings.columnconfigure(1, weight=2)
         self.build_settings(self.settings)
         self.notebook.add(self.settings, text=" Settings ")
 
@@ -83,40 +85,24 @@ class Plorn(Tk):
         config = plorn_config.get_config()
         tfont = font.nametofont("TkDefaultFont")
 
-        label1 = ttk.Label(parent, width=30, text="User Name:")
-        label1.grid(column=0, row=0)
-        entry1 = ttk.Entry(parent, width=30, font=tfont)
-        entry1.insert(0, config.get_username())
-        entry1.grid(column=1, row=0)
-        entry1.configure(state="readonly")
+        items = [
+            ["User Name:",        0, config.get_username()],
+            ["Full Name:",        1, config.get_fullname()],
+            ["Config Directory:", 2, config.get_configdir()],
+            ["Data Directory:",   3, config.get_datadir()],
+            ["SQLite Database:",  4, config.get_dbname()],
+        ]
 
-        label2 = ttk.Label(parent, width=30, text="Full Name:")
-        label2.grid(column=0, row=1)
-        entry2 = ttk.Entry(parent, width=30, font=tfont)
-        entry2.insert(0, config.get_fullname())
-        entry2.grid(column=1, row=1)
-        entry2.configure(state="readonly")
-
-        label3 = ttk.Label(parent, width=30, text="Config Directory:")
-        label3.grid(column=0, row=2)
-        entry3 = ttk.Entry(parent, width=30, font=tfont)
-        entry3.insert(0, config.get_configdir())
-        entry3.grid(column=1, row=2)
-        entry3.configure(state="readonly")
-
-        label4 = ttk.Label(parent, width=30, text="Data Directory:")
-        label4.grid(column=0, row=3)
-        entry4 = ttk.Entry(parent, width=30, font=tfont)
-        entry4.insert(0, config.get_datadir())
-        entry4.grid(column=1, row=3)
-        entry4.configure(state="readonly")
-
-        label5 = ttk.Label(parent, width=30, text="SQLite database:")
-        label5.grid(column=0, row=4)
-        entry5 = ttk.Entry(parent, width=30, font=tfont)
-        entry5.insert(0, config.get_dbname())
-        entry5.grid(column=1, row=4)
-        entry5.configure(state="readonly")
+        num = 0
+        labels = {}
+        entries = {}
+        for label_text, row, value in items:
+            labels[row] = ttk.Label(parent, width=20, text=label_text)
+            labels[row].grid(column=0, row=row)
+            entries[row] = ttk.Entry(parent, width=30, font=tfont)
+            entries[row].insert(0, value)
+            entries[row].grid(column=1, row=row)
+            entries[row].configure(state="readonly")
 
 
 #-- set up logging
