@@ -1,4 +1,5 @@
 import logging
+import os
 
 from tkinter import *
 from tkinter import ttk
@@ -56,6 +57,8 @@ class Plorn(Tk):
         self.albums = ttk.Frame(self.notebook, padding="5 5 5 5")
         self.albums["borderwidth"] = 2
         self.albums["relief"] = "groove"
+        self.album_buttons = []
+        self.build_album_list(self.albums)
         self.notebook.add(self.albums, text=" Albums ")
 
         self.settings = ttk.Frame(self.notebook, padding="5 5 5 5")
@@ -80,6 +83,51 @@ class Plorn(Tk):
             window.grab_set()
         else:
             logger.debug("just idle for now")
+
+    def add_album(self):
+        pass
+
+    def remove_album(self):
+        pass
+
+    def album_info(self):
+        pass
+
+    def build_album_list(self, parent):
+        tfont = font.nametofont("TkDefaultFont")
+
+        parent.columnconfigure(0, weight=8)
+        parent.columnconfigure(1, weight=2)
+        parent.rowconfigure(0, weight=1)
+        parent.pack()
+
+        lframe = ttk.Frame(parent, padding=(5, 5, 5, 5))
+        lframe.grid(column=0, row=0)
+        rframe = ttk.Frame(parent, padding=(5, 5, 5, 5))
+        rframe.grid(column=1, row=0)
+
+        tview = ttk.Treeview(lframe,
+                             columns=("name", "photos"),
+                             select="browse")
+        tview.column("#0", anchor="w")
+        tview.heading("#0", text="Path")
+        tview.column("name", anchor="w")
+        tview.heading("name", text="Name")
+        tview.column("photos", anchor="center")
+        tview.heading("photos", text="Photos")
+        tview.grid(column=0, row=0)
+        scrollbar = ttk.Scrollbar(lframe, orient="vertical",
+                                  command=tview.yview)
+        scrollbar.grid(column=1, row=0)
+        tview.configure(xscrollcommand=scrollbar.set)
+
+        self.album_buttons = [
+            ttk.Button(rframe, text="add", command=self.add_album),
+            ttk.Button(rframe, text="remove", command=self.remove_album),
+            ttk.Button(rframe, text="info", command=self.album_info),
+        ]
+        for n in range(0, len(self.album_buttons)):
+            self.album_buttons[n].grid(column=0, row=n)
 
     def build_settings(self, parent):
         config = plorn_config.get_config()

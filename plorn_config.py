@@ -7,7 +7,7 @@ import sys
 
 import plorn_db
 
-version = "0.1.1"
+version = "0.2.0"
 config = None
 
 FONTSIZE = 16
