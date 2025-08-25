@@ -51,7 +51,7 @@ class PlornDb:
     def create_albums_table(self):
         global module_logger, config
 
-        table_desc = "albums(name, path, date, notes)"
+        table_desc = "albums(name, path, date, notes, photo_count)"
         self.cursor.execute("CREATE TABLE " + table_desc)
         rowid = self.cursor.lastrowid + 1
         sql = f"SELECT name FROM sqlite_master WHERE rowid = {rowid}"
@@ -65,10 +65,10 @@ class PlornDb:
         return res.fetchall() == None
 
     def add_album(self, album):
-        table_desc = "albums(name, path, date, notes)"
         sql = "INSERT INTO albums VALUES "
         sql += f"(\"{album.get_name()}\", \"{album.get_path()}\", "
-        sql += f"\"{album.get_dated()}\", \"{album.get_notes()}\")"
+        sql += f"\"{album.get_dated()}\", \"{album.get_notes()}\", "
+        sql += f"{album.get_photo_count()})"
         res = self.cursor.execute(sql)
         self.db.commit()
         return res.fetchall() == None
@@ -83,10 +83,11 @@ def open():
         config = get_config()
     module_logger.debug(f"config is \"{str(config)}\"")
 
-    if config.is_new():
+    if config.needs_db():
         module_logger.debug("need to create tables")
         current_db = PlornDb(get_dbname())
         current_db.create_tables()
+        config.db_done()
 
     elif current_db == None:
         module_logger.debug("open existing db")

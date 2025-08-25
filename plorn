@@ -14,11 +14,10 @@ import plorn_db
 
 #-- the application
 class Plorn(Tk):
-    def __init__(self, is_new):
+    def __init__(self):
         super().__init__()
         self.geometry("800x600")
         self.title("plorn")
-        self.is_new = is_new
         self.columnconfigure(0, weight=1)
         self.rowconfigure(0, weight=1)
         font.nametofont("TkDefaultFont").configure(size=FONTSIZE)
@@ -168,9 +167,8 @@ logger.setLevel(logging.DEBUG)
 #-- get the config file
 logger.debug("calling PlornConfig()")
 config = plorn_config.get_config()
-logger.debug(f"config is new? {config.is_new()}")
 
 if __name__ == "__main__":
-    plorn = Plorn(config.is_new())
+    plorn = Plorn()
     plorn.mainloop()
 

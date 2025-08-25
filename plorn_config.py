@@ -5,7 +5,7 @@ import os
 import pwd
 import sys
 
-version = "0.2.1"
+version = "0.2.2"
 config = None
 
 FONTSIZE = 16
@@ -57,7 +57,7 @@ class PlornConfig:
 
             module_logger.debug(f"creating {self.filename}")
             self.write_config()
-            self.new_config = True
+            self.make_db = True
 
         config = self.config
         module_logger.debug("config initialized")
@@ -84,8 +84,11 @@ class PlornConfig:
     def get_dbname(self):
         return self.config["plorn"]["dbname"]
 
-    def is_new(self):
-        return self.new_config
+    def needs_db(self):
+        return self.make_db
+
+    def db_done(self):
+        self.make_db = False
 
     def get_version(self):
         global version

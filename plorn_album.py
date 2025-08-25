@@ -12,12 +12,13 @@ module_logger = logging.getLogger("plorn.album")
 module_logger.setLevel(logging.INFO)
 
 class PlornAlbum:
-    def __init__(self, name, path, dated, notes, copy_choice):
+    def __init__(self, name, path, dated, notes, copy_choice, photo_count):
         self.name = name
         self.path = path
         self.dated = dated
         self.notes = notes
         self.copy_choice = copy_choice
+        self.photo_count = photo_count
 
         module_logger.debug("adding " + str(self))
 
@@ -54,12 +55,19 @@ class PlornAlbum:
     def make_link(self):
         return self.copy_choice == "link"
 
+    def set_photo_count(self, photo_count):
+        self.photo_count = photo_count
+
+    def get_photo_count(self):
+        return self.photo_count
+
     def __str__(self):
         val = f"name: \"{self.name}\""
         val += f", path: \"{self.path}\""
         val += f", dated: \"{self.dated}\""
         val += f", notes: \"{self.notes}\""
         val += f", copy_choice: \"{self.copy_choice}\""
+        val += f", photo_count: \"{self.photo_count}\""
         return val
 
 
@@ -135,6 +143,7 @@ class PlornAddAlbum(Toplevel):
         sep4 = ttk.Separator(self.frame, orient=HORIZONTAL)
         sep4.grid(column=0, row=9, columnspan=3, sticky=(W+E))
 
+        self.photo_count = 0
         self.badd = ttk.Button(self.frame, text="Add",
                                command=self.add_album)
         self.badd.grid(column=0, row=10)
@@ -151,11 +160,15 @@ class PlornAddAlbum(Toplevel):
 
     def add_album(self):
         module_logger.debug("entered add_album")
+
+        # need to figure out photo_count here ... and copy/link ...
+
         album = PlornAlbum(self.album_name.get(),
                            self.album_path.get(),
                            self.dated.get(),
                            self.notes.get("1.0", END),
                            self.copy_choice.get(),
+                           self.photo_count,
                           )
 
         db = plorn_db.open()
