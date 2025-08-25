@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import logging
 import os
 
@@ -5,9 +7,10 @@ from tkinter import *
 from tkinter import ttk
 from tkinter import font
 
+import plorn_album
 import plorn_config
 from plorn_config import FONTSIZE
-import plorn_startup
+import plorn_db
 
 #-- the application
 class Plorn(Tk):
@@ -19,6 +22,7 @@ class Plorn(Tk):
         self.columnconfigure(0, weight=1)
         self.rowconfigure(0, weight=1)
         font.nametofont("TkDefaultFont").configure(size=FONTSIZE)
+        self.db = plorn_db.open()
 
         #-- main frame for the application
         self.mainframe = ttk.Frame(self, padding="10 10 10 10")
@@ -77,15 +81,10 @@ class Plorn(Tk):
         b = ttk.Button(self.mainframe, text="Quit", command=self.destroy)
         b.grid(column=1, row=6)
 
-    def startup(self):
-        if self.is_new:
-            window = plorn_startup.PlornStartup(self)
-            window.grab_set()
-        else:
-            logger.debug("just idle for now")
-
     def add_album(self):
-        pass
+        logger.debug("adding album")
+        addone = plorn_album.PlornAddAlbum(self)
+        addone.grab_set()
 
     def remove_album(self):
         pass

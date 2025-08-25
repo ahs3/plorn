@@ -5,9 +5,7 @@ import os
 import pwd
 import sys
 
-import plorn_db
-
-version = "0.2.0"
+version = "0.2.1"
 config = None
 
 FONTSIZE = 16
@@ -60,7 +58,6 @@ class PlornConfig:
             module_logger.debug(f"creating {self.filename}")
             self.write_config()
             self.new_config = True
-            self.db = plorn_db.open()
 
         config = self.config
         module_logger.debug("config initialized")
@@ -94,12 +91,14 @@ class PlornConfig:
         global version
         return version
 
+    def __str__(self):
+        return self.filename
 
 def get_config():
     global config
 
     module_logger.debug("getting config")
-    if not config:
+    if config == None:
         config = PlornConfig()
     return config
 
