@@ -100,8 +100,11 @@ class Plorn(Tk):
         for ii in self.tview.get_children():
             self.tview.delete(ii)
         self.album_list.sort(key=lambda x: x["name"])
+        logger.debug(f"update to: {str(self.album_list)}")
         for ii in self.album_list:
-            self.tview.insert("", END, text=ii["name"], values=ii["values"])
+            self.tview.insert("", END,
+                              text=ii["name"],
+                              values=(ii["path"], ii["photo_count"]))
 
     def add_album(self):
         logger.debug("adding album")
@@ -123,10 +126,15 @@ class Plorn(Tk):
     def album_info(self):
         row = self.tview.focus()
         album = self.tview.item(row)
-        logger.debug(f"show album info for {album}")
-        showone = plorn_album.PlornShowAlbum(self, album["text"])
-        showone.grab_set()
-        self.wait_window(showone)
+        if album["text"] != "":
+            logger.debug(f"show album info for {album}")
+            showone = plorn_album.PlornShowAlbum(self, album["text"])
+            showone.grab_set()
+            self.wait_window(showone)
+        else:
+            messagebox.showerror(parent=self,
+                                 title="Select an Album",
+                                 detail="Please select an album to show")
 
     def open_album(self):
         messagebox.showinfo(message="open album photo list")
@@ -181,8 +189,9 @@ class Plorn(Tk):
             self.album_list.append(ii)
         self.album_list.sort(key=lambda x: x["name"])
         for ii in self.album_list:
-            logger.debug(f"name: {ii['name']}, values: {ii['values']}")
-            tview.insert("", END, text=ii["name"], values=ii["values"])
+            logger.debug(f"name: {ii}")
+            tview.insert("", END, text=ii["name"],
+                         values=(ii["path"], ii["photo_count"]))
         self.tview = tview
 
         self.album_buttons = [

@@ -17,12 +17,17 @@ def get_dbname():
     dbname = config.get_dbname()
     return os.path.join(dbpath, dbname)
 
+def dict_factory(cursor, row):
+    fields = [column[0] for column in cursor.description]
+    return {key: value for key, value in zip(fields, row)}
+
 class PlornDb:
     def __init__(self, dbname):
         global module_logger, config, current_db
 
         self.dbname = dbname
         self.db = sqlite3.connect(dbname)
+        self.db.row_factory = dict_factory
         self.cursor = self.db.cursor()
 
     def create_tables(self):
@@ -36,12 +41,22 @@ class PlornDb:
     def create_config_table(self):
         global module_logger, config
 
-        table_desc = "config(name, version, username, fullname, datadir)"
-        self.cursor.execute("CREATE TABLE " + table_desc)
+        sql_stmt = """
+            CREATE TABLE IF NOT EXISTS config (
+                name text NOT NULL,
+                version text,
+                username text,
+                fullname text,
+                datadir text
+            );
+        """
+        self.cursor.execute(sql_stmt)
+        self.db.commit()
         rowid = self.cursor.lastrowid + 1
         sql = f"SELECT name FROM sqlite_master WHERE rowid = {rowid}"
         res = self.cursor.execute(sql)
-        module_logger.debug("added table: " + str(res.fetchone()))
+        row = res.fetchone()
+        module_logger.debug("added table: " + str(row))
 
         sql = "INSERT INTO config VALUES (\"plorn\", "
         sql += f"\"{config.get_version()}\", \"{config.get_username()}\", "
@@ -52,23 +67,49 @@ class PlornDb:
     def create_albums_table(self):
         global module_logger, config
 
-        table_desc = "albums(name, path, date, notes, photo_count)"
-        self.cursor.execute("CREATE TABLE " + table_desc)
+        sql_stmt = """
+            CREATE TABLE IF NOT EXISTS albums (
+                id INTEGER PRIMARY KEY,
+                name text NOT NULL,
+                path text NOT NULL,
+                dated text,
+                notes text,
+                photo_count INT
+            );
+        """
+        self.cursor.execute(sql_stmt)
+        self.db.commit()
         rowid = self.cursor.lastrowid + 1
         sql = f"SELECT name FROM sqlite_master WHERE rowid = {rowid}"
         res = self.cursor.execute(sql)
-        module_logger.debug("added table: " + str(res.fetchone()))
+        row = res.fetchone()
+        module_logger.debug("added table: " + str(row))
         self.db.commit()
 
     def create_photos_table(self):
         global module_logger, config
 
-        table_desc = "photos(name, path, date, notes)"
-        self.cursor.execute("CREATE TABLE " + table_desc)
-        rowid = self.cursor.lastrowid + 1
+        sql_stmt = """
+            CREATE TABLE IF NOT EXISTS photos (
+                id INTEGER PRIMARY KEY,
+                album_id INT NOT NULL,
+                name TEXT NOT NULL,
+                path TEXT NOT NULL,
+                dated TEXT,
+                notes TEXT,
+                FOREIGN KEY (album_id)
+                REFERENCES albums (id)
+                    ON DELETE CASCADE
+                    ON UPDATE CASCADE
+            );
+        """
+        self.cursor.execute(sql_stmt)
+        self.db.commit()
+        rowid = self.cursor.lastrowid + 2
         sql = f"SELECT name FROM sqlite_master WHERE rowid = {rowid}"
         res = self.cursor.execute(sql)
-        module_logger.debug("added table: " + str(res.fetchone()))
+        row = res.fetchone()
+        module_logger.debug("added table: " + str(row))
         self.db.commit()
 
     def album_exists(self, album):
@@ -77,7 +118,7 @@ class PlornDb:
         return res.fetchall() == None
 
     def add_album(self, album):
-        sql = "INSERT INTO albums VALUES "
+        sql = "INSERT INTO albums (name,path,dated,notes,photo_count) VALUES "
         sql += f"(\"{album.get_name()}\", \"{album.get_path()}\", "
         sql += f"\"{album.get_dated()}\", \"{album.get_notes()}\", "
         sql += f"{album.get_photo_count()})"
@@ -102,12 +143,9 @@ class PlornDb:
     def get_albums(self):
         sql = f"SELECT name, path, photo_count FROM albums"
         res = self.cursor.execute(sql)
-        vals = []
-        for ii in res.fetchall():
-            d = {"name": ii[0], "values": ii[1:]}
-            vals.append(d)
-        module_logger.debug(str(vals))
-        return vals
+        rows = res.fetchall()
+        module_logger.debug(f"get_albums: {rows}")
+        return rows
 
     def album_count(self):
         sql = f"SELECT name FROM albums"

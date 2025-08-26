@@ -13,6 +13,7 @@ module_logger.setLevel(logging.DEBUG)
 
 class PlornAlbum:
     def __init__(self, name, path, dated, notes, copy_choice, photo_count):
+        self.id = None
         self.name = name
         self.path = path
         self.dated = dated
@@ -21,6 +22,12 @@ class PlornAlbum:
         self.photo_count = photo_count
 
         module_logger.debug("adding " + str(self))
+
+    def set_id(self, id):
+        self.id = id
+
+    def get_id(self):
+        return self.id
 
     def set_name(self, name):
         self.name = name
@@ -158,11 +165,11 @@ class PlornAddAlbum(Toplevel):
         self.bcancel.grid(column=2, row=10)
 
     def get_dirname(self):
-        self.album_path = filedialog.askdirectory(parent=self,
-                                       title="Select a Directory",
-                                       mustexist=True)
-        if self.album_path:
-            self.path_entry.insert(0, self.album_path)
+        self.path = filedialog.askdirectory(parent=self,
+                                            title="Select a Directory",
+                                            mustexist=True)
+        if self.path:
+            self.path_entry.insert(0, self.path)
 
     def add_album(self):
         global last_album
@@ -186,7 +193,11 @@ class PlornAddAlbum(Toplevel):
             messagebox.showinfo(message="Album already exists", parent=self)
         else:
             self.album_list.append({"name": self.name,
-                                    "values": (self.path, self.photo_count)})
+                                    "path": self.path,
+                                    "dated": self.dated.get(),
+                                    "notes": self.notes.get("1.0", END),
+                                    "photo_count": self.photo_count}
+                                   )
             db.add_album(album)
             msg = f"Adding Album \"{self.album_name.get()}\""
             messagebox.showinfo(message=msg, parent=self)
@@ -194,12 +205,12 @@ class PlornAddAlbum(Toplevel):
 def retrieve_album_record(name):
     db = plorn_db.open()
     record = db.get_album_by_name(name)
-    return PlornAlbum(record[0],            # name
-                      record[1],            # path
-                      record[2],            # dated
-                      record[3],            # notes
-                      None,                 # copy_choice
-                      record[4],            # photo count
+    return PlornAlbum(record["name"],
+                      record["path"],
+                      record["dated"],
+                      record["notes"],
+                      None,                     # copy_choice
+                      record["photo_count"],
                      )
 
 def delete_album_by_name(name):
