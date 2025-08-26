@@ -5,7 +5,7 @@ import os
 import pwd
 import sys
 
-version = "0.2.2"
+version = "0.3.1"
 config = None
 
 FONTSIZE = 16
@@ -18,7 +18,7 @@ class PlornConfig:
     def __init__(self):
         global module_logger, config
 
-        self.new_config = False
+        self.make_db = False
         module_logger.debug("looking for config file")
         config_home=os.path.join(os.environ["HOME"], ".config", "plorn")
         data_home=os.path.join(os.environ["HOME"], ".local", "share", "plorn")

@@ -9,7 +9,7 @@ from tkinter import messagebox
 import plorn_db
 
 module_logger = logging.getLogger("plorn.album")
-module_logger.setLevel(logging.INFO)
+module_logger.setLevel(logging.DEBUG)
 
 class PlornAlbum:
     def __init__(self, name, path, dated, notes, copy_choice, photo_count):
@@ -72,10 +72,13 @@ class PlornAlbum:
 
 
 class PlornAddAlbum(Toplevel):
-    def __init__(self, parent):
+    def __init__(self, parent, album_list):
         super().__init__(parent)
         module_logger.debug("started PlornAddAlbum")
         tfont = font.nametofont("TkDefaultFont")
+        self.name = ""
+        self.path = ""
+        self.album_list = album_list
 
         self.geometry("800x600")
         self.title("Add an Album")
@@ -147,6 +150,9 @@ class PlornAddAlbum(Toplevel):
         self.badd = ttk.Button(self.frame, text="Add",
                                command=self.add_album)
         self.badd.grid(column=0, row=10)
+        self.bdone = ttk.Button(self.frame, text="Done",
+                               command=self.destroy)
+        self.bdone.grid(column=1, row=10)
         self.bcancel = ttk.Button(self.frame, text="Cancel",
                                   command=self.destroy)
         self.bcancel.grid(column=2, row=10)
@@ -159,10 +165,14 @@ class PlornAddAlbum(Toplevel):
             self.path_entry.insert(0, self.album_path)
 
     def add_album(self):
+        global last_album
+
         module_logger.debug("entered add_album")
 
         # need to figure out photo_count here ... and copy/link ...
-
+        self.name = self.album_name.get()
+        self.path = self.album_path.get()
+        module_logger.debug(f"name: {self.name}, path: {self.path}")
         album = PlornAlbum(self.album_name.get(),
                            self.album_path.get(),
                            self.dated.get(),
@@ -175,7 +185,180 @@ class PlornAddAlbum(Toplevel):
         if db.album_exists(album):
             messagebox.showinfo(message="Album already exists")
         else:
+            self.album_list.append({"name": self.name,
+                                    "values": (self.path, self.photo_count)})
             db.add_album(album)
             msg = f"Adding Album \"{self.album_name.get()}\""
             messagebox.showinfo(message=msg)
+
+def retrieve_album_record(name):
+    db = plorn_db.open()
+    record = db.get_album_by_name(name)
+    return PlornAlbum(record[0],            # name
+                      record[1],            # path
+                      record[2],            # dated
+                      record[3],            # notes
+                      None,                 # copy_choice
+                      record[4],            # photo count
+                     )
+
+def delete_album_by_name(name):
+    db = plorn_db.open()
+    db.remove_album_by_name(name)
+    return
+
+class PlornShowAlbum(Toplevel):
+    def __init__(self, parent, album_name):
+        super().__init__(parent)
+        module_logger.debug("started PlornShowAlbum")
+        tfont = font.nametofont("TkDefaultFont")
+        album = retrieve_album_record(album_name)
+
+        self.geometry("800x600")
+        self.title("Album Info")
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(0, weight=1)
+        self.frame = ttk.Frame(self, padding="10 10 10 10")
+        self.frame.grid(column=0, row=0, sticky=(N, W, E, S))
+        for ii in range(0,8):
+            self.frame.rowconfigure(ii, weight=1)
+
+        lab1 = ttk.Label(self.frame, width=10, text="Name:")
+        lab1.grid(column=0, row=0, sticky=(W))
+        self.album_name = StringVar(self.frame)
+        self.album_name.set(album.get_name())
+        self.album_entry = ttk.Entry(self.frame, width=40,
+                                     textvariable=self.album_name,
+                                     font=tfont, state="readonly")
+        self.album_entry.grid(column=1, row=0, sticky=(W))
+        self.album_entry.focus_set()
+
+        lab2 = ttk.Label(self.frame, width=10, text="Path:")
+        lab2.grid(column=0, row=1, sticky=(W))
+        self.album_path = StringVar(self.frame)
+        self.album_path.set(album.get_path())
+        self.path_entry = ttk.Entry(self.frame, width=40,
+                                    textvariable=self.album_path,
+                                    font=tfont, state="readonly")
+        self.path_entry.grid(column=1, row=1, sticky=(W))
+
+        lab3 = ttk.Label(self.frame, width=10, text="Dated:")
+        lab3.grid(column=0, row=2, sticky=(W))
+        self.dated = StringVar(self.frame)
+        self.dated.set(album.get_dated())
+        self.date_entry = ttk.Entry(self.frame, width=40,
+                                    textvariable=self.dated,
+                                    font=tfont, state="readonly")
+        self.date_entry.grid(column=1, row=2, sticky=(W))
+
+        lab4 = ttk.Label(self.frame, width=10, text="Notes:")
+        lab4.grid(column=0, row=3, sticky=(N, W))
+        self.notes = Text(self.frame, height=10, width=40, font=tfont)
+        self.notes.insert("1.0", album.get_notes())
+        self.notes.configure(state="disabled")
+        module_logger.debug(f"notes: {album.get_notes()}")
+        self.notes.grid(column=1, row=3, sticky=(N, W, E, S))
+
+        lab5 = ttk.Label(self.frame, width=10, text="Photos:")
+        lab5.grid(column=0, row=4, sticky=(N, W))
+        self.photo_count = StringVar(self.frame)
+        self.photo_count.set(album.get_photo_count())
+        self.photos = ttk.Entry(self.frame, width=40,
+                                textvariable=self.photo_count,
+                                font=tfont, state="readonly")
+        self.photos.grid(column=1, row=4, sticky=(W))
+
+        sep1 = ttk.Separator(self.frame, orient=HORIZONTAL)
+        sep1.grid(column=0, row=5, columnspan=3, sticky=(W+E))
+        sep2 = ttk.Separator(self.frame, orient=HORIZONTAL)
+        sep2.grid(column=0, row=6, columnspan=3, sticky=(W+E))
+
+        self.bdone = ttk.Button(self.frame, text="Done",
+                               command=self.destroy)
+        self.bdone.grid(column=1, row=7)
+
+
+class PlornRemoveAlbum(Toplevel):
+    def __init__(self, parent, album_name, album_list):
+        super().__init__(parent)
+        module_logger.debug("started PlornRemoveAlbum")
+        tfont = font.nametofont("TkDefaultFont")
+        album = retrieve_album_record(album_name)
+
+        self.geometry("800x600")
+        self.title("Album to Remove")
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(0, weight=1)
+        self.frame = ttk.Frame(self, padding="10 10 10 10")
+        self.frame.grid(column=0, row=0, sticky=(N, W, E, S))
+        for ii in range(0,8):
+            self.frame.rowconfigure(ii, weight=1)
+
+        lab1 = ttk.Label(self.frame, width=10, text="Name:")
+        lab1.grid(column=0, row=0, sticky=(W))
+        self.album_name = StringVar(self.frame)
+        self.album_name.set(album.get_name())
+        self.album_entry = ttk.Entry(self.frame, width=40,
+                                     textvariable=self.album_name,
+                                     font=tfont, state="readonly")
+        self.album_entry.grid(column=1, row=0, sticky=(W))
+        self.album_entry.focus_set()
+
+        lab2 = ttk.Label(self.frame, width=10, text="Path:")
+        lab2.grid(column=0, row=1, sticky=(W))
+        self.album_path = StringVar(self.frame)
+        self.album_path.set(album.get_path())
+        self.path_entry = ttk.Entry(self.frame, width=40,
+                                    textvariable=self.album_path,
+                                    font=tfont, state="readonly")
+        self.path_entry.grid(column=1, row=1, sticky=(W))
+
+        lab3 = ttk.Label(self.frame, width=10, text="Dated:")
+        lab3.grid(column=0, row=2, sticky=(W))
+        self.dated = StringVar(self.frame)
+        self.dated.set(album.get_dated())
+        self.date_entry = ttk.Entry(self.frame, width=40,
+                                    textvariable=self.dated,
+                                    font=tfont, state="readonly")
+        self.date_entry.grid(column=1, row=2, sticky=(W))
+
+        lab4 = ttk.Label(self.frame, width=10, text="Notes:")
+        lab4.grid(column=0, row=3, sticky=(N, W))
+        self.notes = Text(self.frame, height=10, width=40, font=tfont)
+        self.notes.insert("1.0", album.get_notes())
+        self.notes.configure(state="disabled")
+        module_logger.debug(f"notes: {album.get_notes()}")
+        self.notes.grid(column=1, row=3, sticky=(N, W, E, S))
+
+        lab5 = ttk.Label(self.frame, width=10, text="Photos:")
+        lab5.grid(column=0, row=4, sticky=(N, W))
+        self.photo_count = StringVar(self.frame)
+        self.photo_count.set(album.get_photo_count())
+        self.photos = ttk.Entry(self.frame, width=40,
+                                textvariable=self.photo_count,
+                                font=tfont, state="readonly")
+        self.photos.grid(column=1, row=4, sticky=(W))
+
+        sep1 = ttk.Separator(self.frame, orient=HORIZONTAL)
+        sep1.grid(column=0, row=5, columnspan=3, sticky=(W+E))
+        sep2 = ttk.Separator(self.frame, orient=HORIZONTAL)
+        sep2.grid(column=0, row=6, columnspan=3, sticky=(W+E))
+
+        self.bdone = ttk.Button(self.frame, text="Done",
+                               command=self.destroy)
+        self.bdone.grid(column=1, row=7)
+
+        result = messagebox.askyesnocancel("Confirm Removal",
+                    f"Remove album {album_name}?")
+        if result is True:
+            idx = 0
+            for ii in album_list:
+                if ii["name"] == album_name:
+                    break
+                else:
+                    idx += 1
+            delete_album_by_name(album_name)
+            album_list.pop(idx)
+        else:
+            self.destroy()
 

@@ -2,10 +2,12 @@
 
 import logging
 import os
+import time
 
 from tkinter import *
 from tkinter import ttk
 from tkinter import font
+from tkinter import messagebox
 
 import plorn_album
 import plorn_config
@@ -22,6 +24,11 @@ class Plorn(Tk):
         self.rowconfigure(0, weight=1)
         font.nametofont("TkDefaultFont").configure(size=FONTSIZE)
         self.db = plorn_db.open()
+        self.tview = None
+        self.album_list = []
+
+        #-- create these as placeholders
+        self.tview = None
 
         #-- main frame for the application
         self.mainframe = ttk.Frame(self, padding="10 10 10 10")
@@ -33,11 +40,12 @@ class Plorn(Tk):
         self.mainframe.columnconfigure(2, weight=1)
         self.mainframe.rowconfigure(0, weight=10)
         self.mainframe.rowconfigure(1, weight=1)
-        self.mainframe.rowconfigure(1, weight=1)
         self.mainframe.rowconfigure(2, weight=1)
-        self.mainframe.rowconfigure(2, weight=1)
-        self.mainframe.rowconfigure(3, weight=80)
-        self.mainframe.rowconfigure(6, weight=10)
+        self.mainframe.rowconfigure(3, weight=30)
+        self.mainframe.rowconfigure(4, weight=1)
+        self.mainframe.rowconfigure(5, weight=1)
+        self.mainframe.rowconfigure(6, weight=1)
+        self.mainframe.rowconfigure(7, weight=10)
 
         label_text = "plorn: photo catalog"
         lheader = ttk.Label(self.mainframe, width=30,
@@ -75,21 +83,56 @@ class Plorn(Tk):
         #-- and an exit button ....
         sep3 = ttk.Separator(self.mainframe, orient=HORIZONTAL)
         sep3.grid(column=0, row=4, columnspan=3, sticky=(W+E))
+
+        album_count_label = ttk.Label(self.mainframe, width=16,
+                                      text=f"Albums: {self.db.album_count()}")
+        album_count_label.grid(column=0, row=5, sticky=(W))
+        photo_count_label = ttk.Label(self.mainframe, width=16,
+                                      text=f"Photos: {self.db.photo_count()}")
+        photo_count_label.grid(column=1, row=5, sticky=(W))
+
         sep4 = ttk.Separator(self.mainframe, orient=HORIZONTAL)
-        sep4.grid(column=0, row=5, columnspan=3, sticky=(W+E))
+        sep4.grid(column=0, row=6, columnspan=3, sticky=(W+E))
         b = ttk.Button(self.mainframe, text="Quit", command=self.destroy)
-        b.grid(column=1, row=6)
+        b.grid(column=1, row=7)
+
+    def update_treeview(self):
+        for ii in self.tview.get_children():
+            self.tview.delete(ii)
+        self.album_list.sort(key=lambda x: x["name"])
+        for ii in self.album_list:
+            self.tview.insert("", END, text=ii["name"], values=ii["values"])
 
     def add_album(self):
         logger.debug("adding album")
-        addone = plorn_album.PlornAddAlbum(self)
+        addone = plorn_album.PlornAddAlbum(self, self.album_list)
         addone.grab_set()
+        self.wait_window(addone)
+        self.update_treeview()
 
     def remove_album(self):
-        pass
+        row = self.tview.focus()
+        album = self.tview.item(row)
+        logger.debug(f"remove album {album}")
+        rmone = plorn_album.PlornRemoveAlbum(self, album["text"],
+                                             self.album_list)
+        rmone.grab_set()
+        self.wait_window(rmone)
+        self.update_treeview()
 
     def album_info(self):
-        pass
+        row = self.tview.focus()
+        album = self.tview.item(row)
+        logger.debug(f"show album info for {album}")
+        showone = plorn_album.PlornShowAlbum(self, album["text"])
+        showone.grab_set()
+        self.wait_window(showone)
+
+    def open_album(self):
+        messagebox.showinfo(message="open album photo list")
+
+    def edit_album(self):
+        messagebox.showinfo(message="edit album")
 
     def build_album_list(self, parent):
         tfont = font.nametofont("TkDefaultFont")
@@ -104,25 +147,50 @@ class Plorn(Tk):
         rframe = ttk.Frame(parent, padding=(5, 5, 5, 5))
         rframe.grid(column=1, row=0)
 
+        style = ttk.Style()
+        style.layout("plorn.Treeview",
+            [("Treeview.field", {"sticky": "NWES", "border": 1, "children": [
+                ("Treeview.padding", {"sticky": "NWES", "children": [
+                    ("Treeview.treearea", {"sticky": "NWES"})
+                    ]})
+                ]})
+            ])
+        style.configure("plorn.Treeview",
+                        font=("TkDefaultFont", FONTSIZE),
+                        rowheight=30,
+                       )
+        style.configure("plorn.Treeview.Heading",
+                        font=("TkDefaultFont", FONTSIZE))
         tview = ttk.Treeview(lframe,
-                             columns=("name", "photos"),
-                             select="browse")
+                             columns=("path", "photos"),
+                             selectmode="browse",
+                             style="plorn.Treeview")
         tview.column("#0", anchor="w")
-        tview.heading("#0", text="Path")
-        tview.column("name", anchor="w")
-        tview.heading("name", text="Name")
+        tview.heading("#0", text="Name")
+        tview.column("path", anchor="w")
+        tview.heading("path", text="Path")
         tview.column("photos", anchor="center")
-        tview.heading("photos", text="Photos")
+        tview.heading("photos", text="Photo Count")
         tview.grid(column=0, row=0)
         scrollbar = ttk.Scrollbar(lframe, orient="vertical",
-                                  command=tview.yview)
+                                  command=tview.xview)
         scrollbar.grid(column=1, row=0)
         tview.configure(xscrollcommand=scrollbar.set)
 
+        for ii in self.db.get_albums():
+            self.album_list.append(ii)
+        self.album_list.sort(key=lambda x: x["name"])
+        for ii in self.album_list:
+            logger.debug(f"name: {ii['name']}, values: {ii['values']}")
+            tview.insert("", END, text=ii["name"], values=ii["values"])
+        self.tview = tview
+
         self.album_buttons = [
+            ttk.Button(rframe, text="open", command=self.open_album),
+            ttk.Button(rframe, text="info", command=self.album_info),
             ttk.Button(rframe, text="add", command=self.add_album),
             ttk.Button(rframe, text="remove", command=self.remove_album),
-            ttk.Button(rframe, text="info", command=self.album_info),
+            ttk.Button(rframe, text="edit", command=self.edit_album),
         ]
         for n in range(0, len(self.album_buttons)):
             self.album_buttons[n].grid(column=0, row=n)

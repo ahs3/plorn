@@ -31,6 +31,7 @@ class PlornDb:
         module_logger.debug("called create_tables")
         self.create_config_table()
         self.create_albums_table()
+        self.create_photos_table()
 
     def create_config_table(self):
         global module_logger, config
@@ -59,6 +60,17 @@ class PlornDb:
         module_logger.debug("added table: " + str(res.fetchone()))
         self.db.commit()
 
+    def create_photos_table(self):
+        global module_logger, config
+
+        table_desc = "photos(name, path, date, notes)"
+        self.cursor.execute("CREATE TABLE " + table_desc)
+        rowid = self.cursor.lastrowid + 1
+        sql = f"SELECT name FROM sqlite_master WHERE rowid = {rowid}"
+        res = self.cursor.execute(sql)
+        module_logger.debug("added table: " + str(res.fetchone()))
+        self.db.commit()
+
     def album_exists(self, album):
         sql = f"SELECT * FROM albums WHERE name = \"{album.get_name()}\""
         res = self.cursor.execute(sql)
@@ -72,6 +84,40 @@ class PlornDb:
         res = self.cursor.execute(sql)
         self.db.commit()
         return res.fetchall() == None
+
+    def get_album_by_name(self, album_name):
+        sql = f"SELECT * FROM albums WHERE name = \"{album_name}\""
+        res = self.cursor.execute(sql)
+        vals = res.fetchone()
+        module_logger.debug(f"got by name: {str(vals)}")
+        return vals
+
+    def remove_album_by_name(self, album_name):
+        sql = f"DELETE FROM albums WHERE name = \"{album_name}\""
+        res = self.cursor.execute(sql)
+        self.db.commit()
+        module_logger.debug(f"removed by name: {album_name}")
+        return 
+
+    def get_albums(self):
+        sql = f"SELECT name, path, photo_count FROM albums"
+        res = self.cursor.execute(sql)
+        vals = []
+        for ii in res.fetchall():
+            d = {"name": ii[0], "values": ii[1:]}
+            vals.append(d)
+        module_logger.debug(str(vals))
+        return vals
+
+    def album_count(self):
+        sql = f"SELECT name FROM albums"
+        res = self.cursor.execute(sql)
+        return len(res.fetchall())
+
+    def photo_count(self):
+        sql = f"SELECT name FROM photos"
+        res = self.cursor.execute(sql)
+        return len(res.fetchall())
 
 
 def open():
