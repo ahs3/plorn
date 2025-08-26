@@ -183,13 +183,13 @@ class PlornAddAlbum(Toplevel):
 
         db = plorn_db.open()
         if db.album_exists(album):
-            messagebox.showinfo(message="Album already exists")
+            messagebox.showinfo(message="Album already exists", parent=self)
         else:
             self.album_list.append({"name": self.name,
                                     "values": (self.path, self.photo_count)})
             db.add_album(album)
             msg = f"Adding Album \"{self.album_name.get()}\""
-            messagebox.showinfo(message=msg)
+            messagebox.showinfo(message=msg, parent=self)
 
 def retrieve_album_record(name):
     db = plorn_db.open()
@@ -284,6 +284,7 @@ class PlornRemoveAlbum(Toplevel):
         module_logger.debug("started PlornRemoveAlbum")
         tfont = font.nametofont("TkDefaultFont")
         album = retrieve_album_record(album_name)
+        self.album_list = album_list
 
         self.geometry("800x600")
         self.title("Album to Remove")
@@ -344,21 +345,28 @@ class PlornRemoveAlbum(Toplevel):
         sep2 = ttk.Separator(self.frame, orient=HORIZONTAL)
         sep2.grid(column=0, row=6, columnspan=3, sticky=(W+E))
 
-        self.bdone = ttk.Button(self.frame, text="Done",
-                               command=self.destroy)
-        self.bdone.grid(column=1, row=7)
+        self.do_remove = ttk.Button(self.frame, text="Remove",
+                                    command=self.confirm_remove)
+        self.do_remove.grid(column=1, row=7, sticky=(E))
+        self.cancel = ttk.Button(self.frame, text="Cancel",
+                                 command=self.destroy)
+        self.cancel.grid(column=2, row=7, sticky=(W))
 
+    def confirm_remove(self):
+        album_name = self.album_name.get()
         result = messagebox.askyesnocancel("Confirm Removal",
-                    f"Remove album {album_name}?")
+                    message=f"Remove album {album_name}?",
+                    detail="Only removes the catalog entry, not the files.",
+                    parent=self,
+                 )
         if result is True:
             idx = 0
-            for ii in album_list:
+            for ii in self.album_list:
                 if ii["name"] == album_name:
                     break
                 else:
                     idx += 1
             delete_album_by_name(album_name)
-            album_list.pop(idx)
-        else:
+            self.album_list.pop(idx)
             self.destroy()
 
