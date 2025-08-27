@@ -13,8 +13,8 @@ module_logger = logging.getLogger("plorn.album")
 module_logger.setLevel(logging.DEBUG)
 
 class PlornAlbum:
-    def __init__(self, name, path, dated, notes, photo_count):
-        self.id = None
+    def __init__(self, name, path, id=None, dated="", notes="", photo_count=0):
+        self.id = id
         self.name = name
         self.path = path
         self.dated = dated
@@ -22,6 +22,11 @@ class PlornAlbum:
         self.photo_count = photo_count
 
         module_logger.debug("adding " + str(self))
+
+    def __copy__(self):
+        return PlornAlbum(self.name, self.path, id=self.id,
+                          dated=self.dated, notes=self.notes,
+                          photo_count=self.photo_count)
 
     def set_id(self, id):
         self.id = id
@@ -146,16 +151,15 @@ class PlornAddAlbum(Toplevel):
         global last_album
 
         module_logger.debug("entered add_album")
-
-        # need to figure out photo_count here ... 
         self.name = self.album_name.get()
         self.path = self.album_path.get()
         module_logger.debug(f"name: {self.name}, path: {self.path}")
         album = PlornAlbum(self.album_name.get(),
                            self.album_path.get(),
-                           self.dated.get(),
-                           self.notes.get("1.0", END),
-                           self.photo_count,
+                           id=None,
+                           dated=self.dated.get(),
+                           notes=self.notes.get("1.0", END),
+                           photo_count=self.photo_count,
                           )
 
         db = plorn_db.open()
@@ -174,7 +178,8 @@ class PlornAddAlbum(Toplevel):
                                         "notes": self.notes.get("1.0", END),
                                         "photo_count": self.photo_count}
                                       )
-                db.add_album(album)
+                id = db.add_album(album)
+                album.set_id(id)
                 msg = f"Adding Album \"{self.album_name.get()}\""
                 messagebox.showinfo(message=msg, parent=self)
             else:
@@ -189,9 +194,10 @@ def retrieve_album_record(name):
     record = db.get_album_by_name(name)
     return PlornAlbum(record["name"],
                       record["path"],
-                      record["dated"],
-                      record["notes"],
-                      record["photo_count"],
+                      id=record["id"],
+                      dated=record["dated"],
+                      notes=record["notes"],
+                      photo_count=record["photo_count"],
                      )
 
 def delete_album_by_name(name):
@@ -454,12 +460,7 @@ class PlornEditAlbum(Toplevel):
                                     )
             return
 
-        album_copy = PlornAlbum(self.album.get_name(),
-                                self.album.get_path(),
-                                self.album.get_dated(),
-                                self.album.get_notes(),
-                                self.album.get_photo_count(),
-                               )
+        album_copy = self.album.copy()
         db = plorn_db.open()
         if db.album_exists(album_copy):
             messagebox.showerror(parent=self,
@@ -470,11 +471,12 @@ class PlornEditAlbum(Toplevel):
             return
 
         album_copy.set_name(self.album_name.get())
+        album_copy.set_name(self.album_name.get())
         album_copy.set_path(self.album_path.get())
         album_copy.set_dated(self.dated.get())
         album_copy.set_notes(self.notes.get("1.0", END))
         album_copy.set_photo_count(self.photo_count.get())
-        db.update_album(self.album, album_copy)
+        id = db.update_album(self.album, album_copy)
 
         msg = f"Updated Album \"{self.album_name.get()}\""
         messagebox.showinfo(message=msg, parent=self)
@@ -485,7 +487,8 @@ class PlornEditAlbum(Toplevel):
             else:
                 idx += 1
         self.album_list.pop(idx)
-        self.album_list.append({"name": album_copy.get_name(),
+        self.album_list.append({"id": album_copy.get_id(),
+                                "name": album_copy.get_name(),
                                 "path": album_copy.get_path(),
                                 "dated": album_copy.get_dated(),
                                 "notes": album_copy.get_notes(),

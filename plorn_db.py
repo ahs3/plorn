@@ -124,14 +124,18 @@ class PlornDb:
         sql += f"{album.get_photo_count()})"
         res = self.cursor.execute(sql)
         self.db.commit()
-        return res.fetchall() == None
+        sql = f"SELECT id FROM albums WHERE name = \"{album.get_name()}\""
+        res = self.cursor.execute(sql)
+        row = res.fetchone()
+        module_logger.debug(f"added album {str(row)}")
+        return row["id"]
 
     def get_album_by_name(self, album_name):
         sql = f"SELECT * FROM albums WHERE name = \"{album_name}\""
         res = self.cursor.execute(sql)
-        vals = res.fetchone()
-        module_logger.debug(f"got by name: {str(vals)}")
-        return vals
+        row = res.fetchone()
+        module_logger.debug(f"got by name: {str(row)}")
+        return row
 
     def remove_album_by_name(self, album_name):
         sql = f"DELETE FROM albums WHERE name = \"{album_name}\""
@@ -141,19 +145,19 @@ class PlornDb:
         return 
 
     def get_albums(self):
-        sql = f"SELECT name, path, photo_count FROM albums"
+        sql = f"SELECT id, name, path, photo_count FROM albums"
         res = self.cursor.execute(sql)
         rows = res.fetchall()
         module_logger.debug(f"get_albums: {rows}")
         return rows
 
     def album_count(self):
-        sql = f"SELECT name FROM albums"
+        sql = f"SELECT id FROM albums"
         res = self.cursor.execute(sql)
         return len(res.fetchall())
 
     def photo_count(self):
-        sql = f"SELECT name FROM photos"
+        sql = f"SELECT id FROM photos"
         res = self.cursor.execute(sql)
         return len(res.fetchall())
 
@@ -166,10 +170,16 @@ class PlornDb:
         sql += f" photo_count = \"{updated_album.get_photo_count()}\""
         sql += f" WHERE name = \"{album.get_name()}\""
         res = self.cursor.execute(sql)
+        self.db.commit()
+
+        sql  = "SELECT id FROM albums"
+        sql += f" WHERE name = \"{updated_album.get_name()}\""
+        res = self.cursor.execute(sql)
+        row = res.fetchone()
         msg = f"updated album: from {album.get_name()}"
-        msg += f" to {updated_album.get_name()}"
+        msg += f" to {row["id"]}"
         module_logger.debug(msg)
-        return
+        return row["id"]
 
 
 def open():

@@ -109,8 +109,9 @@ class Plorn(Tk):
         logger.debug(f"update to: {str(self.album_list)}")
         for ii in self.album_list:
             self.tview.insert("", END,
-                              text=ii["name"],
-                              values=(ii["path"], ii["photo_count"]))
+                              text=ii["id"],
+                              values=(ii["name"], ii["path"],
+                                      ii["photo_count"]))
         self.album_count.set(f"Albums: {self.db.album_count()}")
         self.photo_count.set(f"Photos: {self.db.photo_count()}")
 
@@ -124,8 +125,9 @@ class Plorn(Tk):
     def remove_album(self):
         row = self.tview.focus()
         album = self.tview.item(row)
+        album_name = album["values"][0]
         logger.debug(f"remove album {album}")
-        rmone = plorn_album.PlornRemoveAlbum(self, album["text"],
+        rmone = plorn_album.PlornRemoveAlbum(self, album_name,
                                              self.album_list)
         rmone.grab_set()
         self.wait_window(rmone)
@@ -134,9 +136,11 @@ class Plorn(Tk):
     def album_info(self):
         row = self.tview.focus()
         album = self.tview.item(row)
-        if album["text"] != "":
+        logger.debug(f"show album: {str(album)}")
+        album_name = album["values"][0]
+        if album_name != "":
             logger.debug(f"show album info for {album}")
-            showone = plorn_album.PlornShowAlbum(self, album["text"])
+            showone = plorn_album.PlornShowAlbum(self, album_name)
             showone.grab_set()
             self.wait_window(showone)
         else:
@@ -150,10 +154,11 @@ class Plorn(Tk):
     def edit_album(self):
         row = self.tview.focus()
         album = self.tview.item(row)
-        if album["text"] != "":
+        album_name = album["values"][0]
+        if album_name != "":
             logger.debug(f"edit album info for {album}")
             showone = plorn_album.PlornEditAlbum(self,
-                                                 album["text"],
+                                                 album_name,
                                                  self.album_list)
             showone.grab_set()
             self.wait_window(showone)
@@ -191,28 +196,34 @@ class Plorn(Tk):
         style.configure("plorn.Treeview.Heading",
                         font=("TkDefaultFont", FONTSIZE))
         tview = ttk.Treeview(lframe,
-                             columns=("path", "photos"),
+                             columns=("name", "path", "photos"),
                              selectmode="browse",
                              style="plorn.Treeview")
-        tview.column("#0", anchor="w")
-        tview.heading("#0", text="Name")
-        tview.column("path", anchor="w")
+        tview.column("#0", anchor="center", minwidth=0, width=100)
+        tview.heading("#0", text="ID")
+        tview.column("name", anchor="w", minwidth=0, width=200)
+        tview.heading("name", text="Name")
+        tview.column("path", anchor="w", minwidth=0, width=200)
         tview.heading("path", text="Path")
-        tview.column("photos", anchor="center")
-        tview.heading("photos", text="Photo Count")
+        tview.column("photos", anchor="center", minwidth=0, width=100)
+        tview.heading("photos", text="Photos")
         tview.grid(column=0, row=0)
-        scrollbar = ttk.Scrollbar(lframe, orient="vertical",
+        xscrollbar = ttk.Scrollbar(lframe, orient="vertical",
                                   command=tview.xview)
-        scrollbar.grid(column=1, row=0)
-        tview.configure(xscrollcommand=scrollbar.set)
+        xscrollbar.grid(column=1, row=0)
+        tview.configure(xscrollcommand=xscrollbar.set)
+        yscrollbar = ttk.Scrollbar(lframe, orient="horizontal",
+                                  command=tview.yview)
+        yscrollbar.grid(column=0, row=1)
+        tview.configure(yscrollcommand=yscrollbar.set)
 
         for ii in self.db.get_albums():
             self.album_list.append(ii)
-        self.album_list.sort(key=lambda x: x["name"])
+        self.album_list.sort(key=lambda x: x["id"])
         for ii in self.album_list:
             logger.debug(f"name: {ii}")
-            tview.insert("", END, text=ii["name"],
-                         values=(ii["path"], ii["photo_count"]))
+            tview.insert("", END, text=ii["id"],
+                         values=(ii["name"], ii["path"], ii["photo_count"]))
         self.tview = tview
 
         self.album_buttons = [
