@@ -1,4 +1,5 @@
 import logging
+import os
 
 from tkinter import *
 from tkinter import ttk
@@ -190,17 +191,29 @@ class PlornAddAlbum(Toplevel):
 
         db = plorn_db.open()
         if db.album_exists(album):
-            messagebox.showinfo(message="Album already exists", parent=self)
+            messagebox.showerror(parent=self,
+                                 title="Adding an Album",
+                                 message="Album already exists",
+                                 detail="Please use another name",
+                                )
         else:
-            self.album_list.append({"name": self.name,
-                                    "path": self.path,
-                                    "dated": self.dated.get(),
-                                    "notes": self.notes.get("1.0", END),
-                                    "photo_count": self.photo_count}
-                                   )
-            db.add_album(album)
-            msg = f"Adding Album \"{self.album_name.get()}\""
-            messagebox.showinfo(message=msg, parent=self)
+            fullpath = os.path.expandvars(os.path.expanduser(self.path))
+            if os.path.isdir(fullpath):
+                self.album_list.append({"name": self.name,
+                                        "path": self.path,
+                                        "dated": self.dated.get(),
+                                        "notes": self.notes.get("1.0", END),
+                                        "photo_count": self.photo_count}
+                                      )
+                db.add_album(album)
+                msg = f"Adding Album \"{self.album_name.get()}\""
+                messagebox.showinfo(message=msg, parent=self)
+            else:
+                messagebox.showerror(parent=self,
+                                     title="Adding an Album",
+                                     message="Path is not a directory",
+                                     detail="Please choose another path",
+                                    )
 
 def retrieve_album_record(name):
     db = plorn_db.open()
@@ -380,4 +393,136 @@ class PlornRemoveAlbum(Toplevel):
             delete_album_by_name(album_name)
             self.album_list.pop(idx)
             self.destroy()
+
+class PlornEditAlbum(Toplevel):
+    def __init__(self, parent, album_name, album_list):
+        super().__init__(parent)
+        module_logger.debug("started PlornEditAlbum")
+        tfont = font.nametofont("TkDefaultFont")
+        self.album = retrieve_album_record(album_name)
+        self.album_list = album_list
+
+        self.geometry("800x600")
+        self.title("Edit Album")
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(0, weight=1)
+        self.frame = ttk.Frame(self, padding="10 10 10 10")
+        self.frame.grid(column=0, row=0, sticky=(N, W, E, S))
+        for ii in range(0,8):
+            self.frame.rowconfigure(ii, weight=1)
+
+        lab1 = ttk.Label(self.frame, width=10, text="Name:")
+        lab1.grid(column=0, row=0, sticky=(W))
+        self.album_name = StringVar(self.frame)
+        self.album_name.set(self.album.get_name())
+        self.album_entry = ttk.Entry(self.frame, width=40,
+                                     textvariable=self.album_name,
+                                     font=tfont)
+        self.album_entry.grid(column=1, row=0, sticky=(W))
+        self.album_entry.focus_set()
+
+        lab2 = ttk.Label(self.frame, width=10, text="Path:")
+        lab2.grid(column=0, row=1, sticky=(W))
+        self.album_path = StringVar(self.frame)
+        self.album_path.set(self.album.get_path())
+        self.path_entry = ttk.Entry(self.frame, width=40,
+                                    textvariable=self.album_path,
+                                    font=tfont)
+        self.path_entry.grid(column=1, row=1, sticky=(W))
+        self.bdir = ttk.Button(self.frame, text="Browse",
+                               command=self.get_dirname)
+        self.bdir.grid(column=2, row=1)
+
+        lab3 = ttk.Label(self.frame, width=10, text="Dated:")
+        lab3.grid(column=0, row=2, sticky=(W))
+        self.dated = StringVar(self.frame)
+        self.dated.set(self.album.get_dated())
+        self.date_entry = ttk.Entry(self.frame, width=40,
+                                    textvariable=self.dated,
+                                    font=tfont)
+        self.date_entry.grid(column=1, row=2, sticky=(W))
+
+        lab4 = ttk.Label(self.frame, width=10, text="Notes:")
+        lab4.grid(column=0, row=3, sticky=(N, W))
+        self.notes = Text(self.frame, height=10, width=40, font=tfont)
+        self.notes.insert("1.0", self.album.get_notes())
+        self.notes.grid(column=1, row=3, sticky=(N, W, E, S))
+
+        lab5 = ttk.Label(self.frame, width=10, text="Photos:")
+        lab5.grid(column=0, row=4, sticky=(N, W))
+        self.photo_count = StringVar(self.frame)
+        self.photo_count.set(self.album.get_photo_count())
+        self.photos = ttk.Entry(self.frame, width=40,
+                                textvariable=self.photo_count,
+                                font=tfont)
+        self.photos.grid(column=1, row=4, sticky=(W))
+
+        sep1 = ttk.Separator(self.frame, orient=HORIZONTAL)
+        sep1.grid(column=0, row=5, columnspan=3, sticky=(W+E))
+        sep2 = ttk.Separator(self.frame, orient=HORIZONTAL)
+        sep2.grid(column=0, row=6, columnspan=3, sticky=(W+E))
+
+        self.bupdate = ttk.Button(self.frame, text="Update",
+                               command=self.update_album)
+        self.bupdate.grid(column=1, row=7, sticky=(E))
+        self.bcancel = ttk.Button(self.frame, text="Cancel",
+                                  command=self.destroy)
+        self.bcancel.grid(column=2, row=7, sticky=(W))
+
+    def get_dirname(self):
+        self.path = filedialog.askdirectory(parent=self,
+                                            title="Select a Directory",
+                                            mustexist=True)
+        if self.path:
+            self.path_entry.insert(0, self.path)
+
+    def update_album(self):
+        fullpath = os.path.expandvars(os.path.expanduser(self.album_path.get()))
+        if not os.path.isdir(fullpath):
+            messagebox.showerror(parent=self,
+                                     title="Adding an Album",
+                                     message="Path is not a directory",
+                                     detail="Please choose another path",
+                                    )
+            return
+
+        album_copy = PlornAlbum(self.album.get_name(),
+                                self.album.get_path(),
+                                self.album.get_dated(),
+                                self.album.get_notes(),
+                                None,
+                                self.album.get_photo_count(),
+                               )
+        db = plorn_db.open()
+        if db.album_exists(album_copy):
+            messagebox.showerror(parent=self,
+                                 title="Adding an Album",
+                                 message="Album already exists",
+                                 detail="Please use another name",
+                                )
+            return
+
+        album_copy.set_name(self.album_name.get())
+        album_copy.set_path(self.album_path.get())
+        album_copy.set_dated(self.dated.get())
+        album_copy.set_notes(self.notes.get("1.0", END))
+        album_copy.set_photo_count(self.photo_count.get())
+        db.update_album(self.album, album_copy)
+
+        msg = f"Updated Album \"{self.album_name.get()}\""
+        messagebox.showinfo(message=msg, parent=self)
+        idx = 0
+        for ii in self.album_list:
+            if ii["name"] == self.album_name.get():
+                break
+            else:
+                idx += 1
+        self.album_list.pop(idx)
+        self.album_list.append({"name": album_copy.get_name(),
+                                "path": album_copy.get_path(),
+                                "dated": album_copy.get_dated(),
+                                "notes": album_copy.get_notes(),
+                                "photo_count": album_copy.get_photo_count()}
+                              )
+        self.destroy()
 

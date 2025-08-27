@@ -157,6 +157,20 @@ class PlornDb:
         res = self.cursor.execute(sql)
         return len(res.fetchall())
 
+    def update_album(self, album, updated_album):
+        sql  = f"UPDATE albums"
+        sql += f" SET name = \"{updated_album.get_name()}\","
+        sql += f" path = \"{updated_album.get_path()}\","
+        sql += f" dated = \"{updated_album.get_dated()}\","
+        sql += f" notes = \"{updated_album.get_notes()}\","
+        sql += f" photo_count = \"{updated_album.get_photo_count()}\""
+        sql += f" WHERE name = \"{album.get_name()}\""
+        res = self.cursor.execute(sql)
+        msg = f"updated album: from {album.get_name()}"
+        msg += f" to {updated_album.get_name()}"
+        module_logger.debug(msg)
+        return
+
 
 def open():
     global module_logger, current_db, config
@@ -174,7 +188,7 @@ def open():
         config.db_done()
 
     elif current_db == None:
-        module_logger.debug("open existing db")
+        module_logger.debug(f"open existing db \"{get_dbname()}\"")
         current_db = PlornDb(get_dbname())
 
     return current_db

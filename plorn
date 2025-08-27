@@ -140,7 +140,20 @@ class Plorn(Tk):
         messagebox.showinfo(message="open album photo list")
 
     def edit_album(self):
-        messagebox.showinfo(message="edit album")
+        row = self.tview.focus()
+        album = self.tview.item(row)
+        if album["text"] != "":
+            logger.debug(f"edit album info for {album}")
+            showone = plorn_album.PlornEditAlbum(self,
+                                                 album["text"],
+                                                 self.album_list)
+            showone.grab_set()
+            self.wait_window(showone)
+            self.update_treeview()
+        else:
+            messagebox.showerror(parent=self,
+                                 title="Select an Album",
+                                 detail="Please select an album to show")
 
     def build_album_list(self, parent):
         tfont = font.nametofont("TkDefaultFont")
