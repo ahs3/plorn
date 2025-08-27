@@ -13,13 +13,12 @@ module_logger = logging.getLogger("plorn.album")
 module_logger.setLevel(logging.DEBUG)
 
 class PlornAlbum:
-    def __init__(self, name, path, dated, notes, copy_choice, photo_count):
+    def __init__(self, name, path, dated, notes, photo_count):
         self.id = None
         self.name = name
         self.path = path
         self.dated = dated
         self.notes = notes
-        self.copy_choice = copy_choice
         self.photo_count = photo_count
 
         module_logger.debug("adding " + str(self))
@@ -54,15 +53,6 @@ class PlornAlbum:
     def get_notes(self):
         return self.notes
 
-    def set_copy_choice(self, copy_choice):
-        self.copy_choice = copy_choice
-
-    def get_copy_choice(self):
-        return self.copy_choice
-
-    def make_link(self):
-        return self.copy_choice == "link"
-
     def set_photo_count(self, photo_count):
         self.photo_count = photo_count
 
@@ -74,7 +64,6 @@ class PlornAlbum:
         val += f", path: \"{self.path}\""
         val += f", dated: \"{self.dated}\""
         val += f", notes: \"{self.notes}\""
-        val += f", copy_choice: \"{self.copy_choice}\""
         val += f", photo_count: \"{self.photo_count}\""
         return val
 
@@ -94,7 +83,7 @@ class PlornAddAlbum(Toplevel):
         self.rowconfigure(0, weight=1)
         self.frame = ttk.Frame(self, padding="10 10 10 10")
         self.frame.grid(column=0, row=0, sticky=(N, W, E, S))
-        for ii in range(0,11):
+        for ii in range(0,7):
             self.frame.rowconfigure(ii, weight=1)
 
         lab1 = ttk.Label(self.frame, width=10, text="Name:")
@@ -135,35 +124,16 @@ class PlornAddAlbum(Toplevel):
         sep2 = ttk.Separator(self.frame, orient=HORIZONTAL)
         sep2.grid(column=0, row=5, columnspan=3, sticky=(W+E))
 
-        lab4 = ttk.Label(self.frame, text="Import via:")
-        lab4.grid(column=0, row=6)
-        self.choice_frame = ttk.Frame(self.frame, padding="10 10 10 10")
-        self.choice_frame.grid(column=1, row=6)
-        self.copy_choice = StringVar(self.choice_frame)
-        symlink = ttk.Radiobutton(self.choice_frame, text="Symbolic link?",
-                                  value="link", variable=self.copy_choice)
-        symlink.grid(column=0, row=0, sticky=W)
-        cp = ttk.Radiobutton(self.choice_frame, text="Full copy?",
-                             value="copy", variable=self.copy_choice)
-        cp.grid(column=0, row=1, sticky=W)
-        self.copy_choice.set(value="link")
-        module_logger.debug(f"set connect choice to {self.copy_choice.get()}")
-
-        sep3 = ttk.Separator(self.frame, orient=HORIZONTAL)
-        sep3.grid(column=0, row=8, columnspan=3, sticky=(W+E))
-        sep4 = ttk.Separator(self.frame, orient=HORIZONTAL)
-        sep4.grid(column=0, row=9, columnspan=3, sticky=(W+E))
-
         self.photo_count = 0
         self.badd = ttk.Button(self.frame, text="Add",
                                command=self.add_album)
-        self.badd.grid(column=0, row=10)
+        self.badd.grid(column=0, row=6)
         self.bdone = ttk.Button(self.frame, text="Done",
                                command=self.destroy)
-        self.bdone.grid(column=1, row=10)
+        self.bdone.grid(column=1, row=6)
         self.bcancel = ttk.Button(self.frame, text="Cancel",
                                   command=self.destroy)
-        self.bcancel.grid(column=2, row=10)
+        self.bcancel.grid(column=2, row=6)
 
     def get_dirname(self):
         self.path = filedialog.askdirectory(parent=self,
@@ -177,7 +147,7 @@ class PlornAddAlbum(Toplevel):
 
         module_logger.debug("entered add_album")
 
-        # need to figure out photo_count here ... and copy/link ...
+        # need to figure out photo_count here ... 
         self.name = self.album_name.get()
         self.path = self.album_path.get()
         module_logger.debug(f"name: {self.name}, path: {self.path}")
@@ -185,7 +155,6 @@ class PlornAddAlbum(Toplevel):
                            self.album_path.get(),
                            self.dated.get(),
                            self.notes.get("1.0", END),
-                           self.copy_choice.get(),
                            self.photo_count,
                           )
 
@@ -222,7 +191,6 @@ def retrieve_album_record(name):
                       record["path"],
                       record["dated"],
                       record["notes"],
-                      None,                     # copy_choice
                       record["photo_count"],
                      )
 
@@ -490,7 +458,6 @@ class PlornEditAlbum(Toplevel):
                                 self.album.get_path(),
                                 self.album.get_dated(),
                                 self.album.get_notes(),
-                                None,
                                 self.album.get_photo_count(),
                                )
         db = plorn_db.open()

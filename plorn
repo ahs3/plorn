@@ -80,17 +80,23 @@ class Plorn(Tk):
         self.build_settings(self.settings)
         self.notebook.add(self.settings, text=" Settings ")
 
-        #-- and an exit button ....
+        #-- and some counts of albums and photos ....
         sep3 = ttk.Separator(self.mainframe, orient=HORIZONTAL)
         sep3.grid(column=0, row=4, columnspan=3, sticky=(W+E))
 
+        self.album_count = StringVar()
+        self.album_count.set(f"Albums: {self.db.album_count()}")
         album_count_label = ttk.Label(self.mainframe, width=16,
-                                      text=f"Albums: {self.db.album_count()}")
+                                      textvariable=self.album_count)
         album_count_label.grid(column=0, row=5, sticky=(W))
+
+        self.photo_count = StringVar()
+        self.photo_count.set(f"Photos: {self.db.photo_count()}")
         photo_count_label = ttk.Label(self.mainframe, width=16,
-                                      text=f"Photos: {self.db.photo_count()}")
+                                      textvariable=self.photo_count)
         photo_count_label.grid(column=1, row=5, sticky=(W))
 
+        #-- and an exit button ....
         sep4 = ttk.Separator(self.mainframe, orient=HORIZONTAL)
         sep4.grid(column=0, row=6, columnspan=3, sticky=(W+E))
         b = ttk.Button(self.mainframe, text="Quit", command=self.destroy)
@@ -105,6 +111,8 @@ class Plorn(Tk):
             self.tview.insert("", END,
                               text=ii["name"],
                               values=(ii["path"], ii["photo_count"]))
+        self.album_count.set(f"Albums: {self.db.album_count()}")
+        self.photo_count.set(f"Photos: {self.db.photo_count()}")
 
     def add_album(self):
         logger.debug("adding album")
