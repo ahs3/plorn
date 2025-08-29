@@ -65,7 +65,8 @@ class PlornAlbum:
         return self.photo_count
 
     def __str__(self):
-        val = f"name: \"{self.name}\""
+        val  = f"id: \"{self.id}\""
+        val += f", name: \"{self.name}\""
         val += f", path: \"{self.path}\""
         val += f", dated: \"{self.dated}\""
         val += f", notes: \"{self.notes}\""
@@ -153,14 +154,14 @@ class PlornAddAlbum(Toplevel):
         module_logger.debug("entered add_album")
         self.name = self.album_name.get()
         self.path = self.album_path.get()
-        module_logger.debug(f"name: {self.name}, path: {self.path}")
+        module_logger.debug(f"add album name: {self.name}, path: {self.path}")
         album = PlornAlbum(self.album_name.get(),
-                           self.album_path.get(),
-                           id=None,
-                           dated=self.dated.get(),
-                           notes=self.notes.get("1.0", END),
-                           photo_count=self.photo_count,
-                          )
+                                        self.album_path.get(),
+                                        id=None,
+                                        dated=self.dated.get(),
+                                        notes=self.notes.get("1.0", END),
+                                        photo_count=self.photo_count,
+                                       )
 
         db = plorn_db.open()
         if db.album_exists(album):
@@ -171,16 +172,18 @@ class PlornAddAlbum(Toplevel):
                                 )
         else:
             fullpath = os.path.expandvars(os.path.expanduser(self.path))
+            module_logger.debug(f"new album {self.name} from {fullpath}")
             if os.path.isdir(fullpath):
-                self.album_list.append({"name": self.name,
-                                        "path": self.path,
-                                        "dated": self.dated.get(),
-                                        "notes": self.notes.get("1.0", END),
-                                        "photo_count": self.photo_count}
-                                      )
                 id = db.add_album(album)
                 album.set_id(id)
-                msg = f"Adding Album \"{self.album_name.get()}\""
+                self.album_list.append({"id": album.get_id(),
+                                        "name": album.get_name(),
+                                        "path": album.get_path(),
+                                        "dated": album.get_dated(),
+                                        "notes": album.get_notes(),
+                                        "photo_count": album.get_photo_count()}
+                                      )
+                msg = f"Adding Album \"{album.get_name()}\""
                 messagebox.showinfo(message=msg, parent=self)
             else:
                 messagebox.showerror(parent=self,

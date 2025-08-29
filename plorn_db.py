@@ -1,3 +1,4 @@
+import datetime
 import logging
 import os
 import sqlite3
@@ -29,6 +30,8 @@ class PlornDb:
         self.db = sqlite3.connect(dbname)
         self.db.row_factory = dict_factory
         self.cursor = self.db.cursor()
+        self.last_album_id = None
+        self.last_photo_id = None
 
     def create_tables(self):
         global module_logger
@@ -128,13 +131,24 @@ class PlornDb:
         res = self.cursor.execute(sql)
         row = res.fetchone()
         module_logger.debug(f"added album {str(row)}")
+        self.last_album_id = row["id"]
         return row["id"]
+
+    def get_last_album_id(self):
+        return self.last_album_id
 
     def get_album_by_name(self, album_name):
         sql = f"SELECT * FROM albums WHERE name = \"{album_name}\""
         res = self.cursor.execute(sql)
         row = res.fetchone()
         module_logger.debug(f"got by name: {str(row)}")
+        return row
+
+    def get_album_by_id(self, album_id):
+        sql = f"SELECT * FROM albums WHERE id = \"{album_id}\""
+        res = self.cursor.execute(sql)
+        row = res.fetchone()
+        module_logger.debug(f"got by id: {str(row)}")
         return row
 
     def remove_album_by_name(self, album_name):
@@ -149,6 +163,14 @@ class PlornDb:
         res = self.cursor.execute(sql)
         rows = res.fetchall()
         module_logger.debug(f"get_albums: {rows}")
+        return rows
+
+    def get_photos(self, album_id):
+        sql  = f"SELECT id, name, path FROM photos"
+        sql += f" WHERE album_id = \"{album_id}\""
+        res = self.cursor.execute(sql)
+        rows = res.fetchall()
+        module_logger.debug(f"get_photos: {rows}")
         return rows
 
     def album_count(self):
@@ -179,6 +201,22 @@ class PlornDb:
         msg = f"updated album: from {album.get_name()}"
         msg += f" to {row["id"]}"
         module_logger.debug(msg)
+        return row["id"]
+
+    def add_photo(self, path, album_id):
+        name = os.path.basename(path)
+        ctime = os.path.getctime(path)
+        dt = datetime.datetime.fromtimestamp(ctime)
+        dated = dt.isoformat()
+        notes = "automatically added default values"
+        sql = "INSERT INTO photos (album_id,name,path,dated,notes) VALUES "
+        sql += f"(\"{album_id}\", \"{path}\", \"{path}\", \"\", \"\")"
+        res = self.cursor.execute(sql)
+        self.db.commit()
+        sql = f"SELECT * FROM photos WHERE path = \"{path}\""
+        res = self.cursor.execute(sql)
+        row = res.fetchone()
+        module_logger.debug(f"added photo {str(row)}")
         return row["id"]
 
 
