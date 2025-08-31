@@ -443,7 +443,9 @@ logger.setLevel(logging.DEBUG)
 
 #-- get the config file
 logger.debug("calling PlornConfig()")
-config = plorn_config.get_config()
+if len(sys.argv) > 1:
+    config_name = sys.argv[1]
+config = plorn_config.get_config(config_name)
 
 if __name__ == "__main__":
     plorn = Plorn()
