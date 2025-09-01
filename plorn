@@ -12,9 +12,10 @@ from tkinter import font
 from tkinter import messagebox
 
 import plorn_album
+import plorn_db
 import plorn_config
 from plorn_config import FONTSIZE
-import plorn_db
+import plorn_photo
 
 #-- the application
 class Plorn(Tk):
@@ -125,6 +126,8 @@ class Plorn(Tk):
     def update_albumview(self):
         for ii in self.aview.get_children():
             self.aview.delete(ii)
+        self.album_list.clear()
+        self.album_list = self.db.get_albums()
         self.album_list.sort(key=lambda x: x["name"])
         logger.debug(f"update to: {str(self.album_list)}")
         for ii in self.album_list:
@@ -163,25 +166,27 @@ class Plorn(Tk):
         self.wait_window(addone)
         
         album_id = self.db.get_last_album_id()
-        row = self.db.get_album_by_id(album_id)
-        self.current_album = plorn_album.PlornAlbum(row["name"],
-            row["path"], id=row["id"], dated=row["dated"], notes=row["notes"])
-
-        logger.debug(f"find photos for {self.current_album.get_name()}")
-        if self.current_album != None:
+        if album_id != None:
+            row = self.db.get_album_by_id(album_id)
+            self.current_album = plorn_album.PlornAlbum(row["name"],
+                                        row["path"], id=row["id"],
+                                        dated=row["dated"], notes=row["notes"])
             logger.debug(f"add photos to {self.current_album.get_name()}")
-            self.update_albumview()
             linkname = self.create_symlink()
             photo_list = self.collect_images(linkname)
             album_id = self.current_album.get_id()
             self.photo_list.clear()
             for ii in photo_list:
+                name = os.path.basename(ii)
+                photo = plorn_photo.PlornPhoto(name, ii, id=None,
+                                               album_id=album_id)
                 logger.debug(f"add photo {ii} with album_id {album_id}")
-                id = self.db.add_photo(ii, album_id)
+                id = self.db.add_photo(photo, album_id)
             for ii in self.db.get_photos(album_id):
                 self.photo_list.append(ii)
             logger.debug(f"photo_list {str(self.photo_list)}")
-            self.update_photoview()
+            self.update_photoview(album_id)
+            self.update_albumview()
 
     def remove_album(self):
         row = self.aview.focus()
@@ -213,9 +218,11 @@ class Plorn(Tk):
                                  title="Select an Album",
                                  detail="Please select an album to show")
 
-    def update_photoview(self):
+    def update_photoview(self, album_id):
         for ii in self.pview.get_children():
             self.pview.delete(ii)
+        self.photo_list.clear()
+        self.photo_list = self.db.get_photos(album_id)
         self.photo_list.sort(key=lambda x: x["id"])
         logger.debug(f"update to: {str(self.photo_list)}")
         for ii in self.photo_list:
@@ -232,14 +239,7 @@ class Plorn(Tk):
             self.notebook.select(self.photos_tab)
 
             album_row = self.db.get_album_by_name(album_name)
-            for ii in self.db.get_photos(album_row["id"]):
-                self.photo_list.append(ii)
-            self.photo_list.sort(key=lambda x: x["id"])
-            for ii in self.photo_list:
-                logger.debug(f"photo: {ii}")
-                self.pview.insert("", END, text=ii["id"],
-                                  values=(ii["name"], ii["path"]))
-            self.update_photoview()
+            self.update_photoview(album_row["id"])
         else:
             messagebox.showerror(parent=self,
                                  title="Select an Album",
@@ -448,8 +448,9 @@ logger.setLevel(logging.DEBUG)
 logger.debug("calling PlornConfig()")
 config_name = None
 if len(sys.argv) > 1:
-    config_name = sys.argv[1]
-config = plorn_config.get_config(config_name)
+    config = plorn_config.get_config(config_name)
+else:
+    config = plorn_config.get_config()
 
 if __name__ == "__main__":
     plorn = Plorn()

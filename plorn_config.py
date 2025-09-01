@@ -11,7 +11,7 @@ config = None
 FONTSIZE = 16
 
 module_logger = logging.getLogger("plorn.config")
-module_logger.setLevel(logging.INFO)
+module_logger.setLevel(logging.DEBUG)
 
 class PlornConfig:
 
@@ -26,11 +26,11 @@ class PlornConfig:
         if os.path.exists(name):
             self.filename = name
             self.config.read(self.filename)
-            module_logger.debug(f"reusing {self.filename}")
+            module_logger.debug(f"reusing ./{self.filename}")
         elif os.path.exists(os.path.join(config_home, name)):
             self.filename = os.path.join(config_home, name)
             self.config.read(self.filename)
-            module_logger.debug(f"reusing {self.filename}")
+            module_logger.debug(f"reusing $cfg/{self.filename}")
         else:
             module_logger.debug("config file not found, creating one")
             self.config["plorn"] = {}

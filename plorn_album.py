@@ -134,12 +134,18 @@ class PlornAddAlbum(Toplevel):
         self.badd = ttk.Button(self.frame, text="Add",
                                command=self.add_album)
         self.badd.grid(column=0, row=6)
+
+        bframe = ttk.Frame(self.frame, padding="10 10 10 10")
+        bframe.grid(column=1, row=6, sticky=(NS))
+        self.bclear = ttk.Button(bframe, text="Clear",
+                               command=self.clear_entries)
+        self.bclear.grid(column=0, row=0)
+        self.bcancel = ttk.Button(bframe, text="Cancel",
+                                  command=self.destroy)
+        self.bcancel.grid(column=1, row=0)
         self.bdone = ttk.Button(self.frame, text="Done",
                                command=self.destroy)
-        self.bdone.grid(column=1, row=6)
-        self.bcancel = ttk.Button(self.frame, text="Cancel",
-                                  command=self.destroy)
-        self.bcancel.grid(column=2, row=6)
+        self.bdone.grid(column=2, row=6)
 
     def get_dirname(self):
         self.path = filedialog.askdirectory(parent=self,
@@ -147,6 +153,15 @@ class PlornAddAlbum(Toplevel):
                                             mustexist=True)
         if self.path:
             self.path_entry.insert(0, self.path)
+
+    def clear_entries(self):
+        self.name = ""
+        self.album_name.set(self.name)
+        self.path = ""
+        self.album_path.set(self.path)
+        self.dated.set("")
+        self.notes.delete("1.0", END)
+        self.photo_count = 0
 
     def add_album(self):
         global last_album
