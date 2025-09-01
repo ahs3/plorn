@@ -45,6 +45,14 @@ class TestConfigMethods(unittest.TestCase):
         if os.path.exists(db_file):
             os.remove(db_file)
 
+        cfg_file = "completely_bogus_test.cfg"
+        if os.path.exists(cfg_file):
+            os.remove(cfg_file)
+        db_file = "/tmp/wilma/dino.db"
+        if os.path.exists(db_file):
+            os.remove(db_file)
+        self.write_test_config(cfg_file)
+
     def test_open_new(self):
         """
         Assume defaults for most things

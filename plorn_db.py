@@ -10,28 +10,29 @@ import plorn_config
 module_logger = logging.getLogger("plorn.db")
 module_logger.setLevel(logging.DEBUG)
 
-config = plorn_config.get_config()
+config = None
 current_db = None
-
-def get_dbname():
-    dbpath = config.get_datadir()
-    dbname = config.get_dbname()
-    return os.path.join(dbpath, dbname)
 
 def dict_factory(cursor, row):
     fields = [column[0] for column in cursor.description]
     return {key: value for key, value in zip(fields, row)}
 
 class PlornDb:
-    def __init__(self, dbname):
-        global module_logger, config, current_db
+    def __init__(self, dbname, config):
+        global module_logger, current_db
 
         self.dbname = dbname
+        self.config = config
         self.db = sqlite3.connect(dbname)
         self.db.row_factory = dict_factory
         self.cursor = self.db.cursor()
         self.last_album_id = None
         self.last_photo_id = None
+        self.create_tables()
+
+    def close(self):
+        self.db.close()
+        self.config = None
 
     def create_tables(self):
         global module_logger
@@ -42,7 +43,7 @@ class PlornDb:
         self.create_photos_table()
 
     def create_config_table(self):
-        global module_logger, config
+        global module_logger
 
         sql_stmt = """
             CREATE TABLE IF NOT EXISTS config (
@@ -61,14 +62,15 @@ class PlornDb:
         row = res.fetchone()
         module_logger.debug("added table: " + str(row))
 
+        cfg = self.config
         sql = "INSERT INTO config VALUES (\"plorn\", "
-        sql += f"\"{config.get_version()}\", \"{config.get_username()}\", "
-        sql += f"\"{config.get_fullname()}\", \"{config.get_datadir()}\")"
+        sql += f"\"{cfg.get_version()}\", \"{cfg.get_username()}\", "
+        sql += f"\"{cfg.get_fullname()}\", \"{cfg.get_datadir()}\")"
         self.cursor.execute(sql)
         self.db.commit()
 
     def create_albums_table(self):
-        global module_logger, config
+        global module_logger
 
         sql_stmt = """
             CREATE TABLE IF NOT EXISTS albums (
@@ -90,7 +92,7 @@ class PlornDb:
         self.db.commit()
 
     def create_photos_table(self):
-        global module_logger, config
+        global module_logger
 
         sql_stmt = """
             CREATE TABLE IF NOT EXISTS photos (
@@ -115,10 +117,16 @@ class PlornDb:
         module_logger.debug("added table: " + str(row))
         self.db.commit()
 
+    def get_config(self):
+        sql = f"SELECT * FROM config"
+        res = self.cursor.execute(sql)
+        return res.fetchone()
+
     def album_exists(self, album):
         sql = f"SELECT * FROM albums WHERE name = \"{album.get_name()}\""
         res = self.cursor.execute(sql)
-        return res.fetchall() == None
+        rows = res.fetchone()
+        return rows != None
 
     def add_album(self, album):
         sql = "INSERT INTO albums (name,path,dated,notes,photo_count) VALUES "
@@ -220,24 +228,33 @@ class PlornDb:
         return row["id"]
 
 
-def open():
-    global module_logger, current_db, config
+def get_dbname(config):
+    dbpath = config.get_datadir()
+    dbname = config.get_dbname()
+    return os.path.join(dbpath, dbname)
+
+def open(dbname="plorn.db", cfgname="plorn.cfg"):
+    global module_logger, current_db
 
     module_logger.debug("open db")
-    if config == None:
-        module_logger.debug("new config")
-        config = get_config()
-    module_logger.debug(f"config is \"{str(config)}\"")
+    module_logger.debug(f"config is \"{cfgname}\"")
 
+    config = plorn_config.get_config(cfgname)
     if config.needs_db():
         module_logger.debug("need to create tables")
-        current_db = PlornDb(get_dbname())
-        current_db.create_tables()
+        current_db = PlornDb(get_dbname(config), config)
         config.db_done()
 
-    elif current_db == None:
-        module_logger.debug(f"open existing db \"{get_dbname()}\"")
-        current_db = PlornDb(get_dbname())
+    if current_db == None:
+        module_logger.debug(f"open existing db \"{get_dbname(config)}\"")
+        current_db = PlornDb(get_dbname(config), config)
 
     return current_db
+
+def close():
+    global current_db
+
+    if current_db != None:
+        current_db.close()
+        current_db = None
 

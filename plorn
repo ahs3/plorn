@@ -3,6 +3,7 @@
 import filetype
 import logging
 import os
+import sys
 import time
 
 from tkinter import *
@@ -18,13 +19,15 @@ import plorn_db
 #-- the application
 class Plorn(Tk):
     def __init__(self):
+        global config
+
         super().__init__()
         self.geometry("800x600")
         self.title("plorn")
         self.columnconfigure(0, weight=1)
         self.rowconfigure(0, weight=1)
         font.nametofont("TkDefaultFont").configure(size=FONTSIZE)
-        self.db = plorn_db.open()
+        self.db = plorn_db.open(config.get_dbname())
 
         #-- create these as placeholders
         self.aview = None
@@ -443,6 +446,7 @@ logger.setLevel(logging.DEBUG)
 
 #-- get the config file
 logger.debug("calling PlornConfig()")
+config_name = None
 if len(sys.argv) > 1:
     config_name = sys.argv[1]
 config = plorn_config.get_config(config_name)
