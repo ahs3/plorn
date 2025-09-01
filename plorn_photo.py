@@ -13,7 +13,7 @@ module_logger = logging.getLogger("plorn.photo")
 module_logger.setLevel(logging.DEBUG)
 
 class PlornPhoto:
-    def __init__(self, name, path, id=None, album_id=None, dated="", notes="")
+    def __init__(self, name, path, id=None, album_id=None, dated="", notes=""):
         self.id = id
         self.album_id = album_id
         self.name = name

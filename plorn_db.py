@@ -6,6 +6,7 @@ import sys
 
 import plorn_album
 import plorn_config
+import plorn_photo
 
 module_logger = logging.getLogger("plorn.db")
 module_logger.setLevel(logging.DEBUG)
@@ -211,17 +212,45 @@ class PlornDb:
         module_logger.debug(msg)
         return row["id"]
 
-    def add_photo(self, path, album_id):
-        name = os.path.basename(path)
-        ctime = os.path.getctime(path)
-        dt = datetime.datetime.fromtimestamp(ctime)
-        dated = dt.isoformat()
-        notes = "automatically added default values"
-        sql = "INSERT INTO photos (album_id,name,path,dated,notes) VALUES "
-        sql += f"(\"{album_id}\", \"{path}\", \"{path}\", \"\", \"\")"
+    def get_album_object(self, album_id):
+        row = self.get_album_by_id(album_id)
+        if row == None:
+            return None
+        return plorn_album.PlornAlbum(row["name"], row["path"],
+                        id=row["id"], dated=row["dated"],
+                        notes=row["notes"],
+                        photo_count=row["photo_count"])
+
+    def get_photo_by_id(self, photo_id):
+        sql = f"SELECT * FROM photos WHERE id = \"{photo_id}\""
         res = self.cursor.execute(sql)
+        row = res.fetchone()
+        module_logger.debug(f"got photo by id: {str(row)}")
+        return row
+
+    def get_photo_object(self, photo_id):
+        row = self.get_photo_by_id(photo_id)
+        if row == None:
+            return None
+        return plorn_photo.PlornPhoto(row["name"], row["path"],
+                        id=row["id"], album_id=row["album_id"],
+                        dated=row["dated"], notes=row["notes"])
+
+    def increment_photo_count(self, album):
+        album_copy = album
+        album_copy.set_photo_count(album.get_photo_count() + 1)
+        self.update_album(album, album_copy)
+
+    def add_photo(self, photo, album_id):
+        sql = "INSERT INTO photos (album_id,name,path,dated,notes) VALUES "
+        sql += f"(\"{album_id}\","
+        sql += f" \"{photo.get_name()}\", \"{photo.get_path()}\","
+        sql += f" \"{photo.get_dated()}\", \"{photo.get_notes()}\")"
+        res = self.cursor.execute(sql)
+        album = self.get_album_object(album_id)
+        self.increment_photo_count(album)
         self.db.commit()
-        sql = f"SELECT * FROM photos WHERE path = \"{path}\""
+        sql = f"SELECT * FROM photos WHERE path = \"{photo.get_path()}\""
         res = self.cursor.execute(sql)
         row = res.fetchone()
         module_logger.debug(f"added photo {str(row)}")
