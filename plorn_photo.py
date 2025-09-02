@@ -1,5 +1,7 @@
 import logging
 import os
+from PIL import Image as pilImage
+from PIL import ImageTk
 
 from tkinter import *
 from tkinter import ttk
@@ -72,4 +74,85 @@ class PlornPhoto:
         val += f", dated: \"{self.dated}\""
         val += f", notes: \"{self.notes}\""
         return val
+
+def retrieve_photo_record(photo_id):
+    db = plorn_db.open()
+    record = db.get_photo_by_id(photo_id)
+    return PlornPhoto(name=record["name"],
+                      path=record["path"],
+                      id=record["id"],
+                      dated=record["dated"],
+                      notes=record["notes"],
+                     )
+
+class PlornShowPhoto(Toplevel):
+    def __init__(self, parent, photo_id):
+        super().__init__(parent)
+        module_logger.debug("started PlornShowPhoto")
+        tfont = font.nametofont("TkDefaultFont")
+        photo = retrieve_photo_record(photo_id)
+
+        self.geometry("1250x600")
+        self.title("Photo Info")
+        self.columnconfigure(0, weight=1)
+        self.columnconfigure(1, weight=5)
+        self.columnconfigure(2, weight=5)
+        self.rowconfigure(0, weight=1)
+        self.frame = ttk.Frame(self, padding="10 10 10 10")
+        self.frame.grid(column=0, row=0, sticky=(N, W, E, S))
+        for ii in range(0,8):
+            self.frame.rowconfigure(ii, weight=1)
+
+        lab1 = ttk.Label(self.frame, width=10, text="Name:")
+        lab1.grid(column=0, row=0, sticky=(W))
+        self.photo_name = StringVar(self.frame)
+        self.photo_name.set(photo.get_name())
+        self.photo_entry = ttk.Entry(self.frame, width=40,
+                                     textvariable=self.photo_name,
+                                     font=tfont, state="readonly")
+        self.photo_entry.grid(column=1, row=0, sticky=(W))
+        self.photo_entry.focus_set()
+
+        lab2 = ttk.Label(self.frame, width=10, text="Path:")
+        lab2.grid(column=0, row=1, sticky=(W))
+        self.photo_path = StringVar(self.frame)
+        self.photo_path.set(photo.get_path())
+        self.path_entry = ttk.Entry(self.frame, width=40,
+                                    textvariable=self.photo_path,
+                                    font=tfont, state="readonly")
+        self.path_entry.grid(column=1, row=1, sticky=(W))
+
+        lab3 = ttk.Label(self.frame, width=10, text="Dated:")
+        lab3.grid(column=0, row=2, sticky=(W))
+        self.dated = StringVar(self.frame)
+        self.dated.set(photo.get_dated())
+        self.date_entry = ttk.Entry(self.frame, width=40,
+                                    textvariable=self.dated,
+                                    font=tfont, state="readonly")
+        self.date_entry.grid(column=1, row=2, sticky=(W))
+
+        lab4 = ttk.Label(self.frame, width=10, text="Notes:")
+        lab4.grid(column=0, row=3, sticky=(N, W))
+        self.notes = Text(self.frame, height=10, width=40, font=tfont)
+        self.notes.insert("1.0", photo.get_notes())
+        self.notes.configure(state="disabled")
+        module_logger.debug(f"notes: {photo.get_notes()}")
+        self.notes.grid(column=1, row=3, sticky=(N, W, E, S))
+
+        sep1 = ttk.Separator(self.frame, orient=HORIZONTAL)
+        sep1.grid(column=0, row=4, columnspan=3, sticky=(W+E))
+        sep2 = ttk.Separator(self.frame, orient=HORIZONTAL)
+        sep2.grid(column=0, row=5, columnspan=3, sticky=(W+E))
+
+        self.bdone = ttk.Button(self.frame, text="Done",
+                               command=self.destroy)
+        self.bdone.grid(column=1, row=6)
+
+        self.canvas = Canvas(self.frame, width=600, height=450)
+        self.canvas.grid(column=2, row=1, rowspan=3, sticky=NE,
+                         padx=(20,20))
+        self.img = pilImage.open(photo.get_path())
+        self.resize_img = self.img.resize((600, 450))
+        self.canvas_img = ImageTk.PhotoImage(image=self.resize_img)
+        self.canvas.create_image(10, 10, anchor=NW, image=self.canvas_img)
 

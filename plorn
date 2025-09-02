@@ -322,7 +322,7 @@ class Plorn(Tk):
 
         self.album_buttons = [
             ttk.Button(rframe, text="open", command=self.open_album),
-            ttk.Button(rframe, text="info", command=self.album_info),
+            ttk.Button(rframe, text="view", command=self.album_info),
             ttk.Button(rframe, text="add", command=self.add_album),
             ttk.Button(rframe, text="remove", command=self.remove_album),
             ttk.Button(rframe, text="edit", command=self.edit_album),
@@ -396,16 +396,30 @@ class Plorn(Tk):
         self.pview = pview
 
         self.photo_buttons = [
-            ttk.Button(rframe, text="open", command=self.destroy),
-            ttk.Button(rframe, text="info", command=self.destroy),
+            ttk.Button(rframe, text="view", command=self.photo_info),
             ttk.Button(rframe, text="add", command=self.destroy),
             ttk.Button(rframe, text="remove", command=self.destroy),
             ttk.Button(rframe, text="edit", command=self.destroy),
         ]
         for n in range(0, len(self.photo_buttons)):
             self.photo_buttons[n].grid(column=0, row=n)
+        for n in range(1, len(self.photo_buttons)):
             if self.current_album == None:
                 self.photo_buttons[n].configure(state="disabled")
+
+    def photo_info(self):
+        row = self.pview.focus()
+        if row != "":
+            photo = self.pview.item(row)
+            photo_id = photo["text"]
+            logger.debug(f"show info for {photo_id}")
+            showone = plorn_photo.PlornShowPhoto(self, photo_id)
+            showone.grab_set()
+            self.wait_window(showone)
+        else:
+            messagebox.showerror(parent=self,
+                                 title="Select a Photo",
+                                 detail="Please select a photo to show")
 
     def build_settings(self, parent):
         config = plorn_config.get_config()

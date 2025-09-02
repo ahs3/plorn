@@ -3,6 +3,11 @@ TODO
 -- When asking for directories, can we make the font bigger?  Using the
    stock filedialog.messagebox may not be sufficient.
 
+-- Add a "Refresh/Update" button to albums; i.e., check the directory for
+   any new images and add them, with option to delete items that are no
+   longer present.  But, don't modify anything else.
+
+
 DONE
 ====
 
