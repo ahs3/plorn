@@ -218,6 +218,12 @@ class Plorn(Tk):
                                  title="Select an Album",
                                  detail="Please select an album to show")
 
+    def up_photo(self, event):
+        self.pview.prev()
+
+    def down_photo(self, event):
+        self.pview.next()
+
     def update_photoview(self, album_id):
         for ii in self.pview.get_children():
             self.pview.delete(ii)
@@ -229,6 +235,13 @@ class Plorn(Tk):
             self.pview.insert("", END,
                               text=ii["id"],
                               values=(ii["name"], ii["path"]))
+        self.pview.focus_set()
+        child_id = self.pview.get_children()[0]
+        self.pview.selection_set(child_id)
+        self.pview.focus(child_id)
+
+        self.pview.bind("<KeyPress-KP_Up>", self.up_photo)
+        self.pview.bind("<KeyPress-KP_Down>", self.down_photo)
 
     def open_album(self):
         row = self.aview.focus()
@@ -319,6 +332,10 @@ class Plorn(Tk):
             aview.insert("", END, text=ii["id"],
                          values=(ii["name"], ii["path"], ii["photo_count"]))
         self.aview = aview
+        self.aview.focus_set()
+        child_id = self.aview.get_children()[0]
+        self.aview.focus(child_id)
+        self.aview.selection_set(child_id)
 
         self.album_buttons = [
             ttk.Button(rframe, text="open", command=self.open_album),
