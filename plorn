@@ -5,6 +5,8 @@ import logging
 import os
 import sys
 import time
+from PIL import Image as pilImage
+from PIL import ImageTk
 
 from tkinter import *
 from tkinter import ttk
@@ -35,9 +37,15 @@ class Plorn(Tk):
         self.pview = None
         self.album_list = []
         self.photo_list = []
+        self.button_imgs = {}
+        self.last_button_img = None
         self.albums_tab = 0
         self.photos_tab = 1
-        self.settings_tab = 1
+        self.settings_tab = 2
+        self.album_count = 0
+        self.photo_count = 0
+        self.album_count_label = StringVar()
+        self.photo_count_label = StringVar()
 
         #-- main frame for the application
         self.mainframe = ttk.Frame(self, padding="10 10 10 10")
@@ -105,16 +113,14 @@ class Plorn(Tk):
         sep3 = ttk.Separator(self.mainframe, orient=HORIZONTAL)
         sep3.grid(column=0, row=4, columnspan=3, sticky=(W+E))
 
-        self.album_count = StringVar()
-        self.album_count.set(f"Albums: {self.db.album_count()}")
+        self.album_count_label.set(f"Albums: {self.db.album_count()}")
         album_count_label = ttk.Label(self.mainframe, width=16,
-                                      textvariable=self.album_count)
+                                      textvariable=self.album_count_label)
         album_count_label.grid(column=0, row=5, sticky=(W))
 
-        self.photo_count = StringVar()
-        self.photo_count.set(f"Photos: {self.db.photo_count()}")
+        self.photo_count_label.set(f"Photos: {self.db.photo_count()}")
         photo_count_label = ttk.Label(self.mainframe, width=16,
-                                      textvariable=self.photo_count)
+                                      textvariable=self.photo_count_label)
         photo_count_label.grid(column=1, row=5, sticky=(W))
 
         #-- and an exit button ....
@@ -135,8 +141,13 @@ class Plorn(Tk):
                               text=ii["id"],
                               values=(ii["name"], ii["path"],
                                       ii["photo_count"]))
-        self.album_count.set(f"Albums: {self.db.album_count()}")
-        self.photo_count.set(f"Photos: {self.db.photo_count()}")
+        self.aview.focus_set()
+        child_id = self.aview.get_children()[0]
+        self.aview.focus(child_id)
+        self.aview.selection_set(child_id)
+
+        self.album_count_label.set(f"Albums: {self.db.album_count()}")
+        self.photo_count_label.set(f"Photos: {self.db.photo_count()}")
 
     def create_symlink(self):
         linkname = os.path.join(config.get_datadir(),
@@ -176,6 +187,7 @@ class Plorn(Tk):
             photo_list = self.collect_images(linkname)
             album_id = self.current_album.get_id()
             self.photo_list.clear()
+            self.button_imgs.clear()
             for ii in photo_list:
                 name = os.path.basename(ii)
                 photo = plorn_photo.PlornPhoto(name, ii, id=None,
@@ -219,10 +231,30 @@ class Plorn(Tk):
                                  detail="Please select an album to show")
 
     def up_photo(self, event):
-        self.pview.prev()
+        cur = self.last_button_img
+        child = self.pview.prev(cur)
+        if not child:
+            child = cur
+        logger.debug(f"up_photo selection: {str(cur)} -> {str(child)}")
+        self.pview.selection_set(child)
+        self.set_button_img(child)
+        self.last_button_img = child
 
     def down_photo(self, event):
-        self.pview.next()
+        cur = self.last_button_img
+        child = self.pview.next(cur)
+        if not child:
+            child = cur
+        logger.debug(f"down_photo selection: {str(cur)} -> {str(child)}")
+        self.pview.selection_set(child)
+        self.set_button_img(child)
+        self.last_button_img = child
+
+    def set_button_img(self, child):
+        logger.debug(f"set_button_img entry: {str(child)}")
+        if child != "":
+            logger.debug(f"set_button_img: [{len(self.button_imgs)}] {str(child)}")
+            self.current_photo.config(image=self.button_imgs[child])
 
     def update_photoview(self, album_id):
         for ii in self.pview.get_children():
@@ -230,18 +262,27 @@ class Plorn(Tk):
         self.photo_list.clear()
         self.photo_list = self.db.get_photos(album_id)
         self.photo_list.sort(key=lambda x: x["id"])
+        self.button_imgs.clear()
         logger.debug(f"update to: {str(self.photo_list)}")
         for ii in self.photo_list:
-            self.pview.insert("", END,
-                              text=ii["id"],
-                              values=(ii["name"], ii["path"]))
+            child = self.pview.insert("", END,
+                                      text=ii["id"],
+                                      values=(ii["name"], ii["path"]))
+            raw_img = pilImage.open(ii["path"])
+            thumbnail = raw_img.resize((100,100))
+            button_img = ImageTk.PhotoImage(image=thumbnail)
+            self.button_imgs[child] = button_img
+            logger.debug(f"add btn img for child {child} from {ii["path"]}")
+
         self.pview.focus_set()
         child_id = self.pview.get_children()[0]
+        self.last_button_img = child_id
         self.pview.selection_set(child_id)
         self.pview.focus(child_id)
+        self.set_button_img(child_id)
 
-        self.pview.bind("<KeyPress-KP_Up>", self.up_photo)
-        self.pview.bind("<KeyPress-KP_Down>", self.down_photo)
+    def got_called(self, event):
+        logger.debug(f"got called for {str(event)}")
 
     def open_album(self):
         row = self.aview.focus()
@@ -316,26 +357,15 @@ class Plorn(Tk):
         aview.heading("photos", text="Photos")
         aview.grid(column=0, row=0)
         xscrollbar = ttk.Scrollbar(lframe, orient="vertical",
-                                  command=aview.xview)
+                                  command=aview.yview)
         xscrollbar.grid(column=1, row=0)
         aview.configure(xscrollcommand=xscrollbar.set)
         yscrollbar = ttk.Scrollbar(lframe, orient="horizontal",
-                                  command=aview.yview)
+                                  command=aview.xview)
         yscrollbar.grid(column=0, row=1)
         aview.configure(yscrollcommand=yscrollbar.set)
-
-        for ii in self.db.get_albums():
-            self.album_list.append(ii)
-        self.album_list.sort(key=lambda x: x["id"])
-        for ii in self.album_list:
-            logger.debug(f"album: {ii}")
-            aview.insert("", END, text=ii["id"],
-                         values=(ii["name"], ii["path"], ii["photo_count"]))
         self.aview = aview
-        self.aview.focus_set()
-        child_id = self.aview.get_children()[0]
-        self.aview.focus(child_id)
-        self.aview.selection_set(child_id)
+        self.update_albumview()
 
         self.album_buttons = [
             ttk.Button(rframe, text="open", command=self.open_album),
@@ -394,23 +424,21 @@ class Plorn(Tk):
         pview.heading("path", text="Path")
         pview.grid(column=0, row=0)
         xscrollbar = ttk.Scrollbar(lframe, orient="vertical",
-                                  command=pview.xview)
+                                  command=pview.yview)
         xscrollbar.grid(column=1, row=0)
         pview.configure(xscrollcommand=xscrollbar.set)
         yscrollbar = ttk.Scrollbar(lframe, orient="horizontal",
-                                  command=pview.yview)
+                                  command=pview.xview)
         yscrollbar.grid(column=0, row=1)
         pview.configure(yscrollcommand=yscrollbar.set)
-
-        if self.current_album != None:
-            for ii in self.db.get_photos(self.current_album.get_id()):
-                self.photo_list.append(ii)
-            self.photo_list.sort(key=lambda x: x["id"])
-            for ii in self.photo_list:
-                logger.debug(f"name: {ii}")
-                pview.insert("", END, text=ii["id"],
-                            values=(ii["name"], ii["path"]))
+        pview.bind("<Up>", self.up_photo)
+        pview.bind("<Down>", self.down_photo)
         self.pview = pview
+
+        self.current_photo = ttk.Button(rframe,
+                                        state="readonly",
+                                        compound="image")
+        self.current_photo.grid(column=0, row=0)
 
         self.photo_buttons = [
             ttk.Button(rframe, text="view", command=self.photo_info),
@@ -419,7 +447,7 @@ class Plorn(Tk):
             ttk.Button(rframe, text="edit", command=self.destroy),
         ]
         for n in range(0, len(self.photo_buttons)):
-            self.photo_buttons[n].grid(column=0, row=n)
+            self.photo_buttons[n].grid(column=0, row=n+1)
         for n in range(1, len(self.photo_buttons)):
             if self.current_album == None:
                 self.photo_buttons[n].configure(state="disabled")
