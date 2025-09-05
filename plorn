@@ -454,7 +454,7 @@ class Plorn(Tk):
             ttk.Button(rframe, text="view", command=self.photo_info),
             ttk.Button(rframe, text="add", command=self.destroy),
             ttk.Button(rframe, text="remove", command=self.remove_photo),
-            ttk.Button(rframe, text="edit", command=self.destroy),
+            ttk.Button(rframe, text="edit", command=self.edit_photo),
         ]
         for n in range(0, len(self.photo_buttons)):
             self.photo_buttons[n].grid(column=0, row=n+1)
@@ -490,8 +490,26 @@ class Plorn(Tk):
             self.update_albumview()
         else:
             messagebox.showerror(parent=self,
-                                 title="Select an Album",
-                                 detail="Please select an album to remove")
+                                 title="Select a Photo",
+                                 detail="Please select a photo to remove")
+
+    def edit_photo(self):
+        row = self.pview.focus()
+        if row != "":
+            photo_entry = self.pview.item(row)
+            photo_id = photo_entry["text"]
+            photo = self.db.get_photo_by_id(photo_id)
+            logger.debug(f"edit_photo: row {row}, id {photo_id}, photo {str(photo)}")
+            rmone = plorn_photo.PlornEditPhoto(self, photo_id)
+            rmone.grab_set()
+            self.wait_window(rmone)
+            album = self.db.get_album_object(photo["album_id"])
+            self.update_photoview(album.get_id())
+            self.update_albumview()
+        else:
+            messagebox.showerror(parent=self,
+                                 title="Select a Photo",
+                                 detail="Please select a photo to edit")
 
     def build_settings(self, parent):
         config = plorn_config.get_config()

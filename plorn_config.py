@@ -5,13 +5,13 @@ import os
 import pwd
 import sys
 
-version = "0.6.1"
+version = "0.6.2"
 config = None
 
 FONTSIZE = 16
 
 module_logger = logging.getLogger("plorn.config")
-module_logger.setLevel(logging.DEBUG)
+module_logger.setLevel(logging.INFO)
 
 class PlornConfig:
 

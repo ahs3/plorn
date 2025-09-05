@@ -304,6 +304,25 @@ class PlornDb:
         self.db.commit()
         return 
 
+    def update_photo(self, photo, updated_photo):
+        sql  = f"UPDATE photos"
+        sql += f" SET name = \"{updated_photo.get_name()}\","
+        sql += f" path = \"{updated_photo.get_path()}\","
+        sql += f" dated = \"{updated_photo.get_dated()}\","
+        sql += f" notes = \"{updated_photo.get_notes()}\""
+        sql += f" WHERE id = \"{photo.get_id()}\""
+        res = self.cursor.execute(sql)
+        self.db.commit()
+
+        sql  = "SELECT id FROM photos"
+        sql += f" WHERE id = \"{updated_photo.get_id()}\""
+        res = self.cursor.execute(sql)
+        row = res.fetchone()
+        msg = f"updated photo: from {photo.get_name()}"
+        msg += f" to {row["id"]}"
+        module_logger.debug(msg)
+        return row["id"]
+
 
 def get_dbname(config):
     dbpath = config.get_datadir()
