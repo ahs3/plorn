@@ -250,6 +250,15 @@ class Plorn(Tk):
         self.set_button_img(child)
         self.last_button_img = child
 
+    def select_photo(self, event):
+        child = self.pview.identify_row(event.y)
+        if not child:
+            child = self.last_button_img
+        logger.debug(f"select_photo selection: {str(child)}")
+        self.pview.selection_set(child)
+        self.set_button_img(child)
+        self.last_button_img = child
+
     def set_button_img(self, child):
         logger.debug(f"set_button_img entry: {str(child)}")
         if child != "":
@@ -433,6 +442,7 @@ class Plorn(Tk):
         pview.configure(yscrollcommand=yscrollbar.set)
         pview.bind("<Up>", self.up_photo)
         pview.bind("<Down>", self.down_photo)
+        pview.bind("<ButtonRelease-1>", self.select_photo)
         self.pview = pview
 
         self.current_photo = ttk.Button(rframe,
@@ -443,14 +453,11 @@ class Plorn(Tk):
         self.photo_buttons = [
             ttk.Button(rframe, text="view", command=self.photo_info),
             ttk.Button(rframe, text="add", command=self.destroy),
-            ttk.Button(rframe, text="remove", command=self.destroy),
+            ttk.Button(rframe, text="remove", command=self.remove_photo),
             ttk.Button(rframe, text="edit", command=self.destroy),
         ]
         for n in range(0, len(self.photo_buttons)):
             self.photo_buttons[n].grid(column=0, row=n+1)
-        for n in range(1, len(self.photo_buttons)):
-            if self.current_album == None:
-                self.photo_buttons[n].configure(state="disabled")
 
     def photo_info(self):
         row = self.pview.focus()
@@ -465,6 +472,26 @@ class Plorn(Tk):
             messagebox.showerror(parent=self,
                                  title="Select a Photo",
                                  detail="Please select a photo to show")
+
+    def remove_photo(self):
+        row = self.pview.focus()
+        if row != "":
+            photo_entry = self.pview.item(row)
+            photo_id = photo_entry["text"]
+            photo = self.db.get_photo_by_id(photo_id)
+            logger.debug(f"remove_photo: row {row}, id {photo_id}, photo {str(photo)}")
+            rmone = plorn_photo.PlornRemovePhoto(self, photo_id,
+                                                 self.photo_list)
+            rmone.grab_set()
+            self.wait_window(rmone)
+            del self.button_imgs[row]
+            album = self.db.get_album_object(photo["album_id"])
+            self.update_photoview(album.get_id())
+            self.update_albumview()
+        else:
+            messagebox.showerror(parent=self,
+                                 title="Select an Album",
+                                 detail="Please select an album to remove")
 
     def build_settings(self, parent):
         config = plorn_config.get_config()
