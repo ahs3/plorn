@@ -46,6 +46,9 @@ class Plorn(Tk):
         self.photo_count = 0
         self.album_count_label = StringVar()
         self.photo_count_label = StringVar()
+        self.current_album = None
+        self.current_album_name = StringVar()
+        self.album_label = StringVar()
 
         #-- main frame for the application
         self.mainframe = ttk.Frame(self, padding="10 10 10 10")
@@ -143,19 +146,24 @@ class Plorn(Tk):
                                       ii["photo_count"]))
         self.aview.focus_set()
         child_id = self.aview.get_children()[0]
-        self.aview.focus(child_id)
-        self.aview.selection_set(child_id)
+        if child_id != "":
+            self.aview.focus(child_id)
+            self.aview.selection_set(child_id)
+            entry = self.aview.item(child_id)
+            self.current_album = self.db.get_album_object(entry["text"])
+            self.current_album_name.set(self.current_album.get_name())
 
         self.album_count_label.set(f"Albums: {self.db.album_count()}")
         self.photo_count_label.set(f"Photos: {self.db.photo_count()}")
 
-    def create_symlink(self):
+    def get_symlink(self):
         linkname = os.path.join(config.get_datadir(),
                                 f"album{self.current_album.get_id():04}")
-        fullpath = os.path.expanduser(self.current_album.get_path())
-        actualdir = os.path.abspath(fullpath)
-        logger.debug(f"symlink {linkname} to {actualdir}")
-        os.symlink(actualdir, linkname, target_is_directory=True)
+        if not (os.path.exists(linkname) and os.path.islink(linkname)):
+            fullpath = os.path.expanduser(self.current_album.get_path())
+            actualdir = os.path.abspath(fullpath)
+            logger.debug(f"symlink {linkname} to {actualdir}")
+            os.symlink(actualdir, linkname, target_is_directory=True)
         return linkname
 
     def collect_images(self, linkname):
@@ -183,7 +191,7 @@ class Plorn(Tk):
                                         row["path"], id=row["id"],
                                         dated=row["dated"], notes=row["notes"])
             logger.debug(f"add photos to {self.current_album.get_name()}")
-            linkname = self.create_symlink()
+            linkname = self.get_symlink()
             photo_list = self.collect_images(linkname)
             album_id = self.current_album.get_id()
             self.photo_list.clear()
@@ -297,12 +305,12 @@ class Plorn(Tk):
         row = self.aview.focus()
         if row != "":
             album_info = self.aview.item(row)
+            album_id = album_info["text"]
             album_name = album_info["values"][0]
+            self.current_album = self.db.get_album_object(album_id)
             logger.debug(f"open album {album_name}")
             self.notebook.select(self.photos_tab)
-
-            album_row = self.db.get_album_by_name(album_name)
-            self.update_photoview(album_row["id"])
+            self.update_photoview(album_id)
         else:
             messagebox.showerror(parent=self,
                                  title="Select an Album",
@@ -394,12 +402,11 @@ class Plorn(Tk):
         parent.rowconfigure(0, weight=1)
         parent.pack()
 
-        album_title = "None Selected"
         if self.current_album != None:
-            album_title = self.current_album.get_name()
-        album_name = StringVar()
-        album_name.set(f"Album: {album_name}")
-        album_label = ttk.Label(parent, width=40, textvariable=album_name)
+            self.current_album_name.set(self.current_album.get_name())
+        self.album_label.set(f"Album: {self.current_album_name.get()}")
+        album_label = ttk.Label(parent, width=40,
+                                textvariable=self.album_label)
         album_label.grid(column=0, row=0, sticky=(W))
 
         lframe = ttk.Frame(parent, padding=(5, 5, 5, 5))
@@ -452,7 +459,7 @@ class Plorn(Tk):
 
         self.photo_buttons = [
             ttk.Button(rframe, text="view", command=self.photo_info),
-            ttk.Button(rframe, text="add", command=self.destroy),
+            ttk.Button(rframe, text="add", command=self.add_photo),
             ttk.Button(rframe, text="remove", command=self.remove_photo),
             ttk.Button(rframe, text="edit", command=self.edit_photo),
         ]
@@ -510,6 +517,27 @@ class Plorn(Tk):
             messagebox.showerror(parent=self,
                                  title="Select a Photo",
                                  detail="Please select a photo to edit")
+
+    def add_photo(self):
+        logger.debug("adding photo")
+        album_id = self.current_album.get_id()
+        addone = plorn_photo.PlornAddPhoto(self, album_id)
+        addone.grab_set()
+        self.wait_window(addone)
+        
+        photo_id = self.db.get_last_photo_id()
+        if photo_id != None:
+            photo = self.db.get_photo_object(photo_id)
+            logger.debug(f"add a photo to {self.current_album.get_name()}")
+            linkname = self.get_symlink()
+            self.photo_list.clear()
+            self.button_imgs.clear()
+            logger.debug(f"add photo {photo.get_name()} with album_id {album_id}")
+            id = self.db.add_photo(photo, album_id)
+            for ii in self.db.get_photos(album_id):
+                self.photo_list.append(ii)
+            self.update_photoview(album_id)
+            self.update_albumview()
 
     def build_settings(self, parent):
         config = plorn_config.get_config()

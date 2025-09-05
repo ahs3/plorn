@@ -176,6 +176,9 @@ class PlornDb:
     def get_last_album_id(self):
         return self.last_album_id
 
+    def get_last_photo_id(self):
+        return self.last_photo_id
+
     def get_album_by_name(self, album_name):
         sql = f"SELECT * FROM albums WHERE name = \"{album_name}\""
         res = self.cursor.execute(sql)
@@ -289,6 +292,7 @@ class PlornDb:
         res = self.cursor.execute(sql)
         row = res.fetchone()
         module_logger.debug(f"added photo {str(row)}")
+        self.last_photo_id = row["id"]
         return row["id"]
 
     def remove_photo_by_id(self, photo_id):
