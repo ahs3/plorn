@@ -6,7 +6,9 @@ import sys
 
 import plorn_album
 import plorn_config
+import plorn_name
 import plorn_photo
+import plorn_place
 
 module_logger = logging.getLogger("plorn.db")
 module_logger.setLevel(logging.DEBUG)
@@ -42,7 +44,12 @@ class PlornDb:
         self.create_config_table()
         self.create_albums_table()
         self.create_photos_table()
+        self.create_names_table()
         self.create_places_table()
+        self.create_album_names_table()
+        self.create_album_places_table()
+        self.create_photo_names_table()
+        self.create_photo_places_table()
 
     def create_config_table(self):
         global module_logger
@@ -119,6 +126,29 @@ class PlornDb:
         module_logger.debug("added table: " + str(row))
         self.db.commit()
 
+    def create_names_table(self):
+        global module_logger
+
+        sql_stmt = """
+            CREATE TABLE IF NOT EXISTS names (
+                id INTEGER PRIMARY KEY,
+                parent_id INT,
+                name TEXT NOT NULL,
+                FOREIGN KEY (parent_id)
+                REFERENCES names (id)
+                    ON DELETE CASCADE
+                    ON UPDATE CASCADE
+            );
+        """
+        self.cursor.execute(sql_stmt)
+        self.db.commit()
+        rowid = self.cursor.lastrowid + 2
+        sql = f"SELECT name FROM sqlite_master WHERE rowid = {rowid}"
+        res = self.cursor.execute(sql)
+        row = res.fetchone()
+        module_logger.debug("added table: " + str(row))
+        self.db.commit()
+
     def create_places_table(self):
         global module_logger
 
@@ -126,15 +156,117 @@ class PlornDb:
             CREATE TABLE IF NOT EXISTS places (
                 id INTEGER PRIMARY KEY,
                 parent_id INT,
-                photo_id INT,
-                name TEXT NOT NULL,
-                notes TEXT,
+                place TEXT NOT NULL,
                 FOREIGN KEY (parent_id)
                 REFERENCES places (id)
                     ON DELETE CASCADE
                     ON UPDATE CASCADE
+            );
+        """
+        self.cursor.execute(sql_stmt)
+        self.db.commit()
+        rowid = self.cursor.lastrowid + 2
+        sql = f"SELECT name FROM sqlite_master WHERE rowid = {rowid}"
+        res = self.cursor.execute(sql)
+        row = res.fetchone()
+        module_logger.debug("added table: " + str(row))
+        self.db.commit()
+
+    def create_album_names_table(self):
+        global module_logger
+
+        sql_stmt = """
+            CREATE TABLE IF NOT EXISTS album_names (
+                id INTEGER PRIMARY KEY,
+                album_id INT NOT NULL,
+                name_id INT NOT NULL,
+                FOREIGN KEY (album_id)
+                REFERENCES albums (id)
+                    ON DELETE CASCADE
+                    ON UPDATE CASCADE
+                FOREIGN KEY (name_id)
+                REFERENCES names (id)
+                    ON DELETE CASCADE
+                    ON UPDATE CASCADE
+            );
+        """
+        self.cursor.execute(sql_stmt)
+        self.db.commit()
+        rowid = self.cursor.lastrowid + 2
+        sql = f"SELECT name FROM sqlite_master WHERE rowid = {rowid}"
+        res = self.cursor.execute(sql)
+        row = res.fetchone()
+        module_logger.debug("added table: " + str(row))
+        self.db.commit()
+
+    def create_album_places_table(self):
+        global module_logger
+
+        sql_stmt = """
+            CREATE TABLE IF NOT EXISTS album_places (
+                id INTEGER PRIMARY KEY,
+                album_id INT NOT NULL,
+                place_id INT NOT NULL,
+                FOREIGN KEY (album_id)
+                REFERENCES albums (id)
+                    ON DELETE CASCADE
+                    ON UPDATE CASCADE
+                FOREIGN KEY (place_id)
+                REFERENCES places (id)
+                    ON DELETE CASCADE
+                    ON UPDATE CASCADE
+            );
+        """
+        self.cursor.execute(sql_stmt)
+        self.db.commit()
+        rowid = self.cursor.lastrowid + 2
+        sql = f"SELECT name FROM sqlite_master WHERE rowid = {rowid}"
+        res = self.cursor.execute(sql)
+        row = res.fetchone()
+        module_logger.debug("added table: " + str(row))
+        self.db.commit()
+
+    def create_photo_names_table(self):
+        global module_logger
+
+        sql_stmt = """
+            CREATE TABLE IF NOT EXISTS photo_names (
+                id INTEGER PRIMARY KEY,
+                photo_id INT NOT NULL,
+                name_id INT NOT NULL,
                 FOREIGN KEY (photo_id)
                 REFERENCES photos (id)
+                    ON DELETE CASCADE
+                    ON UPDATE CASCADE
+                FOREIGN KEY (name_id)
+                REFERENCES names (id)
+                    ON DELETE CASCADE
+                    ON UPDATE CASCADE
+            );
+        """
+        self.cursor.execute(sql_stmt)
+        self.db.commit()
+        rowid = self.cursor.lastrowid + 2
+        sql = f"SELECT name FROM sqlite_master WHERE rowid = {rowid}"
+        res = self.cursor.execute(sql)
+        row = res.fetchone()
+        module_logger.debug("added table: " + str(row))
+        self.db.commit()
+
+    def create_photo_places_table(self):
+        global module_logger
+
+        sql_stmt = """
+            CREATE TABLE IF NOT EXISTS photo_places (
+                id INTEGER PRIMARY KEY,
+                photo_id INT NOT NULL,
+                place_id INT NOT NULL,
+                FOREIGN KEY (photo_id)
+                REFERENCES photos (id)
+                    ON DELETE CASCADE
+                    ON UPDATE CASCADE
+                FOREIGN KEY (place_id)
+                REFERENCES places (id)
                     ON DELETE CASCADE
                     ON UPDATE CASCADE
             );
@@ -326,6 +458,96 @@ class PlornDb:
         msg += f" to {row["id"]}"
         module_logger.debug(msg)
         return row["id"]
+
+    def add_name(self, name, parent_id=None):
+        sql  = "INSERT INTO names (name, parent_id) VALUES "
+        sql += f"(\"{name}\", \"{parent_id}\")"
+        res = self.cursor.execute(sql)
+        self.db.commit()
+        sql = f"SELECT * FROM names WHERE name = \"{name}\""
+        res = self.cursor.execute(sql)
+        row = res.fetchone()
+        module_logger.debug(f"added name {str(row)}")
+        return row["id"]
+
+    def name_exists(self, name):
+        sql = f"SELECT * FROM names WHERE name = \"{name}\""
+        res = self.cursor.execute(sql)
+        rows = res.fetchone()
+        return rows != None
+
+    def get_name_object(self, name_id):
+        sql = f"SELECT * FROM names WHERE id = \"{name_id}\""
+        res = self.cursor.execute(sql)
+        row = res.fetchone()
+        return plorn_name.PlornName(row["name"], id=row["id"],
+                                    parent_id=row["parent_id"])
+
+    def get_name_children(self, name_id):
+        sql = f"SELECT * FROM names WHERE parent_id = {name_id}"
+        res = self.cursor.execute(sql)
+        rows = res.fetchall()
+        return rows
+
+    def get_full_name(self, name_id):
+        sql = f"SELECT * FROM names WHERE id = \"{name_id}\""
+        res = self.cursor.execute(sql)
+        row = res.fetchone()
+        fullname = []
+        fullname.append(row["name"])
+        while row != None and row["parent_id"] != None:
+            pid = row["parent_id"]
+            sql = f"SELECT * FROM names WHERE id = \"{pid}\""
+            res = self.cursor.execute(sql)
+            row = res.fetchone()
+            if row != None:
+                fullname.append(row["name"])
+        return fullname[::-1]
+
+    def add_place(self, place, parent_id=None):
+        sql = "INSERT INTO places (place, parent_id) VALUES "
+        sql += f"(\"{place}\", \"{parent_id}\")"
+        res = self.cursor.execute(sql)
+        self.db.commit()
+        sql = f"SELECT * FROM places WHERE place = \"{place}\""
+        res = self.cursor.execute(sql)
+        row = res.fetchone()
+        module_logger.debug(f"added place {str(row)}")
+        return row["id"]
+
+    def place_exists(self, place):
+        sql = f"SELECT * FROM places WHERE place = \"{place}\""
+        res = self.cursor.execute(sql)
+        rows = res.fetchone()
+        return rows != None
+
+    def get_place_object(self, place_id):
+        sql = f"SELECT * FROM places WHERE id = \"{place_id}\""
+        res = self.cursor.execute(sql)
+        row = res.fetchone()
+        return plorn_place.PlornPlace(row["place"], id=row["id"],
+                                      parent_id=row["parent_id"])
+
+    def get_place_children(self, place_id):
+        sql = f"SELECT * FROM places WHERE parent_id = {place_id}"
+        res = self.cursor.execute(sql)
+        rows = res.fetchall()
+        return rows
+
+    def get_full_place(self, place_id):
+        sql = f"SELECT * FROM places WHERE id = \"{place_id}\""
+        res = self.cursor.execute(sql)
+        row = res.fetchone()
+        fullplace = []
+        fullplace.append(row["place"])
+        while row and row["parent_id"] != 0:
+            pid = row["parent_id"]
+            sql = f"SELECT * FROM places WHERE id = \"{pid}\""
+            res = self.cursor.execute(sql)
+            row = res.fetchone()
+            if row:
+                fullplace.append(row["place"])
+        return fullplace[::-1]
 
 
 def get_dbname(config):

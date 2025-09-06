@@ -51,7 +51,6 @@ class TestConfigMethods(unittest.TestCase):
         db_file = "/tmp/wilma/dino.db"
         if os.path.exists(db_file):
             os.remove(db_file)
-        self.write_test_config(cfg_file)
 
     def test_open_new(self):
         """

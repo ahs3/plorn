@@ -54,6 +54,7 @@ class TestDbBasics(unittest.TestCase):
                            self.get_test_cfgname())
         self.assertTrue(db != None)
         plorn_db.close()
+        plorn_config.close()
 
     def test_multiple_opens(self):
         db1 = plorn_db.open(self.get_test_dbname(),
@@ -64,6 +65,7 @@ class TestDbBasics(unittest.TestCase):
         db1.close()
         db2.close()
         plorn_db.close()
+        plorn_config.close()
 
     def test_config_table(self):
         db = plorn_db.open(self.get_test_dbname(),
@@ -288,6 +290,8 @@ class TestDbPhotoMethods(unittest.TestCase):
         plorn_config.close()
 
     def tearDown(self):
+        plorn_db.close()
+        plorn_config.close()
         dbname = self.get_test_dbname()
         cfg = self.get_test_cfgname()
         if os.path.exists(dbname):
