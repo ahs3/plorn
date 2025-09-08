@@ -689,6 +689,23 @@ class Plorn(Tk):
             logger.debug(f"add name {name.get_name()}")
             self.update_nameview()
 
+    def remove_name(self):
+        entry_id = self.nview.focus()
+        if entry_id == "":
+            messagebox.showerror(parent=self,
+                                 title="Remove Name",
+                                 detail="Please select a name to remove")
+            return
+        entry = self.nview.item(entry_id)
+        name = self.db.get_name_object(entry["text"])
+        name_id = name.get_id()
+        parent_id = name.get_parent_id()
+        logger.debug(f"removing name {name.get_name()} from {parent_id}")
+        rmone = plorn_name.PlornRemoveName(self, name_id, parent_id)
+        rmone.grab_set()
+        self.wait_window(rmone)
+        self.update_nameview()
+
     def build_name_list(self, parent):
         tfont = font.nametofont("TkDefaultFont")
 
@@ -742,7 +759,7 @@ class Plorn(Tk):
         self.name_buttons = [
             ttk.Button(rframe, text="add family", command=self.add_family),
             ttk.Button(rframe, text="add person", command=self.add_person),
-            ttk.Button(rframe, text="remove", command=self.destroy),
+            ttk.Button(rframe, text="remove", command=self.remove_name),
             ttk.Button(rframe, text="edit", command=self.destroy),
             ttk.Button(rframe, text="move", command=self.destroy),
         ]

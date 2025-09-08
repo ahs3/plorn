@@ -12,6 +12,8 @@ import plorn_db
 module_logger = logging.getLogger("plorn.name")
 module_logger.setLevel(logging.DEBUG)
 
+UNKNOWN_FAMILY = 1          # ID for unknown parent
+
 class PlornName:
     def __init__(self, name, id=None, parent_id=None):
         self.name = name
@@ -147,3 +149,82 @@ class PlornAddName(Toplevel):
 
     def clear_name(self):
         self.name_entered.set("")
+
+
+class PlornRemoveName(Toplevel):
+    def __init__(self, parent, name_id, parent_id=None):
+        super().__init__(parent)
+        module_logger.debug("started PlornRemoveName")
+        tfont = font.nametofont("TkDefaultFont")
+        style = ttk.Style()
+        style.configure("TCombobox", font=tfont)
+        self.name_id = name_id
+        self.parent_id = parent_id
+        self.db = plorn_db.open()
+
+        self.geometry("600x200")
+        self.title("Remove Name")
+        self.columnconfigure(0, weight=1)
+        self.columnconfigure(1, weight=1)
+        self.rowconfigure(0, weight=1)
+        self.rowconfigure(1, weight=2)
+        self.rowconfigure(2, weight=2)
+        self.frame = ttk.Frame(self, padding="10 10 10 10")
+        self.frame.grid(column=0, row=0, sticky=(N, W, E, S))
+
+        lab1 = ttk.Label(self.frame, text="Remove: ")
+        lab1.grid(column=0, row=0, sticky=W)
+
+        entry_frame = ttk.Frame(self.frame, padding="10 10 10 10")
+        entry_frame.grid(column=0, row=1, sticky=(N, W, E, S))
+        lab2 = ttk.Label(entry_frame, text="Name: ")
+        lab2.grid(column=0, row=0, sticky=W)
+        self.name_entered = StringVar(self.frame)
+        fullname = ", ".join(self.db.get_full_name(name_id))
+        self.name_entered.set(fullname)
+        self.name_entry = ttk.Entry(entry_frame, width=40,
+                                    textvariable=self.name_entered,
+                                    font=tfont, state="readonly")
+        self.name_entry.grid(column=1, row=0, sticky=W)
+
+        bframe = ttk.Frame(self.frame, padding="10 10 10 10")
+        bframe.grid(column=0, row=2, sticky=(W+E))
+        self.buttons = [
+            ttk.Button(bframe, text="remove", command=self.remove_name),
+            ttk.Button(bframe, text="cancel", command=self.destroy),
+        ]
+        for n in range(0, len(self.buttons)):
+            self.buttons[n].grid(column=n, row=0, padx=10, pady=10)
+
+    def remove_name(self):
+        res = None
+        if self.parent_id == 0:         # it's a family
+            kids = self.db.get_name_children(self.name_id)
+            if len(kids) > 0:
+                detail  = "Should all family members be removed also?"
+                detail += " If NO, they will be put in the <unknown> family."
+                res = messagebox.askyesnocancel(parent=self,
+                                                title="Remove Family Members",
+                                                detail=detail)
+                if res == None:
+                    return
+
+                elif res == True:           # remove kids, too
+                    for ii in kids:
+                        id = self.db.remove_name(ii["id"], self.name_id)
+
+                elif res == False:          # remove family only
+                    for ii in kids:
+                        kid = self.db.get_name_child_object(ii["id"],
+                                                            self.name_id)
+                        kid_copy = kid
+                        kid.copy.set_parent_id(UNKNOWN_FAMILY)
+                        self.db.update_name(kid, kid_copy)
+            id = self.db.remove_name(self.name_id, self.parent_id)
+
+        else:                               # it's a person only
+            id = self.db.remove_name(self.name_id, self.parent_id)
+
+        module_logger.debug(f"removed: {self.name_id} from {self.parent_id}")
+        self.destroy()
+

@@ -509,6 +509,14 @@ class PlornDb:
         rows = res.fetchall()
         return rows
 
+    def get_name_child_object(self, name_id, parent_id):
+        sql  = f"SELECT * FROM names WHERE id = {name_id}"
+        sql += " AND parent_id = {parent_id}"
+        res = self.cursor.execute(sql)
+        row = res.fetchone()
+        return plorn_name.PlornName(row["name"], id=row["id"],
+                                    parent_id=row["parent_id"])
+
     def get_full_name(self, name_id):
         sql = f"SELECT * FROM names WHERE id = \"{name_id}\""
         res = self.cursor.execute(sql)
@@ -524,6 +532,15 @@ class PlornDb:
                 fullname.append(row["name"])
         return fullname[::-1]
 
+    def remove_name(self, name_id, parent_id):
+        sql  = f"DELETE FROM names WHERE id = \"{name_id}\""
+        sql += f" AND parent_id = \"{parent_id}\""
+        res = self.cursor.execute(sql)
+        row = res.fetchone()
+        self.db.commit()
+        module_logger.debug(f"removed name: {name_id} of {parent_id}")
+        return 
+
     def get_names(self):
         sql = f"SELECT * FROM names"
         res = self.cursor.execute(sql)
@@ -537,6 +554,25 @@ class PlornDb:
         rows = res.fetchall()
         module_logger.debug(f"get_families: {rows}")
         return rows
+
+    def update_name(self, name, updated_name):
+        sql  = f"UPDATE names"
+        sql += f" SET name = \"{updated_name.get_name()}\","
+        sql += f" parent_id = \"{updated_name.get_parent_id()}\","
+        sql += f" WHERE name = \"{name.get_name()}\""
+        sql += f" AND parent_id = \"{name.get_parent_id()}\""
+        res = self.cursor.execute(sql)
+        self.db.commit()
+
+        sql  = "SELECT id FROM names"
+        sql += f" WHERE name = \"{updated_name.get_name()}\""
+        sql += f" AND parent_id = \"{updated_name.get_parent_id()}\""
+        res = self.cursor.execute(sql)
+        row = res.fetchone()
+        msg = f"updated name: from {name.get_name()}"
+        msg += f" to {row["id"]}"
+        module_logger.debug(msg)
+        return row["id"]
 
     def add_place(self, place, parent_id=None):
         sql = "INSERT INTO places (place, parent_id) VALUES "
