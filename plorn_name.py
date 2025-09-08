@@ -105,6 +105,11 @@ class PlornAddName(Toplevel):
                                     font=tfont)
         self.name_entry.grid(column=1, row=0, sticky=W)
 
+        if self.add_family:
+            self.name_entry.focus_set()
+        else:
+            self.family_selector.focus_set()
+
         bframe = ttk.Frame(self.frame, padding="10 10 10 10")
         bframe.grid(column=0, row=2, sticky=(W+E))
         self.buttons = [
