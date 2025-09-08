@@ -31,6 +31,7 @@ class PlornDb:
         self.cursor = self.db.cursor()
         self.last_album_id = None
         self.last_photo_id = None
+        self.last_name_id = None
         self.create_tables()
 
     def close(self):
@@ -133,7 +134,7 @@ class PlornDb:
             CREATE TABLE IF NOT EXISTS names (
                 id INTEGER PRIMARY KEY,
                 parent_id INT,
-                name TEXT NOT NULL,
+                name TEXT,
                 FOREIGN KEY (parent_id)
                 REFERENCES names (id)
                     ON DELETE CASCADE
@@ -148,6 +149,8 @@ class PlornDb:
         row = res.fetchone()
         module_logger.debug("added table: " + str(row))
         self.db.commit()
+        if not self.name_exists("<unknown>", parent_id=0):
+            self.add_name("<unknown>", parent_id=None)
 
     def create_places_table(self):
         global module_logger
@@ -461,20 +464,30 @@ class PlornDb:
 
     def add_name(self, name, parent_id=None):
         sql  = "INSERT INTO names (name, parent_id) VALUES "
-        sql += f"(\"{name}\", \"{parent_id}\")"
+        pid = parent_id
+        if parent_id == None:
+            pid = 0
+        sql += f"(\"{name}\", \"{pid}\")"
         res = self.cursor.execute(sql)
         self.db.commit()
         sql = f"SELECT * FROM names WHERE name = \"{name}\""
         res = self.cursor.execute(sql)
         row = res.fetchone()
         module_logger.debug(f"added name {str(row)}")
+        self.last_name_id = row["id"]
         return row["id"]
 
-    def name_exists(self, name):
+    def get_last_name_id(self):
+        return self.last_name_id
+
+    def name_exists(self, name, parent_id=None):
         sql = f"SELECT * FROM names WHERE name = \"{name}\""
         res = self.cursor.execute(sql)
-        rows = res.fetchone()
-        return rows != None
+        rows = res.fetchall()
+        for ii in rows:
+            if ii["parent_id"] == parent_id:
+                return True
+        return False
 
     def get_name_object(self, name_id):
         sql = f"SELECT * FROM names WHERE id = \"{name_id}\""
@@ -482,6 +495,13 @@ class PlornDb:
         row = res.fetchone()
         return plorn_name.PlornName(row["name"], id=row["id"],
                                     parent_id=row["parent_id"])
+
+    def get_name_by_name(self, name, parent_id=0):
+        sql  = f"SELECT * FROM names WHERE name = \"{name}\""
+        sql += f" AND parent_id = \"{parent_id}\""
+        res = self.cursor.execute(sql)
+        row = res.fetchone()
+        return row
 
     def get_name_children(self, name_id):
         sql = f"SELECT * FROM names WHERE parent_id = {name_id}"
@@ -504,9 +524,26 @@ class PlornDb:
                 fullname.append(row["name"])
         return fullname[::-1]
 
+    def get_names(self):
+        sql = f"SELECT * FROM names"
+        res = self.cursor.execute(sql)
+        rows = res.fetchall()
+        module_logger.debug(f"get_names: {rows}")
+        return rows
+
+    def get_families(self):
+        sql = f"SELECT * FROM names WHERE parent_id = 0"
+        res = self.cursor.execute(sql)
+        rows = res.fetchall()
+        module_logger.debug(f"get_families: {rows}")
+        return rows
+
     def add_place(self, place, parent_id=None):
         sql = "INSERT INTO places (place, parent_id) VALUES "
-        sql += f"(\"{place}\", \"{parent_id}\")"
+        pid = parent_id
+        if parent_id == None:
+            pid = 0
+        sql += f"(\"{place}\", \"{pid}\")"
         res = self.cursor.execute(sql)
         self.db.commit()
         sql = f"SELECT * FROM places WHERE place = \"{place}\""
@@ -515,11 +552,14 @@ class PlornDb:
         module_logger.debug(f"added place {str(row)}")
         return row["id"]
 
-    def place_exists(self, place):
+    def place_exists(self, place, parent_id=None):
         sql = f"SELECT * FROM places WHERE place = \"{place}\""
         res = self.cursor.execute(sql)
-        rows = res.fetchone()
-        return rows != None
+        rows = res.fetchall()
+        for ii in rows:
+            if ii["parent_id"] == parent_id:
+                return True
+        return False
 
     def get_place_object(self, place_id):
         sql = f"SELECT * FROM places WHERE id = \"{place_id}\""

@@ -14,9 +14,10 @@ from tkinter import font
 from tkinter import messagebox
 
 import plorn_album
-import plorn_db
 import plorn_config
 from plorn_config import FONTSIZE
+import plorn_db
+import plorn_name
 import plorn_photo
 
 #-- the application
@@ -33,22 +34,38 @@ class Plorn(Tk):
         self.db = plorn_db.open(config.get_dbname())
 
         #-- create these as placeholders
-        self.aview = None
-        self.pview = None
-        self.album_list = []
-        self.photo_list = []
-        self.button_imgs = {}
-        self.last_button_img = None
         self.albums_tab = 0
-        self.photos_tab = 1
-        self.settings_tab = 2
+        self.aview = None
+        self.album_list = []
         self.album_count = 0
-        self.photo_count = 0
         self.album_count_label = StringVar()
-        self.photo_count_label = StringVar()
         self.current_album = None
         self.current_album_name = StringVar()
         self.album_label = StringVar()
+
+        self.photos_tab = 1
+        self.pview = None
+        self.photo_list = []
+        self.button_imgs = {}
+        self.last_button_img = None
+        self.photo_count = 0
+        self.photo_count_label = StringVar()
+        self.current_photo = None
+        self.current_photo_button = None
+        self.current_photo_name = StringVar()
+        self.photo_label = StringVar()
+
+        self.names_tab  = 2
+        self.nview = None
+        self.name_list = []
+        self.last_name_id = None
+
+        self.places_tab = 3
+        self.lview = None
+        self.place_list = []
+        self.last_place_id = None
+
+        self.settings_tab = 4
 
         #-- main frame for the application
         self.mainframe = ttk.Frame(self, padding="10 10 10 10")
@@ -86,6 +103,7 @@ class Plorn(Tk):
         self.notebook = ttk.Notebook(self.mainframe)
         self.notebook.grid(column=0, row=3, columnspan=3, sticky=(N, W, E, S))
 
+        #   ... that has an album list
         self.albums = ttk.Frame(self.notebook, padding="5 5 5 5")
         self.albums["borderwidth"] = 2
         self.albums["relief"] = "groove"
@@ -94,6 +112,7 @@ class Plorn(Tk):
         self.notebook.add(self.albums, text=" Albums ")
         self.albums_tab = 0
 
+        #   ... and that has a photo list for the current album
         self.photos = ttk.Frame(self.notebook, padding="5 5 5 5")
         self.photos["borderwidth"] = 2
         self.photos["relief"] = "groove"
@@ -103,6 +122,25 @@ class Plorn(Tk):
         self.notebook.add(self.photos, text=" Photos ")
         self.photos_tab = 1
 
+        #   ... and that has a name list for the current photo
+        self.names = ttk.Frame(self.notebook, padding="5 5 5 5")
+        self.names["borderwidth"] = 2
+        self.names["relief"] = "groove"
+        self.current_photo = None
+        self.build_name_list(self.names)
+        self.notebook.add(self.names, text=" Names ")
+        self.names_tab = 2
+
+        #   ... and that has a place list for the current photo
+        self.places = ttk.Frame(self.notebook, padding="5 5 5 5")
+        self.places["borderwidth"] = 2
+        self.places["relief"] = "groove"
+        self.current_photo = None
+        self.build_place_list(self.places)
+        self.notebook.add(self.places, text=" Places ")
+        self.places_tab = 3
+
+        #   ... and that has a config table for the application
         self.settings = ttk.Frame(self.notebook, padding="5 5 5 5")
         self.settings["borderwidth"] = 2
         self.settings["relief"] = "groove"
@@ -110,7 +148,7 @@ class Plorn(Tk):
         self.settings.columnconfigure(1, weight=2)
         self.build_settings(self.settings)
         self.notebook.add(self.settings, text=" Settings ")
-        self.settings_tab = 2
+        self.settings_tab = 4
 
         #-- and some counts of albums and photos ....
         sep3 = ttk.Separator(self.mainframe, orient=HORIZONTAL)
@@ -145,13 +183,15 @@ class Plorn(Tk):
                               values=(ii["name"], ii["path"],
                                       ii["photo_count"]))
         self.aview.focus_set()
-        child_id = self.aview.get_children()[0]
-        if child_id != "":
-            self.aview.focus(child_id)
-            self.aview.selection_set(child_id)
-            entry = self.aview.item(child_id)
-            self.current_album = self.db.get_album_object(entry["text"])
-            self.current_album_name.set(self.current_album.get_name())
+        kids = self.aview.get_children()
+        if len(kids) > 0:
+            child_id = kids[0]
+            if child_id != "":
+                self.aview.focus(child_id)
+                self.aview.selection_set(child_id)
+                entry = self.aview.item(child_id)
+                self.current_album = self.db.get_album_object(entry["text"])
+                self.current_album_name.set(self.current_album.get_name())
 
         self.album_count_label.set(f"Albums: {self.db.album_count()}")
         self.photo_count_label.set(f"Photos: {self.db.photo_count()}")
@@ -271,9 +311,16 @@ class Plorn(Tk):
         logger.debug(f"set_button_img entry: {str(child)}")
         if child != "":
             logger.debug(f"set_button_img: [{len(self.button_imgs)}] {str(child)}")
-            self.current_photo.config(image=self.button_imgs[child])
+            self.current_photo_button.config(image=self.button_imgs[child])
 
     def update_photoview(self, album_id):
+        if self.current_album == None:
+            return
+
+        self.current_album_name.set(self.current_album.get_name())
+        context_msg = f"Album: {self.current_album_name.get()}"
+        self.album_label.set(context_msg)
+
         for ii in self.pview.get_children():
             self.pview.delete(ii)
         self.photo_list.clear()
@@ -292,11 +339,16 @@ class Plorn(Tk):
             logger.debug(f"add btn img for child {child} from {ii["path"]}")
 
         self.pview.focus_set()
-        child_id = self.pview.get_children()[0]
-        self.last_button_img = child_id
-        self.pview.selection_set(child_id)
-        self.pview.focus(child_id)
-        self.set_button_img(child_id)
+        kids = self.pview.get_children()
+        if len(kids) > 0:
+            child_id = self.pview.get_children()[0]
+            self.last_button_img = child_id
+            self.pview.selection_set(child_id)
+            self.pview.focus(child_id)
+            self.set_button_img(child_id)
+            db_id = self.pview.item(child_id)["text"]
+            self.current_photo = self.db.get_photo_object(db_id)
+            self.photo_label.set(f"Photo: {self.current_photo.get_name()}")
 
     def got_called(self, event):
         logger.debug(f"got called for {str(event)}")
@@ -402,9 +454,11 @@ class Plorn(Tk):
         parent.rowconfigure(0, weight=1)
         parent.pack()
 
+        context_msg = "Album: <none>"
         if self.current_album != None:
             self.current_album_name.set(self.current_album.get_name())
-        self.album_label.set(f"Album: {self.current_album_name.get()}")
+            context_msg = f"Album: {self.current_album_name.get()}"
+        self.album_label.set(context_msg)
         album_label = ttk.Label(parent, width=40,
                                 textvariable=self.album_label)
         album_label.grid(column=0, row=0, sticky=(W))
@@ -452,10 +506,10 @@ class Plorn(Tk):
         pview.bind("<ButtonRelease-1>", self.select_photo)
         self.pview = pview
 
-        self.current_photo = ttk.Button(rframe,
+        self.current_photo_button = ttk.Button(rframe,
                                         state="readonly",
                                         compound="image")
-        self.current_photo.grid(column=0, row=0)
+        self.current_photo_button.grid(column=0, row=0)
 
         self.photo_buttons = [
             ttk.Button(rframe, text="view", command=self.photo_info),
@@ -538,6 +592,247 @@ class Plorn(Tk):
                 self.photo_list.append(ii)
             self.update_photoview(album_id)
             self.update_albumview()
+
+    def up_name(self, event):
+        cur = self.last_name_id
+        child = self.nview.prev(cur)
+        if not child:
+            child = cur
+        logger.debug(f"up_name selection: {str(cur)} -> {str(child)}")
+        self.nview.selection_set(child)
+        self.last_name_id = child
+
+    def down_name(self, event):
+        cur = self.last_name_id
+        child = self.nview.next(cur)
+        if not child:
+            child = cur
+        logger.debug(f"down_name selection: {str(cur)} -> {str(child)}")
+        self.nview.selection_set(child)
+        self.last_name_id = child
+
+    def select_name(self, event):
+        child = self.nview.identify_row(event.y)
+        if not child:
+            child = self.last_name_id
+        logger.debug(f"select_name selection: {str(child)}")
+        self.nview.selection_set(child)
+        self.last_name_id = child
+
+    def deselect_name(self, event):
+        self.nview.selection_clear()
+        self.last_name_id = None
+
+    def update_nameview(self):
+        for ii in self.nview.get_children():
+            self.nview.delete(ii)
+        self.name_list.clear()
+        self.name_list = self.db.get_names()
+        self.name_list.sort(key=lambda x: x["name"])
+        logger.debug(f"update to: {str(self.name_list)}")
+        padding = "                    "
+        tree_ids = {}
+        while len(tree_ids) < len(self.name_list):
+            for ii in self.name_list:
+                #logger.debug(f"insert: {str(ii)}")
+                level = 0
+                pid = ii["parent_id"]
+                if pid == 0 and ii["id"] not in tree_ids:
+                    #logger.debug(f"top level: {str(ii)}")
+                    curid = self.nview.insert("", END,
+                                              text=ii["id"],
+                                              values=(ii["name"])
+                                             )
+                    tree_ids[ii["id"]] = (curid, level)
+                elif pid != 0 and ii["id"] not in tree_ids:
+                    if ii["parent_id"] in tree_ids:
+                        #logger.debug(f"insert {str(ii)}")
+                        pid, plevel = tree_ids[ii["parent_id"]]
+                        level = plevel+1
+                        name = f"{padding[0:level*2]}{ii['name']}"
+                        curid = self.nview.insert(pid, END,
+                                                  text=ii["id"],
+                                                  values=(name)
+                                                 )
+                        tree_ids[ii["id"]] = (curid, level)
+
+            #logger.debug(f"tree {len(tree_ids)}, names {len(self.name_list)}")
+
+    def add_family(self):
+        logger.debug(f"adding family")
+        addone = plorn_name.PlornAddName(self, family=True)
+        addone.grab_set()
+        self.wait_window(addone)
+        
+        name_id = self.db.get_last_name_id()
+        if name_id != None:
+            name = self.db.get_name_object(name_id)
+            logger.debug(f"add family {name.get_name()}")
+            self.update_nameview()
+
+    def add_person(self):
+        parent = self.nview.focus()
+        entry = self.nview.item(parent)
+        if parent == "":
+            parent_id = 1           # default to <unknown>
+        else:
+            parent_id = entry["text"]
+        logger.debug(f"adding name with pid {parent_id}")
+        addone = plorn_name.PlornAddName(self, parent_id=parent_id,
+                                         family=False)
+        addone.grab_set()
+        self.wait_window(addone)
+        
+        name_id = self.db.get_last_name_id()
+        if name_id != None:
+            name = self.db.get_name_object(name_id)
+            logger.debug(f"add name {name.get_name()}")
+            self.update_nameview()
+
+    def build_name_list(self, parent):
+        tfont = font.nametofont("TkDefaultFont")
+
+        parent.columnconfigure(0, weight=8)
+        parent.columnconfigure(1, weight=2)
+        parent.rowconfigure(0, weight=1)
+        parent.pack()
+
+        lframe = ttk.Frame(parent, padding=(5, 5, 5, 5))
+        lframe.grid(column=0, row=0)
+        rframe = ttk.Frame(parent, padding=(5, 5, 5, 5))
+        rframe.grid(column=1, row=0)
+
+        style = ttk.Style()
+        style.layout("plorn.Treeview",
+            [("Treeview.field", {"sticky": "NWES", "border": 1, "children": [
+                ("Treeview.padding", {"sticky": "NWES", "children": [
+                    ("Treeview.treearea", {"sticky": "NWES"})
+                    ]})
+                ]})
+            ])
+        style.configure("plorn.Treeview",
+                        font=("TkDefaultFont", FONTSIZE),
+                        rowheight=30,
+                       )
+        style.configure("plorn.Treeview.Heading",
+                        font=("TkDefaultFont", FONTSIZE))
+        nview = ttk.Treeview(lframe,
+                             columns=("name"),
+                             selectmode="browse",
+                             style="plorn.Treeview")
+        nview.column("#0", anchor="center", minwidth=0, width=100)
+        nview.heading("#0", text="ID")
+        nview.column("name", anchor="w", minwidth=0, width=500)
+        nview.heading("name", text="Name")
+        nview.grid(column=0, row=0)
+        xscrollbar = ttk.Scrollbar(lframe, orient="vertical",
+                                  command=nview.yview)
+        xscrollbar.grid(column=1, row=0)
+        nview.configure(xscrollcommand=xscrollbar.set)
+        yscrollbar = ttk.Scrollbar(lframe, orient="horizontal",
+                                  command=nview.xview)
+        yscrollbar.grid(column=0, row=1)
+        nview.configure(yscrollcommand=yscrollbar.set)
+        nview.bind("<Up>", self.up_name)
+        nview.bind("<Down>", self.down_name)
+        nview.bind("<ButtonRelease-1>", self.select_name)
+        nview.bind("<Double-Button-1>", self.deselect_name)
+        self.nview = nview
+
+        self.name_buttons = [
+            ttk.Button(rframe, text="add family", command=self.add_family),
+            ttk.Button(rframe, text="add person", command=self.add_person),
+            ttk.Button(rframe, text="remove", command=self.destroy),
+            ttk.Button(rframe, text="edit", command=self.destroy),
+            ttk.Button(rframe, text="move", command=self.destroy),
+        ]
+        for n in range(0, len(self.name_buttons)):
+            self.name_buttons[n].grid(column=0, row=n+1)
+        self.update_nameview()
+
+    def up_place(self, event):
+        cur = self.last_place_id
+        child = self.lview.prev(cur)
+        if not child:
+            child = cur
+        logger.debug(f"up_place selection: {str(cur)} -> {str(child)}")
+        self.nview.selection_set(child)
+        self.last_place_id = child
+
+    def down_place(self, event):
+        cur = self.last_place_id
+        child = self.lview.next(cur)
+        if not child:
+            child = cur
+        logger.debug(f"down_place selection: {str(cur)} -> {str(child)}")
+        self.nview.selection_set(child)
+        self.last_place_id = child
+
+    def select_place(self, event):
+        child = self.lview.identify_row(event.y)
+        if not child:
+            child = self.last_place_id
+        logger.debug(f"select_place selection: {str(child)}")
+        self.nview.selection_set(child)
+        self.last_place_id = child
+
+    def build_place_list(self, parent):
+        tfont = font.nametofont("TkDefaultFont")
+
+        parent.columnconfigure(0, weight=8)
+        parent.columnconfigure(1, weight=2)
+        parent.rowconfigure(0, weight=1)
+        parent.pack()
+
+        lframe = ttk.Frame(parent, padding=(5, 5, 5, 5))
+        lframe.grid(column=0, row=0)
+        rframe = ttk.Frame(parent, padding=(5, 5, 5, 5))
+        rframe.grid(column=1, row=0)
+
+        style = ttk.Style()
+        style.layout("plorn.Treeview",
+            [("Treeview.field", {"sticky": "NWES", "border": 1, "children": [
+                ("Treeview.padding", {"sticky": "NWES", "children": [
+                    ("Treeview.treearea", {"sticky": "NWES"})
+                    ]})
+                ]})
+            ])
+        style.configure("plorn.Treeview",
+                        font=("TkDefaultFont", FONTSIZE),
+                        rowheight=30,
+                       )
+        style.configure("plorn.Treeview.Heading",
+                        font=("TkDefaultFont", FONTSIZE))
+        lview = ttk.Treeview(lframe,
+                             columns=("place"),
+                             selectmode="browse",
+                             style="plorn.Treeview")
+        lview.column("#0", anchor="center", minwidth=0, width=100)
+        lview.heading("#0", text="ID")
+        lview.column("place", anchor="w", minwidth=0, width=500)
+        lview.heading("place", text="Place")
+        lview.grid(column=0, row=0)
+        xscrollbar = ttk.Scrollbar(lframe, orient="vertical",
+                                  command=lview.yview)
+        xscrollbar.grid(column=1, row=0)
+        lview.configure(xscrollcommand=xscrollbar.set)
+        yscrollbar = ttk.Scrollbar(lframe, orient="horizontal",
+                                  command=lview.xview)
+        yscrollbar.grid(column=0, row=1)
+        lview.configure(yscrollcommand=yscrollbar.set)
+        lview.bind("<Up>", self.up_place)
+        lview.bind("<Down>", self.down_place)
+        lview.bind("<ButtonRelease-1>", self.select_place)
+        self.lview = lview
+
+        self.place_buttons = [
+            ttk.Button(rframe, text="add", command=self.destroy),
+            ttk.Button(rframe, text="remove", command=self.destroy),
+            ttk.Button(rframe, text="edit", command=self.destroy),
+            ttk.Button(rframe, text="move", command=self.destroy),
+        ]
+        for n in range(0, len(self.place_buttons)):
+            self.place_buttons[n].grid(column=0, row=n+1)
 
     def build_settings(self, parent):
         config = plorn_config.get_config()
