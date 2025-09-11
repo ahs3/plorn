@@ -63,7 +63,6 @@ class TestDbNameMethods(unittest.TestCase):
                            self.get_test_cfgname())
         name = self.make_name("fred")
         id = db.add_name(name.get_name())
-        print(f"ID: {id}")
         name.set_id(id)
         self.assertTrue(db.name_exists(name.get_name()))
         plorn_db.close()
@@ -208,10 +207,10 @@ class TestDbPlaceMethods(unittest.TestCase):
         p = db.get_place_object(parent.get_id())
 
         child = self.make_place("Bedrock")
-        id = db.add_place(child.get_place())
+        id = db.add_place(child.get_place(), p.get_id())
         child.set_id(id)
-        self.assertTrue(db.place_exists(child.get_place()))
-        c = db.get_place_object(child.get_id())
+        self.assertTrue(db.place_exists(child.get_place(), p.get_id()))
+        c = db.get_place_object(child.get_id(), p.get_id())
 
         self.assertTrue(c.get_parent_id(), p.get_id())
         plorn_db.close()
@@ -227,13 +226,13 @@ class TestDbPlaceMethods(unittest.TestCase):
         p = db.get_place_object(parent.get_id())
 
         child = self.make_place("Bedrock")
-        id = db.add_place(child.get_place(), parent_id=parent.get_id())
+        id = db.add_place(child.get_place(), parent_id=p.get_id())
         child.set_id(id)
-        self.assertTrue(db.place_exists(child.get_place()))
-        c = db.get_place_object(child.get_id())
+        self.assertTrue(db.place_exists(child.get_place(), p.get_id()))
+        c = db.get_place_object(child.get_id(), p.get_id())
 
         self.assertTrue(c.get_parent_id(), p.get_id())
-        kids = db.get_place_children(p.get_id())
+        kids = db.get_place_children(p.get_id(), p.get_id())
         found = False
         for ii in kids:
             if ii["place"] == c.get_place():
@@ -254,14 +253,13 @@ class TestDbPlaceMethods(unittest.TestCase):
         p = db.get_place_object(parent.get_id())
 
         child = self.make_place("Bedrock")
-        id = db.add_place(child.get_place(), parent_id=parent.get_id())
+        id = db.add_place(child.get_place(), parent_id=p.get_id())
         child.set_id(id)
-        self.assertTrue(db.place_exists(child.get_place()))
-        c = db.get_place_object(child.get_id())
+        self.assertTrue(db.place_exists(child.get_place(), p.get_id()))
+        c = db.get_place_object(child.get_id(), p.get_id())
 
         self.assertTrue(c.get_parent_id(), p.get_id())
-        fullplace = db.get_full_place(c.get_id())
-        #print(fullplace)
+        fullplace = db.get_full_place(c.get_id(), p.get_id())
         self.assertTrue(fullplace == ["Stone Age", "Bedrock"])
         self.assertTrue(", ".join(fullplace) == "Stone Age, Bedrock")
 
