@@ -630,43 +630,40 @@ class Plorn(Tk):
         self.name_list = self.db.get_names()
         self.name_list.sort(key=lambda x: x["name"])
         logger.debug(f"update to: {str(self.name_list)}")
-        padding = "                    "
         tree_ids = {}
         while len(tree_ids) < len(self.name_list):
             for ii in self.name_list:
                 #logger.debug(f"insert: {str(ii)}")
-                level = 0
+                id = ii["id"]
                 pid = ii["parent_id"]
-                if pid == 0 and ii["id"] not in tree_ids:
-                    #logger.debug(f"top level: {str(ii)}")
-                    curid = self.nview.insert("", END,
-                                              text=ii["id"],
-                                              values=(ii["name"])
-                                             )
-                    tree_ids[ii["id"]] = (curid, level)
-                elif pid != 0 and ii["id"] not in tree_ids:
-                    if ii["parent_id"] in tree_ids:
-                        #logger.debug(f"insert {str(ii)}")
-                        pid, plevel = tree_ids[ii["parent_id"]]
-                        level = plevel+1
-                        name = f"{padding[0:level*2]}{ii['name']}"
-                        curid = self.nview.insert(pid, END,
-                                                  text=ii["id"],
-                                                  values=(name)
-                                                 )
-                        tree_ids[ii["id"]] = (curid, level)
+                name = ii["name"]
+                under_id = ""
+                if pid == 0 and id not in tree_ids:
+                    curid = self.nview.insert(under_id, END,
+                                              text=ii["name"],
+                                              values=(id, pid)
+                                              )
+                    tree_ids[id] = curid
+                elif pid != 0 and id not in tree_ids:
+                    if pid in tree_ids:
+                        under_id = tree_ids[pid]
+                        curid = self.nview.insert(under_id, END,
+                                                  text=ii["name"],
+                                                  values=(id, pid)
+                                                  )
+                        tree_ids[id] = curid
 
             #logger.debug(f"tree {len(tree_ids)}, names {len(self.name_list)}")
 
     def add_family(self):
         logger.debug(f"adding family")
-        addone = plorn_name.PlornAddName(self, family=True)
+        addone = plorn_name.PlornAddName(self, parent_id=0)
         addone.grab_set()
         self.wait_window(addone)
         
-        name_id = self.db.get_last_name_id()
+        name_id, parent_id = self.db.get_last_name_id()
         if name_id != None:
-            name = self.db.get_name_object(name_id)
+            name = self.db.get_name_object(name_id, parent_id)
             logger.debug(f"add family {name.get_name()}")
             self.update_nameview()
 
@@ -676,17 +673,16 @@ class Plorn(Tk):
         if parent == "":
             parent_id = 1           # default to <unknown>
         else:
-            parent_id = entry["text"]
-        logger.debug(f"adding name with pid {parent_id}")
-        addone = plorn_name.PlornAddName(self, parent_id=parent_id,
-                                         family=False)
+            parent_id = entry["values"][1]
+        logger.debug(f"adding person under {str(entry)}")
+        addone = plorn_name.PlornAddName(self, parent_id=parent_id)
         addone.grab_set()
         self.wait_window(addone)
         
-        name_id = self.db.get_last_name_id()
+        name_id, parent_id = self.db.get_last_name_id()
         if name_id != None:
-            name = self.db.get_name_object(name_id)
-            logger.debug(f"add name {name.get_name()}")
+            name = self.db.get_name_object(name_id, parent_id)
+            logger.debug(f"added person {name.get_name()}")
             self.update_nameview()
 
     def remove_name(self):
@@ -697,7 +693,10 @@ class Plorn(Tk):
                                  detail="Please select a name to remove")
             return
         entry = self.nview.item(entry_id)
-        name = self.db.get_name_object(entry["text"])
+        logger.debug(f"entry: {str(entry)}")
+        e_id = entry["values"][0]
+        e_pid = entry["values"][1]
+        name = self.db.get_name_object(e_id, parent_id=e_pid)
         name_id = name.get_id()
         parent_id = name.get_parent_id()
         logger.debug(f"removing name {name.get_name()} from {parent_id}")
@@ -705,6 +704,24 @@ class Plorn(Tk):
         rmone.grab_set()
         self.wait_window(rmone)
         self.update_nameview()
+
+    def edit_name(self):
+        entry = self.nview.focus()
+        if entry != "":
+            name_entry = self.nview.item(entry)
+            name = name_entry["text"]
+            name_id = name_entry["values"][0]
+            parent_id = name_entry["values"][1]
+            logger.debug(f"edit name {str(entry)}")
+            showone = plorn_name.PlornEditName(self, name, name_id,
+                                               parent_id=parent_id)
+            showone.grab_set()
+            self.wait_window(showone)
+            self.update_nameview()
+        else:
+            messagebox.showerror(parent=self,
+                                 title="Select a Name",
+                                 detail="Please select a name to edit")
 
     def build_name_list(self, parent):
         tfont = font.nametofont("TkDefaultFont")
@@ -734,13 +751,16 @@ class Plorn(Tk):
         style.configure("plorn.Treeview.Heading",
                         font=("TkDefaultFont", FONTSIZE))
         nview = ttk.Treeview(lframe,
-                             columns=("name"),
+                             columns=("id", "parent"),
                              selectmode="browse",
                              style="plorn.Treeview")
-        nview.column("#0", anchor="center", minwidth=0, width=100)
-        nview.heading("#0", text="ID")
-        nview.column("name", anchor="w", minwidth=0, width=500)
-        nview.heading("name", text="Name")
+        nview.column("#0", anchor="w", minwidth=0, width=500)
+        nview.heading("#0", text="Name")
+        nview.column("id", anchor="w", minwidth=0, width=100)
+        nview.heading("id", text="ID")
+        nview.column("parent", anchor="w", minwidth=0, width=100)
+        nview.heading("parent", text="Parent")
+        nview["displaycolumns"] = ()
         nview.grid(column=0, row=0)
         xscrollbar = ttk.Scrollbar(lframe, orient="vertical",
                                   command=nview.yview)
@@ -760,8 +780,7 @@ class Plorn(Tk):
             ttk.Button(rframe, text="add family", command=self.add_family),
             ttk.Button(rframe, text="add person", command=self.add_person),
             ttk.Button(rframe, text="remove", command=self.remove_name),
-            ttk.Button(rframe, text="edit", command=self.destroy),
-            ttk.Button(rframe, text="move", command=self.destroy),
+            ttk.Button(rframe, text="edit", command=self.edit_name),
         ]
         for n in range(0, len(self.name_buttons)):
             self.name_buttons[n].grid(column=0, row=n+1)
