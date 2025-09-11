@@ -63,6 +63,7 @@ class TestDbNameMethods(unittest.TestCase):
                            self.get_test_cfgname())
         name = self.make_name("fred")
         id = db.add_name(name.get_name())
+        print(f"ID: {id}")
         name.set_id(id)
         self.assertTrue(db.name_exists(name.get_name()))
         plorn_db.close()
@@ -78,10 +79,10 @@ class TestDbNameMethods(unittest.TestCase):
         p = db.get_name_object(parent.get_id())
 
         child = self.make_name("Fred")
-        id = db.add_name(child.get_name())
+        id = db.add_name(child.get_name(), p.get_id())
         child.set_id(id)
-        self.assertTrue(db.name_exists(child.get_name()))
-        c = db.get_name_object(child.get_id())
+        self.assertTrue(db.name_exists(child.get_name(), p.get_id()))
+        c = db.get_name_object(child.get_id(), p.get_id())
 
         self.assertTrue(c.get_parent_id(), p.get_id())
         plorn_db.close()
@@ -97,10 +98,10 @@ class TestDbNameMethods(unittest.TestCase):
         p = db.get_name_object(parent.get_id())
 
         child = self.make_name("Fred")
-        id = db.add_name(child.get_name(), parent_id=parent.get_id())
+        id = db.add_name(child.get_name(), parent_id=p.get_id())
         child.set_id(id)
-        self.assertTrue(db.name_exists(child.get_name()))
-        c = db.get_name_object(child.get_id())
+        self.assertTrue(db.name_exists(child.get_name(), p.get_id()))
+        c = db.get_name_object(child.get_id(), p.get_id())
 
         self.assertTrue(c.get_parent_id(), p.get_id())
         kids = db.get_name_children(p.get_id())
@@ -126,8 +127,8 @@ class TestDbNameMethods(unittest.TestCase):
         child = self.make_name("Fred")
         id = db.add_name(child.get_name(), parent_id=parent.get_id())
         child.set_id(id)
-        self.assertTrue(db.name_exists(child.get_name()))
-        c = db.get_name_object(child.get_id())
+        self.assertTrue(db.name_exists(child.get_name(), parent.get_id()))
+        c = db.get_name_object(child.get_id(), parent.get_id())
 
         self.assertTrue(c.get_parent_id(), p.get_id())
         fullname = db.get_full_name(c.get_id())
