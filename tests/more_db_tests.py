@@ -61,9 +61,8 @@ class TestDbNameMethods(unittest.TestCase):
     def test_add_name(self):
         db = plorn_db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
-        name = self.make_name("fred")
-        id = db.add_name(name.get_name())
-        name.set_id(id)
+        tmp = self.make_name("fred")
+        name = db.add_name(tmp.get_name())
         self.assertTrue(db.name_exists(name.get_name()))
         plorn_db.close()
         plorn_config.close()
@@ -71,17 +70,15 @@ class TestDbNameMethods(unittest.TestCase):
     def test_add_subname(self):
         db = plorn_db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
-        parent = self.make_name("Flintstone")
-        id = db.add_name(parent.get_name())
-        parent.set_id(id)
+        tmp = self.make_name("Flintstone")
+        parent = db.add_name(tmp.get_name())
         self.assertTrue(db.name_exists(parent.get_name()))
-        p = db.get_name_object(parent.get_id())
+        p = db.get_name(parent.get_id())
 
-        child = self.make_name("Fred")
-        id = db.add_name(child.get_name(), p.get_id())
-        child.set_id(id)
+        tmp = self.make_name("Fred")
+        child = db.add_name(tmp.get_name(), p.get_id())
         self.assertTrue(db.name_exists(child.get_name(), p.get_id()))
-        c = db.get_name_object(child.get_id(), p.get_id())
+        c = db.get_name(child.get_id(), p.get_id())
 
         self.assertTrue(c.get_parent_id(), p.get_id())
         plorn_db.close()
@@ -90,23 +87,21 @@ class TestDbNameMethods(unittest.TestCase):
     def test_get_name_children(self):
         db = plorn_db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
-        parent = self.make_name("Flintstone")
-        id = db.add_name(parent.get_name())
-        parent.set_id(id)
+        tmp = self.make_name("Flintstone")
+        parent = db.add_name(tmp.get_name())
         self.assertTrue(db.name_exists(parent.get_name()))
-        p = db.get_name_object(parent.get_id())
+        p = db.get_name(parent.get_id())
 
-        child = self.make_name("Fred")
-        id = db.add_name(child.get_name(), parent_id=p.get_id())
-        child.set_id(id)
+        tmp = self.make_name("Fred")
+        child = db.add_name(tmp.get_name(), parent_id=p.get_id())
         self.assertTrue(db.name_exists(child.get_name(), p.get_id()))
-        c = db.get_name_object(child.get_id(), p.get_id())
+        c = db.get_name(child.get_id(), p.get_id())
 
         self.assertTrue(c.get_parent_id(), p.get_id())
         kids = db.get_name_children(p.get_id())
         found = False
         for ii in kids:
-            if ii["name"] == c.get_name():
+            if ii.get_name() == c.get_name():
                 found = True
                 break
         self.assertTrue(found)
@@ -117,17 +112,15 @@ class TestDbNameMethods(unittest.TestCase):
     def test_get_full_name(self):
         db = plorn_db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
-        parent = self.make_name("Flintstone")
-        id = db.add_name(parent.get_name())
-        parent.set_id(id)
+        tmp = self.make_name("Flintstone")
+        parent = db.add_name(tmp.get_name())
         self.assertTrue(db.name_exists(parent.get_name()))
-        p = db.get_name_object(parent.get_id())
+        p = db.get_name(parent.get_id())
 
-        child = self.make_name("Fred")
-        id = db.add_name(child.get_name(), parent_id=parent.get_id())
-        child.set_id(id)
+        tmp = self.make_name("Fred")
+        child = db.add_name(tmp.get_name(), parent_id=parent.get_id())
         self.assertTrue(db.name_exists(child.get_name(), parent.get_id()))
-        c = db.get_name_object(child.get_id(), parent.get_id())
+        c = db.get_name(child.get_id(), parent.get_id())
 
         self.assertTrue(c.get_parent_id(), p.get_id())
         fullname = db.get_full_name(c.get_id())

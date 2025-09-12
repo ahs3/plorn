@@ -12,8 +12,6 @@ import plorn_db
 module_logger = logging.getLogger("plorn.name")
 module_logger.setLevel(logging.DEBUG)
 
-UNKNOWN_FAMILY = 1          # ID for unknown parent
-
 class PlornName:
     def __init__(self, name, id=None, parent_id=0):
         self.name = name
@@ -58,12 +56,10 @@ class PlornAddName(Toplevel):
         self.name = ""
         self.parent_id = parent_id
         self.db = plorn_db.open()
+        self.new_name = None
 
         self.geometry("600x200")
-        if self.parent_id == 0:
-            self.title("Add Family")
-        else:
-            self.title("Add Person")
+        self.title("Add Name")
         self.columnconfigure(0, weight=1)
         self.columnconfigure(1, weight=1)
         self.rowconfigure(0, weight=1)
@@ -72,32 +68,30 @@ class PlornAddName(Toplevel):
         self.frame = ttk.Frame(self, padding="10 10 10 10")
         self.frame.grid(column=0, row=0, sticky=(N, W, E, S))
 
-        family_frame = ttk.Frame(self.frame, padding="10 10 10 10")
-        family_frame.grid(column=0, row=0, sticky=(N, W, E, S))
-        family_frame.option_add("*TCombobox*Listbox.font", tfont)
+        container_frame = ttk.Frame(self.frame, padding="10 10 10 10")
+        container_frame.grid(column=0, row=0, sticky=(N, W, E, S))
+        container_frame.option_add("*TCombobox*Listbox.font", tfont)
 
-        self.family_list = []
-        self.family_selector = None
-        self.family_selected = StringVar(self.frame)
-        lab1 = ttk.Label(family_frame)
-        if self.parent_id == 0:
-            lab1.configure(text="Adding family:")
-            lab1.grid(column=0, row=0, sticky=W)
-        else:
-            lab1.configure(text=f"Select family:  ")
-            lab1.grid(column=0, row=0, sticky=W)
-            fams = self.db.get_families()
-            for ii in fams:
-                self.family_list.append(ii["name"])
-            module_logger.debug(f"fams: {str(self.family_list)}")
-            self.family_selector = ttk.Combobox(family_frame, font=tfont,
-                                            textvariable=self.family_selected)
-            self.family_selector.config(values=self.family_list)
-            self.family_selector.config(state="readonly")
-            self.family_selector.grid(column=1, row=0, sticky=(W+E))
-            if self.parent_id != 0:
-                parent_name = self.db.get_name_object(self.parent_id).get_name()
-                self.family_selected.set(parent_name)
+        self.container_list = {}
+        self.container_list[""] = 0
+        self.container_selector = None
+        self.container_selected = StringVar(self.frame)
+        lab1 = ttk.Label(container_frame)
+        lab1.configure(text=f"Select container:  ")
+        lab1.grid(column=0, row=0, sticky=W)
+        rents = self.db.get_names()
+        for ii in rents:
+            self.container_list[ii.get_name()] = ii.get_id()
+            if self.parent_id == ii.get_id():
+                self.container_selected.set(ii.get_name())
+        module_logger.debug(f"names: {str(self.container_list)}")
+        self.container_selector = ttk.Combobox(container_frame, font=tfont,
+                                        textvariable=self.container_selected)
+        rent_keys = list(self.container_list.keys())
+        rent_keys.sort()
+        self.container_selector.config(values=rent_keys)
+        self.container_selector.config(state="readonly")
+        self.container_selector.grid(column=1, row=0, sticky=(W+E))
 
         entry_frame = ttk.Frame(self.frame, padding="10 10 10 10")
         entry_frame.grid(column=0, row=1, sticky=(N, W, E, S))
@@ -112,7 +106,7 @@ class PlornAddName(Toplevel):
         if self.parent_id == 0:
             self.name_entry.focus_set()
         else:
-            self.family_selector.focus_set()
+            self.container_selector.focus_set()
 
         bframe = ttk.Frame(self.frame, padding="10 10 10 10")
         bframe.grid(column=0, row=2, sticky=(W+E))
@@ -126,45 +120,41 @@ class PlornAddName(Toplevel):
 
     def add_name(self):
         new_name = self.name_entered.get()
-        family_name = self.family_selected.get()
+        container_name = self.container_selected.get()
         if new_name == "":
             messagebox.showerror(parent=self,
                                  title="Add Name",
                                  detail="Name cannot be blank")
             return
 
-        pid = 0
-        if not self.parent_id == 0:
-            row = self.db.get_name_by_name(family_name, parent_id=0)
-            if row == None:
-                pid = 1
-            else:
-                pid = row["id"]
-
+        pid = self.container_list[container_name]
         if self.db.name_exists(new_name, pid):
             messagebox.showerror(parent=self,
                                  title="Add Name",
                                  detail="Name already exists with same parent")
             return
 
-        id = self.db.add_name(new_name, parent_id=pid)
-        #module_logger.debug(f"added: {str(self.db.get_name_object(id))}")
+        self.new_name = self.db.add_name(new_name, parent_id=pid)
+        #module_logger.debug(f"added: {str(self.db.get_name(id))}")
         self.destroy()
 
     def clear_name(self):
         self.name_entered.set("")
+
+    def get_new_name(self):
+        return self.new_name
 
 
 class PlornRemoveName(Toplevel):
     def __init__(self, parent, name_id, parent_id=0):
         super().__init__(parent)
         module_logger.debug("started PlornRemoveName")
-        tfont = font.nametofont("TkDefaultFont")
-        style = ttk.Style()
-        style.configure("TCombobox", font=tfont)
         self.name_id = name_id
         self.parent_id = parent_id
         self.db = plorn_db.open()
+        tfont = font.nametofont("TkDefaultFont")
+        style = ttk.Style()
+        style.configure("TCombobox", font=tfont)
 
         self.geometry("600x200")
         self.title("Remove Name")
@@ -202,34 +192,14 @@ class PlornRemoveName(Toplevel):
 
     def remove_name(self):
         res = None
-        if self.parent_id == 0:         # it's a family
-            kids = self.db.get_name_children(self.name_id)
-            if len(kids) > 0:
-                detail  = "Should all family members be removed also?"
-                detail += " If NO, they will be put in the <unknown> family."
-                res = messagebox.askyesnocancel(parent=self,
-                                                title="Remove Family Members",
-                                                detail=detail)
-                if res == None:
-                    return
-
-                elif res == True:           # remove kids, too
-                    for ii in kids:
-                        id = self.db.remove_name(ii["id"], self.name_id)
-
-                elif res == False:          # remove family only
-                    for ii in kids:
-                        kid = self.db.get_name_child_object(ii["id"],
-                                                            self.name_id)
-                        kid_copy = kid
-                        kid.copy.set_parent_id(UNKNOWN_FAMILY)
-                        self.db.update_name(kid, kid_copy)
-            id = self.db.remove_name(self.name_id, self.parent_id)
-
-        else:                               # it's a person only
-            id = self.db.remove_name(self.name_id, self.parent_id)
-
-        module_logger.debug(f"removed: {self.name_id} from {self.parent_id}")
+        kids = self.db.get_name_children(self.name_id)
+        if len(kids) > 0:
+            msg = "Cannot remove a name that still contains other names"
+            messagebox.showerror(parent=self, title="Remove Name", detail=msg)
+        else:
+            self.db.remove_name(self.name_id, self.parent_id)
+            msg = f"removed: {self.name_id} from {self.parent_id}"
+            module_logger.debug(msg)
         self.destroy()
 
 
@@ -244,7 +214,7 @@ class PlornEditName(Toplevel):
         self.name_id = name_id
         self.parent_id = parent_id
         self.db = plorn_db.open()
-        self.name_obj = self.db.get_name_object(name_id, parent_id)
+        self.name_obj = self.db.get_name(name_id, parent_id)
 
         self.geometry("600x200")
         self.title("Edit Name")
@@ -256,31 +226,36 @@ class PlornEditName(Toplevel):
         self.frame = ttk.Frame(self, padding="10 10 10 10")
         self.frame.grid(column=0, row=0, sticky=(N, W, E, S))
 
-        family_frame = ttk.Frame(self.frame, padding="10 10 10 10")
-        family_frame.grid(column=0, row=0, sticky=(N, W, E, S))
-        family_frame.option_add("*TCombobox*Listbox.font", tfont)
+        container_frame = ttk.Frame(self.frame, padding="10 10 10 10")
+        container_frame.grid(column=0, row=0, sticky=(N, W, E, S))
+        container_frame.option_add("*TCombobox*Listbox.font", tfont)
 
-        self.family_list = []
-        self.family_selector = None
-        self.family_selected = StringVar(self.frame)
-        lab1 = ttk.Label(family_frame)
+        self.container_list = {}
+        self.container_list[""] = 0
+        self.container_selector = None
+        self.container_selected = StringVar(self.frame)
+        lab1 = ttk.Label(container_frame)
+        lab1.configure(text="Parent:")
+        lab1.grid(column=0, row=0, sticky=W)
+
+        rents = {}
+        rents[""] = 0
+        rents = self.db.get_names()
+        for ii in rents:
+            self.container_list[ii.get_name()] = ii.get_id()
+        module_logger.debug(f"rents: {str(self.container_list)}")
+        self.container_selector = ttk.Combobox(container_frame, font=tfont,
+                                        textvariable=self.container_selected)
+        rent_keys = list(self.container_list.keys())
+        rent_keys.sort()
+        self.container_selector.config(values=rent_keys)
+        self.container_selector.config(state="readonly")
+        self.container_selector.grid(column=1, row=0, sticky=(W+E))
         if self.parent_id == 0:
-            lab1.configure(text="Family name:")
-            lab1.grid(column=0, row=0, sticky=W)
+            pl = ""
         else:
-            lab1.configure(text="Person name:")
-            lab1.grid(column=0, row=0, sticky=W)
-
-            fams = self.db.get_families()
-            for ii in fams:
-                self.family_list.append(ii["name"])
-            module_logger.debug(f"fams: {str(self.family_list)}")
-            self.family_selector = ttk.Combobox(family_frame, font=tfont,
-                                            textvariable=self.family_selected)
-            self.family_selector.config(values=self.family_list)
-            self.family_selector.config(state="readonly")
-            self.family_selector.grid(column=1, row=0, sticky=(W+E))
-            self.family_selected.set(self.get_parent_name())
+            pl = self.get_parent_name().get_name()
+        self.container_selected.set(pl)
 
         entry_frame = ttk.Frame(self.frame, padding="10 10 10 10")
         entry_frame.grid(column=0, row=1, sticky=(N, W, E, S))
@@ -304,22 +279,23 @@ class PlornEditName(Toplevel):
             self.buttons[n].grid(column=n, row=0, padx=10, pady=10)
 
     def get_parent_name(self):
-        name = self.db.get_name_object(self.parent_id, parent_id=0)
-        return name.get_name()
+        container = ""
+        for ii in self.container_list.keys():
+            if self.container_list[ii] == self.parent_id:
+                container = self.container_list[ii]
+                break
+        return self.db.get_name(container)
 
     def update_name(self):
         new_name = self.name_entered.get()
-        if self.parent_id == 0:
-            family_name = new_name
-        else:
-            family_name = self.family_selector.get()
+        container_name = self.container_selector.get()
         if new_name == "":
             messagebox.showerror(parent=self,
                                  title="Edit Name",
                                  detail="Name cannot be blank")
             return
 
-        if family_name == "":
+        if container_name == "":
             messagebox.showerror(parent=self,
                                  title="Edit Name",
                                  detail="Name cannot be blank")
@@ -327,19 +303,15 @@ class PlornEditName(Toplevel):
 
         name_copy = self.name_obj
         module_logger.debug(f"updating(0) {str(self.name_obj)} to {str(name_copy)}")
-        pid = 0
-        if self.parent_id != 0:
-            row = self.db.get_name_by_name(family_name)
-            parent_obj = self.db.get_name_object(row["id"], parent_id=0)
-            pid = parent_obj.get_id()
+        pid = self.container_list[container_name]
         if self.db.name_exists(new_name, parent_id=pid):
             messagebox.showerror(parent=self,
                                  title="Edit Name",
                                  detail="Name already exists with same parent")
             return
 
-        name_copy.set_parent_id(pid)
         name_copy.set_name(new_name)
+        name_copy.set_parent_id(self.container_list[container_name])
         module_logger.debug(f"updating(1) {str(self.name_obj)} to {str(name_copy)}")
         id = self.db.update_name(self.name_obj, name_copy)
         self.destroy()

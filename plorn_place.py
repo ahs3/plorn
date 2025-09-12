@@ -254,8 +254,8 @@ class PlornEditPlace(Toplevel):
         if self.parent_id == 0:
             pl = ""
         else:
-            pl = self.get_parent_place()
-        self.container_selected.set(pl.get_place())
+            pl = self.get_parent_place().get_name()
+        self.container_selected.set(pl)
 
         entry_frame = ttk.Frame(self.frame, padding="10 10 10 10")
         entry_frame.grid(column=0, row=1, sticky=(N, W, E, S))

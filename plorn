@@ -177,7 +177,6 @@ class Plorn(Tk):
         self.album_list.clear()
         self.album_list = self.db.get_albums()
         self.album_list.sort(key=lambda x: x["name"])
-        logger.debug(f"update to: {str(self.album_list)}")
         for ii in self.album_list:
             self.aview.insert("", END,
                               text=ii["id"],
@@ -328,7 +327,6 @@ class Plorn(Tk):
         self.photo_list = self.db.get_photos(album_id)
         self.photo_list.sort(key=lambda x: x["id"])
         self.button_imgs.clear()
-        logger.debug(f"update to: {str(self.photo_list)}")
         for ii in self.photo_list:
             child = self.pview.insert("", END,
                                       text=ii["id"],
@@ -629,19 +627,16 @@ class Plorn(Tk):
             self.nview.delete(ii)
         self.name_list.clear()
         self.name_list = self.db.get_names()
-        self.name_list.sort(key=lambda x: x["name"])
-        logger.debug(f"update to: {str(self.name_list)}")
         tree_ids = {}
         while len(tree_ids) < len(self.name_list):
             for ii in self.name_list:
-                #logger.debug(f"insert: {str(ii)}")
-                id = ii["id"]
-                pid = ii["parent_id"]
-                name = ii["name"]
+                id = ii.get_id()
+                pid = ii.get_parent_id()
+                name = ii.get_name()
                 under_id = ""
                 if pid == 0 and id not in tree_ids:
                     curid = self.nview.insert(under_id, END,
-                                              text=ii["name"],
+                                              text=name,
                                               values=(id, pid)
                                               )
                     tree_ids[id] = curid
@@ -649,26 +644,14 @@ class Plorn(Tk):
                     if pid in tree_ids:
                         under_id = tree_ids[pid]
                         curid = self.nview.insert(under_id, END,
-                                                  text=ii["name"],
+                                                  text=name,
                                                   values=(id, pid)
                                                   )
                         tree_ids[id] = curid
 
             #logger.debug(f"tree {len(tree_ids)}, names {len(self.name_list)}")
 
-    def add_family(self):
-        logger.debug(f"adding family")
-        addone = plorn_name.PlornAddName(self, parent_id=0)
-        addone.grab_set()
-        self.wait_window(addone)
-        
-        name_id, parent_id = self.db.get_last_name_id()
-        if name_id != None:
-            name = self.db.get_name_object(name_id, parent_id)
-            logger.debug(f"add family {name.get_name()}")
-            self.update_nameview()
-
-    def add_person(self):
+    def add_name(self):
         parent = self.nview.focus()
         entry = self.nview.item(parent)
         if parent == "":
@@ -679,10 +662,9 @@ class Plorn(Tk):
         addone = plorn_name.PlornAddName(self, parent_id=parent_id)
         addone.grab_set()
         self.wait_window(addone)
+        name = addone.get_new_name()
         
-        name_id, parent_id = self.db.get_last_name_id()
-        if name_id != None:
-            name = self.db.get_name_object(name_id, parent_id)
+        if name and name.get_id() != None:
             logger.debug(f"added person {name.get_name()}")
             self.update_nameview()
 
@@ -694,10 +676,18 @@ class Plorn(Tk):
                                  detail="Please select a name to remove")
             return
         entry = self.nview.item(entry_id)
-        logger.debug(f"entry: {str(entry)}")
+        logger.debug(f"remove entry: {str(entry)}")
         e_id = entry["values"][0]
         e_pid = entry["values"][1]
-        name = self.db.get_name_object(e_id, parent_id=e_pid)
+
+        kids = self.db.get_name_children(e_id)
+        logger.debug(f"remove entry: with {len(kids)} kids")
+        if len(kids) > 0:
+            msg = "Cannot remove a name that still contains other names"
+            messagebox.showerror(parent=self, title="Remove Name", detail=msg)
+            return
+
+        name = self.db.get_name(e_id, parent_id=e_pid)
         name_id = name.get_id()
         parent_id = name.get_parent_id()
         logger.debug(f"removing name {name.get_name()} from {parent_id}")
@@ -778,8 +768,7 @@ class Plorn(Tk):
         self.nview = nview
 
         self.name_buttons = [
-            ttk.Button(rframe, text="add family", command=self.add_family),
-            ttk.Button(rframe, text="add person", command=self.add_person),
+            ttk.Button(rframe, text="add", command=self.add_name),
             ttk.Button(rframe, text="remove", command=self.remove_name),
             ttk.Button(rframe, text="edit", command=self.edit_name),
         ]
@@ -879,7 +868,6 @@ class Plorn(Tk):
             self.lview.delete(ii)
         self.place_list.clear()
         self.place_list = self.db.get_places()
-        #logger.debug(f"update to: {str(self.place_list)}")
         tree_ids = {}
         while len(tree_ids) < len(self.place_list):
             for ii in self.place_list:
@@ -919,7 +907,6 @@ class Plorn(Tk):
         place = addone.get_new_place()
         
         if place and place.get_id() != None:
-            #place = self.db.get_place(place_id, parent_id)
             logger.debug(f"add place {place.get_place()}")
             self.update_placeview()
 

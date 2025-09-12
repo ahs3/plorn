@@ -31,7 +31,6 @@ class PlornDb:
         self.cursor = self.db.cursor()
         self.last_album_id = None
         self.last_photo_id = None
-        self.last_name_id = None
         self.create_tables()
 
     def close(self):
@@ -149,8 +148,6 @@ class PlornDb:
         row = res.fetchone()
         module_logger.debug("added table: " + str(row))
         self.db.commit()
-        if not self.name_exists("<unknown>", parent_id=0):
-            self.add_name("<unknown>", parent_id=0)
 
     def create_places_table(self):
         global module_logger
@@ -474,11 +471,8 @@ class PlornDb:
         res = self.cursor.execute(sql)
         row = res.fetchone()
         module_logger.debug(f"added name {str(row)}")
-        self.last_name_id = (row["id"], row["parent_id"])
-        return row["id"]
-
-    def get_last_name_id(self):
-        return self.last_name_id
+        return plorn_name.PlornName(row["name"], id=row["id"],
+                                    parent_id=row["parent_id"])
 
     def name_exists(self, name, parent_id=0):
         sql = f"SELECT * FROM names WHERE name = \"{name}\""
@@ -492,14 +486,11 @@ class PlornDb:
                 return True
         return False
 
-    def get_name_object(self, name_id, parent_id=0):
-        pid = parent_id
-        if parent_id == None:
-            pid = 0
-        sql  = f"SELECT * FROM names WHERE id = \"{name_id}\""
-        sql += f" AND parent_id = \"{pid}\""
+    def get_name(self, name_id, parent_id=0):
+        sql = f"SELECT * FROM names WHERE id = \"{name_id}\""
         res = self.cursor.execute(sql)
         row = res.fetchone()
+        module_logger.debug(f"get_name: {str(row)}")
         return plorn_name.PlornName(row["name"], id=row["id"],
                                     parent_id=row["parent_id"])
 
@@ -508,15 +499,21 @@ class PlornDb:
         sql += f" AND parent_id = \"{parent_id}\""
         res = self.cursor.execute(sql)
         row = res.fetchone()
-        return row
+        return plorn_name.PlornName(row["name"], id=row["id"],
+                                    parent_id=row["parent_id"])
 
     def get_name_children(self, name_id):
         sql = f"SELECT * FROM names WHERE parent_id = {name_id}"
         res = self.cursor.execute(sql)
         rows = res.fetchall()
-        return rows
+        result = []
+        for ii in rows:
+            p = plorn_name.PlornName(ii["name"], id=ii["id"],
+                                     parent_id=ii["parent_id"])
+            result.append(p)
+        return result
 
-    def get_name_child_object(self, name_id, parent_id):
+    def get_name_child(self, name_id, parent_id):
         sql  = f"SELECT * FROM names WHERE id = {name_id}"
         sql += " AND parent_id = {parent_id}"
         res = self.cursor.execute(sql)
@@ -552,15 +549,13 @@ class PlornDb:
         sql = f"SELECT * FROM names"
         res = self.cursor.execute(sql)
         rows = res.fetchall()
-        module_logger.debug(f"get_names: {rows}")
-        return rows
-
-    def get_families(self):
-        sql = f"SELECT * FROM names WHERE parent_id = 0"
-        res = self.cursor.execute(sql)
-        rows = res.fetchall()
-        module_logger.debug(f"get_families: {rows}")
-        return rows
+        rows.sort(key=lambda x: x["name"])
+        result = []
+        for ii in rows:
+            p = plorn_name.PlornName(ii["name"], id=ii["id"],
+                                     parent_id=ii["parent_id"])
+            result.append(p)
+        return result
 
     def update_name(self, name, updated_name):
         sql  = f"UPDATE names"
@@ -577,7 +572,8 @@ class PlornDb:
         msg = f"updated name: from {name.get_name()}"
         msg += f" to {row["name"]}"
         module_logger.debug(msg)
-        return row["id"]
+        return plorn_name.PlornName(row["name"], id=row["id"],
+                                    parent_id=row["parent_id"])
 
     def add_place(self, place, parent_id=0):
         sql = "INSERT INTO places (place, parent_id) VALUES "
@@ -613,8 +609,10 @@ class PlornDb:
 
     def get_place_children(self, place_id):
         sql  = f"SELECT * FROM places WHERE parent_id = {place_id}"
+        module_logger.debug(f"get_place_children: sql {sql} for {place_id}")
         res = self.cursor.execute(sql)
         rows = res.fetchall()
+        module_logger.debug(f"get_place_children: found {len(rows)} for {place_id}")
         result = []
         for ii in rows:
             p = plorn_place.PlornPlace(ii["place"], id=ii["id"],
