@@ -32,7 +32,6 @@ class PlornDb:
         self.last_album_id = None
         self.last_photo_id = None
         self.last_name_id = None
-        self.last_place_id = None
         self.create_tables()
 
     def close(self):
@@ -592,11 +591,8 @@ class PlornDb:
         res = self.cursor.execute(sql)
         row = res.fetchone()
         module_logger.debug(f"added place {str(row)}")
-        self.last_place_id = (row["id"], row["parent_id"])
-        return row["id"]
-
-    def get_last_place_id(self):
-        return self.last_place_id
+        return plorn_place.PlornPlace(row["place"], id=row["id"],
+                                      parent_id=row["parent_id"])
 
     def place_exists(self, place, parent_id=0):
         sql = f"SELECT * FROM places WHERE place = \"{place}\""
@@ -607,18 +603,24 @@ class PlornDb:
                 return True
         return False
 
-    def get_place_object(self, place_id, parent_id=0):
+    def get_place(self, place_id, parent_id=0):
         sql = f"SELECT * FROM places WHERE id = \"{place_id}\""
         res = self.cursor.execute(sql)
         row = res.fetchone()
+        module_logger.debug(f"get_place: {str(row)}")
         return plorn_place.PlornPlace(row["place"], id=row["id"],
                                       parent_id=row["parent_id"])
 
-    def get_place_children(self, place_id, parent_id=0):
-        sql = f"SELECT * FROM places WHERE parent_id = {place_id}"
+    def get_place_children(self, place_id):
+        sql  = f"SELECT * FROM places WHERE parent_id = {place_id}"
         res = self.cursor.execute(sql)
         rows = res.fetchall()
-        return rows
+        result = []
+        for ii in rows:
+            p = plorn_place.PlornPlace(ii["place"], id=ii["id"],
+                                       parent_id=ii["parent_id"])
+            result.append(p)
+        return result
 
     def get_full_place(self, place_id, parent_id=0):
         sql = f"SELECT * FROM places WHERE id = \"{place_id}\""
@@ -639,8 +641,14 @@ class PlornDb:
         sql = f"SELECT * FROM places"
         res = self.cursor.execute(sql)
         rows = res.fetchall()
+        rows.sort(key=lambda x: x["place"])
         module_logger.debug(f"get_places: {rows}")
-        return rows
+        result = []
+        for ii in rows:
+            p = plorn_place.PlornPlace(ii["place"], id=ii["id"],
+                                       parent_id=ii["parent_id"])
+            result.append(p)
+        return result
 
     def get_place_by_place(self, place, parent_id=0):
         sql  = f"SELECT * FROM places WHERE place = \"{place}\""
@@ -648,6 +656,40 @@ class PlornDb:
         res = self.cursor.execute(sql)
         row = res.fetchone()
         return row
+
+    def get_place_object_by_place(self, place, parent_id=0):
+        sql  = f"SELECT * FROM places WHERE place = \"{place}\""
+        res = self.cursor.execute(sql)
+        row = res.fetchone()
+        module_logger.debug(f"place obj by place \"{place}\": {str(row)}")
+        return plorn_place.PlornPlace(row["place"], id=row["id"],
+                                      parent_id=row["parent_id"])
+
+    def remove_place(self, place_id, parent_id):
+        sql  = f"DELETE FROM places WHERE id = \"{place_id}\""
+        sql += f" AND parent_id = \"{parent_id}\""
+        res = self.cursor.execute(sql)
+        row = res.fetchone()
+        self.db.commit()
+        module_logger.debug(f"removed place: {place_id} of {parent_id}")
+        return 
+
+    def update_place(self, place, updated_place):
+        sql  = f"UPDATE places"
+        sql += f" SET place = \"{updated_place.get_place()}\","
+        sql += f" parent_id = \"{updated_place.get_parent_id()}\""
+        sql += f" WHERE id = \"{place.get_id()}\""
+        res = self.cursor.execute(sql)
+        self.db.commit()
+
+        sql  = "SELECT * FROM places"
+        sql += f" WHERE id = \"{updated_place.get_id()}\""
+        res = self.cursor.execute(sql)
+        row = res.fetchone()
+        msg = f"updated place: from {place.get_place()}"
+        msg += f" to {row["place"]}"
+        module_logger.debug(msg)
+        return row["id"]
 
 
 def get_dbname(config):

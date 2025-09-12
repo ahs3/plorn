@@ -200,17 +200,15 @@ class TestDbPlaceMethods(unittest.TestCase):
     def test_add_subplace(self):
         db = plorn_db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
-        parent = self.make_place("Stone Age")
-        id = db.add_place(parent.get_place())
-        parent.set_id(id)
+        tmp = self.make_place("Stone Age")
+        parent = db.add_place(tmp.get_place())
         self.assertTrue(db.place_exists(parent.get_place()))
-        p = db.get_place_object(parent.get_id())
+        p = db.get_place(parent.get_id())
 
-        child = self.make_place("Bedrock")
-        id = db.add_place(child.get_place(), p.get_id())
-        child.set_id(id)
+        tmp = self.make_place("Bedrock")
+        child = db.add_place(tmp.get_place(), p.get_id())
         self.assertTrue(db.place_exists(child.get_place(), p.get_id()))
-        c = db.get_place_object(child.get_id(), p.get_id())
+        c = db.get_place(child.get_id(), p.get_id())
 
         self.assertTrue(c.get_parent_id(), p.get_id())
         plorn_db.close()
@@ -219,23 +217,21 @@ class TestDbPlaceMethods(unittest.TestCase):
     def test_get_place_children(self):
         db = plorn_db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
-        parent = self.make_place("Stone Age")
-        id = db.add_place(parent.get_place())
-        parent.set_id(id)
+        tmp = self.make_place("Stone Age")
+        parent = db.add_place(tmp.get_place())
         self.assertTrue(db.place_exists(parent.get_place()))
-        p = db.get_place_object(parent.get_id())
+        p = db.get_place(parent.get_id())
 
-        child = self.make_place("Bedrock")
-        id = db.add_place(child.get_place(), parent_id=p.get_id())
-        child.set_id(id)
+        tmp = self.make_place("Bedrock")
+        child = db.add_place(tmp.get_place(), parent_id=p.get_id())
         self.assertTrue(db.place_exists(child.get_place(), p.get_id()))
-        c = db.get_place_object(child.get_id(), p.get_id())
+        c = db.get_place(child.get_id(), p.get_id())
 
         self.assertTrue(c.get_parent_id(), p.get_id())
-        kids = db.get_place_children(p.get_id(), p.get_id())
+        kids = db.get_place_children(p.get_id())
         found = False
         for ii in kids:
-            if ii["place"] == c.get_place():
+            if ii.get_place() == c.get_place():
                 found = True
                 break
         self.assertTrue(found)
@@ -246,17 +242,15 @@ class TestDbPlaceMethods(unittest.TestCase):
     def test_get_full_place(self):
         db = plorn_db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
-        parent = self.make_place("Stone Age")
-        id = db.add_place(parent.get_place())
-        parent.set_id(id)
+        tmp = self.make_place("Stone Age")
+        parent = db.add_place(tmp.get_place())
         self.assertTrue(db.place_exists(parent.get_place()))
-        p = db.get_place_object(parent.get_id())
+        p = db.get_place(parent.get_id())
 
-        child = self.make_place("Bedrock")
-        id = db.add_place(child.get_place(), parent_id=p.get_id())
-        child.set_id(id)
+        tmp = self.make_place("Bedrock")
+        child = db.add_place(tmp.get_place(), parent_id=p.get_id())
         self.assertTrue(db.place_exists(child.get_place(), p.get_id()))
-        c = db.get_place_object(child.get_id(), p.get_id())
+        c = db.get_place(child.get_id(), p.get_id())
 
         self.assertTrue(c.get_parent_id(), p.get_id())
         fullplace = db.get_full_place(c.get_id(), p.get_id())

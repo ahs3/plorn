@@ -56,6 +56,7 @@ class PlornAddPlace(Toplevel):
         self.place = ""
         self.parent_id = parent_id
         self.db = plorn_db.open()
+        self.new_place = None
 
         self.geometry("600x200")
         self.title("Add Place")
@@ -80,11 +81,10 @@ class PlornAddPlace(Toplevel):
         lab1.grid(column=0, row=0, sticky=W)
         #locs = self.db.get_places().sort(key=lambda x: x["place"])
         locs = self.db.get_places()
-        locs.sort(key=lambda x: x["place"])
         for ii in locs:
-            self.container_list[ii["place"]] = ii["id"]
-            if self.parent_id == ii["id"]:
-                self.container_selected.set(ii["place"])
+            self.container_list[ii.get_place()] = ii.get_id()
+            if self.parent_id == ii.get_id():
+                self.container_selected.set(ii.get_place())
         module_logger.debug(f"places: {str(self.container_list)}")
         self.container_selector = ttk.Combobox(container_frame, font=tfont,
                                         textvariable=self.container_selected)
@@ -135,24 +135,27 @@ class PlornAddPlace(Toplevel):
                                  detail="Place already exists with same parent")
             return
 
-        id = self.db.add_place(new_place, parent_id=pid)
-        #module_logger.debug(f"added: {str(self.db.get_place_object(id))}")
+        self.new_place = self.db.add_place(new_place, parent_id=pid)
+        #module_logger.debug(f"added: {str(self.db.get_place(id))}")
         self.destroy()
 
     def clear_place(self):
         self.place_entered.set("")
+
+    def get_new_place(self):
+        return self.new_place
 
 
 class PlornRemovePlace(Toplevel):
     def __init__(self, parent, place_id, parent_id=0):
         super().__init__(parent)
         module_logger.debug("started PlornRemovePlace")
-        tfont = font.nametofont("TkDefaultFont")
-        style = ttk.Style()
-        style.configure("TCombobox", font=tfont)
         self.place_id = place_id
         self.parent_id = parent_id
         self.db = plorn_db.open()
+        tfont = font.nametofont("TkDefaultFont")
+        style = ttk.Style()
+        style.configure("TCombobox", font=tfont)
 
         self.geometry("600x200")
         self.title("Remove Place")
@@ -192,27 +195,12 @@ class PlornRemovePlace(Toplevel):
         res = None
         kids = self.db.get_place_children(self.place_id)
         if len(kids) > 0:
-            detail  = "Should all container members be removed also?"
-            detail += " If NO, they will be put in the <unknown> container."
-            res = messagebox.askyesnocancel(parent=self,
-                                            title="Remove Family Members",
-                                            detail=detail)
-            if res == None:
-                return
-
-            elif res == True:           # remove kids, too
-                for ii in kids:
-                    id = self.db.remove_place(ii["id"], self.place_id)
-
-            elif res == False:          # remove container only
-                for ii in kids:
-                    kid = self.db.get_place_child_object(ii["id"],
-                                                        self.place_id)
-                    kid_copy = kid
-                    kid.copy.set_parent_id(UNKNOWN_FAMILY)
-                    self.db.update_place(kid, kid_copy)
-        id = self.db.remove_place(self.place_id, self.parent_id)
-        module_logger.debug(f"removed: {self.place_id} from {self.parent_id}")
+            msg = "Cannot remove a place that still contains other places"
+            messagebox.showerror(parent=self, title="Remove Place", detail=msg)
+        else:
+            self.db.remove_place(self.place_id, self.parent_id)
+            msg = f"removed: {self.place_id} from {self.parent_id}"
+            module_logger.debug(msg)
         self.destroy()
 
 
@@ -227,7 +215,7 @@ class PlornEditPlace(Toplevel):
         self.place_id = place_id
         self.parent_id = parent_id
         self.db = plorn_db.open()
-        self.place_obj = self.db.get_place_object(place_id, parent_id)
+        self.place_obj = self.db.get_place(place_id, parent_id)
 
         self.geometry("600x200")
         self.title("Edit Place")
@@ -243,27 +231,31 @@ class PlornEditPlace(Toplevel):
         container_frame.grid(column=0, row=0, sticky=(N, W, E, S))
         container_frame.option_add("*TCombobox*Listbox.font", tfont)
 
-        self.container_list = []
+        self.container_list = {}
+        self.container_list[""] = 0
         self.container_selector = None
         self.container_selected = StringVar(self.frame)
         lab1 = ttk.Label(container_frame)
-        if self.parent_id == 0:
-            lab1.configure(text="Family place:")
-            lab1.grid(column=0, row=0, sticky=W)
-        else:
-            lab1.configure(text="Person place:")
-            lab1.grid(column=0, row=0, sticky=W)
+        lab1.configure(text="Place:")
+        lab1.grid(column=0, row=0, sticky=W)
 
-            locs = self.db.get_families().sort(key=lambda x: x["name"])
-            for ii in locs:
-                self.container_list.append(ii["place"])
-            module_logger.debug(f"locs: {str(self.container_list)}")
-            self.container_selector = ttk.Combobox(container_frame, font=tfont,
-                                            textvariable=self.container_selected)
-            self.container_selector.config(values=self.container_list)
-            self.container_selector.config(state="readonly")
-            self.container_selector.grid(column=1, row=0, sticky=(W+E))
-            self.container_selected.set(self.get_parent_place())
+        locs = {}
+        locs = self.db.get_places()
+        for ii in locs:
+            self.container_list[ii.get_place()] = ii.get_id()
+        module_logger.debug(f"locs: {str(self.container_list)}")
+        self.container_selector = ttk.Combobox(container_frame, font=tfont,
+                                        textvariable=self.container_selected)
+        loc_keys = list(self.container_list.keys())
+        loc_keys.sort()
+        self.container_selector.config(values=loc_keys)
+        self.container_selector.config(state="readonly")
+        self.container_selector.grid(column=1, row=0, sticky=(W+E))
+        if self.parent_id == 0:
+            pl = ""
+        else:
+            pl = self.get_parent_place()
+        self.container_selected.set(pl.get_place())
 
         entry_frame = ttk.Frame(self.frame, padding="10 10 10 10")
         entry_frame.grid(column=0, row=1, sticky=(N, W, E, S))
@@ -287,15 +279,16 @@ class PlornEditPlace(Toplevel):
             self.buttons[n].grid(column=n, row=0, padx=10, pady=10)
 
     def get_parent_place(self):
-        place = self.db.get_place_object(self.parent_id, parent_id=0)
-        return place.get_place()
+        container = ""
+        for ii in self.container_list.keys():
+            if self.container_list[ii] == self.parent_id:
+                container = self.container_list[ii]
+                break
+        return self.db.get_place(container)
 
     def update_place(self):
         new_place = self.place_entered.get()
-        if self.parent_id == 0:
-            container_place = new_place
-        else:
-            container_place = self.container_selector.get()
+        container_place = self.container_selector.get()
         if new_place == "":
             messagebox.showerror(parent=self,
                                  title="Edit Place",
@@ -310,19 +303,15 @@ class PlornEditPlace(Toplevel):
 
         place_copy = self.place_obj
         module_logger.debug(f"updating(0) {str(self.place_obj)} to {str(place_copy)}")
-        pid = 0
-        if self.parent_id != 0:
-            row = self.db.get_place_by_place(container_place)
-            parent_obj = self.db.get_place_object(row["id"], parent_id=0)
-            pid = parent_obj.get_id()
+        pid = self.container_list[container_place]
         if self.db.place_exists(new_place, parent_id=pid):
             messagebox.showerror(parent=self,
                                  title="Edit Place",
                                  detail="Place already exists with same parent")
             return
 
-        place_copy.set_parent_id(pid)
         place_copy.set_place(new_place)
+        place_copy.set_parent_id(self.container_list[container_place])
         module_logger.debug(f"updating(1) {str(self.place_obj)} to {str(place_copy)}")
         id = self.db.update_place(self.place_obj, place_copy)
         self.destroy()

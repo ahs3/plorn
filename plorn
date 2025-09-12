@@ -867,8 +867,8 @@ class Plorn(Tk):
 
         self.place_buttons = [
             ttk.Button(rframe, text="add", command=self.add_place),
-            ttk.Button(rframe, text="remove", command=self.destroy),
-            ttk.Button(rframe, text="edit", command=self.destroy),
+            ttk.Button(rframe, text="remove", command=self.remove_place),
+            ttk.Button(rframe, text="edit", command=self.edit_place),
         ]
         for n in range(0, len(self.place_buttons)):
             self.place_buttons[n].grid(column=0, row=n+1)
@@ -879,29 +879,28 @@ class Plorn(Tk):
             self.lview.delete(ii)
         self.place_list.clear()
         self.place_list = self.db.get_places()
-        self.place_list.sort(key=lambda x: x["place"])
-        logger.debug(f"update to: {str(self.place_list)}")
+        #logger.debug(f"update to: {str(self.place_list)}")
         tree_ids = {}
         while len(tree_ids) < len(self.place_list):
             for ii in self.place_list:
                 #logger.debug(f"insert: {str(ii)}")
-                id = ii["id"]
-                pid = ii["parent_id"]
-                place = ii["place"]
+                id = ii.get_id()
+                pid = ii.get_parent_id()
+                place = ii.get_place()
                 under_id = ""
                 if pid == 0 and id not in tree_ids:
                     curid = self.lview.insert(under_id, END,
-                                              text=ii["place"],
+                                              text=place,
                                               values=(id, pid)
-                                              )
+                                             )
                     tree_ids[id] = curid
                 elif pid != 0 and id not in tree_ids:
                     if pid in tree_ids:
                         under_id = tree_ids[pid]
                         curid = self.lview.insert(under_id, END,
-                                                  text=ii["place"],
+                                                  text=place,
                                                   values=(id, pid)
-                                                  )
+                                                 )
                         tree_ids[id] = curid
 
             #logger.debug(f"tree {len(tree_ids)}, places {len(self.place_list)}")
@@ -917,12 +916,57 @@ class Plorn(Tk):
         addone = plorn_place.PlornAddPlace(self, parent_id=pid)
         addone.grab_set()
         self.wait_window(addone)
+        place = addone.get_new_place()
         
-        place_id, parent_id = self.db.get_last_place_id()
-        if place_id != None:
-            place = self.db.get_place_object(place_id, parent_id)
+        if place and place.get_id() != None:
+            #place = self.db.get_place(place_id, parent_id)
             logger.debug(f"add place {place.get_place()}")
             self.update_placeview()
+
+    def remove_place(self):
+        entry_id = self.lview.focus()
+        if entry_id == "":
+            messagebox.showerror(parent=self,
+                                 title="Remove Place",
+                                 detail="Please select a place to remove")
+            return
+        entry = self.lview.item(entry_id)
+        logger.debug(f"entry: {str(entry)}")
+        e_id = entry["values"][0]
+        e_pid = entry["values"][1]
+        
+        kids = self.db.get_place_children(e_id)
+        if len(kids) > 0:
+            msg = "Cannot remove a place that still contains other places"
+            messagebox.showerror(parent=self, title="Remove Place", detail=msg)
+            return
+
+        place = self.db.get_place(e_id, parent_id=e_pid)
+        place_id = place.get_id()
+        parent_id = place.get_parent_id()
+        logger.debug(f"removing place {place.get_place()} from {parent_id}")
+        rmone = plorn_place.PlornRemovePlace(self, place_id, parent_id)
+        rmone.grab_set()
+        self.wait_window(rmone)
+        self.update_placeview()
+
+    def edit_place(self):
+        entry = self.lview.focus()
+        if entry != "":
+            place_entry = self.lview.item(entry)
+            place = place_entry["text"]
+            place_id = place_entry["values"][0]
+            parent_id = place_entry["values"][1]
+            logger.debug(f"edit place {str(entry)}")
+            showone = plorn_place.PlornEditPlace(self, place, place_id,
+                                                 parent_id=parent_id)
+            showone.grab_set()
+            self.wait_window(showone)
+            self.update_placeview()
+        else:
+            messagebox.showerror(parent=self,
+                                 title="Select a Place",
+                                 detail="Please select a place to edit")
 
     def build_settings(self, parent):
         config = plorn_config.get_config()
