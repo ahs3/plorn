@@ -32,6 +32,7 @@ class PlornDb:
         self.last_album_id = None
         self.last_photo_id = None
         self.last_name_id = None
+        self.last_place_id = None
         self.create_tables()
 
     def close(self):
@@ -591,7 +592,11 @@ class PlornDb:
         res = self.cursor.execute(sql)
         row = res.fetchone()
         module_logger.debug(f"added place {str(row)}")
+        self.last_place_id = (row["id"], row["parent_id"])
         return row["id"]
+
+    def get_last_place_id(self):
+        return self.last_place_id
 
     def place_exists(self, place, parent_id=0):
         sql = f"SELECT * FROM places WHERE place = \"{place}\""
@@ -602,20 +607,20 @@ class PlornDb:
                 return True
         return False
 
-    def get_place_object(self, place_id):
+    def get_place_object(self, place_id, parent_id=0):
         sql = f"SELECT * FROM places WHERE id = \"{place_id}\""
         res = self.cursor.execute(sql)
         row = res.fetchone()
         return plorn_place.PlornPlace(row["place"], id=row["id"],
                                       parent_id=row["parent_id"])
 
-    def get_place_children(self, place_id):
+    def get_place_children(self, place_id, parent_id=0):
         sql = f"SELECT * FROM places WHERE parent_id = {place_id}"
         res = self.cursor.execute(sql)
         rows = res.fetchall()
         return rows
 
-    def get_full_place(self, place_id):
+    def get_full_place(self, place_id, parent_id=0):
         sql = f"SELECT * FROM places WHERE id = \"{place_id}\""
         res = self.cursor.execute(sql)
         row = res.fetchone()
@@ -629,6 +634,20 @@ class PlornDb:
             if row:
                 fullplace.append(row["place"])
         return fullplace[::-1]
+
+    def get_places(self):
+        sql = f"SELECT * FROM places"
+        res = self.cursor.execute(sql)
+        rows = res.fetchall()
+        module_logger.debug(f"get_places: {rows}")
+        return rows
+
+    def get_place_by_place(self, place, parent_id=0):
+        sql  = f"SELECT * FROM places WHERE place = \"{place}\""
+        sql += f" AND parent_id = \"{parent_id}\""
+        res = self.cursor.execute(sql)
+        row = res.fetchone()
+        return row
 
 
 def get_dbname(config):

@@ -19,6 +19,7 @@ from plorn_config import FONTSIZE
 import plorn_db
 import plorn_name
 import plorn_photo
+import plorn_place
 
 #-- the application
 class Plorn(Tk):
@@ -122,7 +123,7 @@ class Plorn(Tk):
         self.notebook.add(self.photos, text=" Photos ")
         self.photos_tab = 1
 
-        #   ... and that has a name list for the current photo
+        #   ... and there are all sorts of names to choose from
         self.names = ttk.Frame(self.notebook, padding="5 5 5 5")
         self.names["borderwidth"] = 2
         self.names["relief"] = "groove"
@@ -131,7 +132,7 @@ class Plorn(Tk):
         self.notebook.add(self.names, text=" Names ")
         self.names_tab = 2
 
-        #   ... and that has a place list for the current photo
+        #   ... and there are all sorts of places to choose from
         self.places = ttk.Frame(self.notebook, padding="5 5 5 5")
         self.places["borderwidth"] = 2
         self.places["relief"] = "groove"
@@ -792,7 +793,7 @@ class Plorn(Tk):
         if not child:
             child = cur
         logger.debug(f"up_place selection: {str(cur)} -> {str(child)}")
-        self.nview.selection_set(child)
+        self.lview.selection_set(child)
         self.last_place_id = child
 
     def down_place(self, event):
@@ -801,7 +802,7 @@ class Plorn(Tk):
         if not child:
             child = cur
         logger.debug(f"down_place selection: {str(cur)} -> {str(child)}")
-        self.nview.selection_set(child)
+        self.lview.selection_set(child)
         self.last_place_id = child
 
     def select_place(self, event):
@@ -809,7 +810,7 @@ class Plorn(Tk):
         if not child:
             child = self.last_place_id
         logger.debug(f"select_place selection: {str(child)}")
-        self.nview.selection_set(child)
+        self.lview.selection_set(child)
         self.last_place_id = child
 
     def build_place_list(self, parent):
@@ -840,13 +841,16 @@ class Plorn(Tk):
         style.configure("plorn.Treeview.Heading",
                         font=("TkDefaultFont", FONTSIZE))
         lview = ttk.Treeview(lframe,
-                             columns=("place"),
+                             columns=("id", "parent"),
                              selectmode="browse",
                              style="plorn.Treeview")
-        lview.column("#0", anchor="center", minwidth=0, width=100)
-        lview.heading("#0", text="ID")
-        lview.column("place", anchor="w", minwidth=0, width=500)
-        lview.heading("place", text="Place")
+        lview.column("#0", anchor="w", minwidth=0, width=500)
+        lview.heading("#0", text="Place")
+        lview.column("id", anchor="w", minwidth=0, width=100)
+        lview.heading("id", text="ID")
+        lview.column("parent", anchor="w", minwidth=0, width=100)
+        lview.heading("parent", text="Parent")
+        lview["displaycolumns"] = ()
         lview.grid(column=0, row=0)
         xscrollbar = ttk.Scrollbar(lframe, orient="vertical",
                                   command=lview.yview)
@@ -862,13 +866,63 @@ class Plorn(Tk):
         self.lview = lview
 
         self.place_buttons = [
-            ttk.Button(rframe, text="add", command=self.destroy),
+            ttk.Button(rframe, text="add", command=self.add_place),
             ttk.Button(rframe, text="remove", command=self.destroy),
             ttk.Button(rframe, text="edit", command=self.destroy),
-            ttk.Button(rframe, text="move", command=self.destroy),
         ]
         for n in range(0, len(self.place_buttons)):
             self.place_buttons[n].grid(column=0, row=n+1)
+        self.update_placeview()
+
+    def update_placeview(self):
+        for ii in self.lview.get_children():
+            self.lview.delete(ii)
+        self.place_list.clear()
+        self.place_list = self.db.get_places()
+        self.place_list.sort(key=lambda x: x["place"])
+        logger.debug(f"update to: {str(self.place_list)}")
+        tree_ids = {}
+        while len(tree_ids) < len(self.place_list):
+            for ii in self.place_list:
+                #logger.debug(f"insert: {str(ii)}")
+                id = ii["id"]
+                pid = ii["parent_id"]
+                place = ii["place"]
+                under_id = ""
+                if pid == 0 and id not in tree_ids:
+                    curid = self.lview.insert(under_id, END,
+                                              text=ii["place"],
+                                              values=(id, pid)
+                                              )
+                    tree_ids[id] = curid
+                elif pid != 0 and id not in tree_ids:
+                    if pid in tree_ids:
+                        under_id = tree_ids[pid]
+                        curid = self.lview.insert(under_id, END,
+                                                  text=ii["place"],
+                                                  values=(id, pid)
+                                                  )
+                        tree_ids[id] = curid
+
+            #logger.debug(f"tree {len(tree_ids)}, places {len(self.place_list)}")
+
+    def add_place(self):
+        logger.debug(f"adding place")
+        parent = self.lview.focus()
+        if parent == "":
+            pid = 0
+        else:
+            entry = self.lview.item(parent)
+            pid = entry["values"][1]
+        addone = plorn_place.PlornAddPlace(self, parent_id=pid)
+        addone.grab_set()
+        self.wait_window(addone)
+        
+        place_id, parent_id = self.db.get_last_place_id()
+        if place_id != None:
+            place = self.db.get_place_object(place_id, parent_id)
+            logger.debug(f"add place {place.get_place()}")
+            self.update_placeview()
 
     def build_settings(self, parent):
         config = plorn_config.get_config()
