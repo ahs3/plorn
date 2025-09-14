@@ -29,8 +29,6 @@ class PlornDb:
         self.db = sqlite3.connect(dbname)
         self.db.row_factory = dict_factory
         self.cursor = self.db.cursor()
-        self.last_album_id = None
-        self.last_photo_id = None
         self.create_tables()
 
     def close(self):
@@ -298,32 +296,31 @@ class PlornDb:
         sql += f"{album.get_photo_count()})"
         res = self.cursor.execute(sql)
         self.db.commit()
-        sql = f"SELECT id FROM albums WHERE name = \"{album.get_name()}\""
+        sql = f"SELECT * FROM albums WHERE name = \"{album.get_name()}\""
         res = self.cursor.execute(sql)
         row = res.fetchone()
         module_logger.debug(f"added album {str(row)}")
-        self.last_album_id = row["id"]
-        return row["id"]
-
-    def get_last_album_id(self):
-        return self.last_album_id
-
-    def get_last_photo_id(self):
-        return self.last_photo_id
+        return plorn_album.PlornAlbum(row["name"], row["path"], id=row["id"],
+                                      dated=row["dated"], notes=row["notes"],
+                                      photo_count=row["photo_count"])
 
     def get_album_by_name(self, album_name):
         sql = f"SELECT * FROM albums WHERE name = \"{album_name}\""
         res = self.cursor.execute(sql)
         row = res.fetchone()
         module_logger.debug(f"got by name: {str(row)}")
-        return row
+        return plorn_album.PlornAlbum(row["name"], row["path"], id=row["id"],
+                                      dated=row["dated"], notes=row["notes"],
+                                      photo_count=row["photo_count"])
 
     def get_album_by_id(self, album_id):
         sql = f"SELECT * FROM albums WHERE id = \"{album_id}\""
         res = self.cursor.execute(sql)
         row = res.fetchone()
         module_logger.debug(f"got by id: {str(row)}")
-        return row
+        return plorn_album.PlornAlbum(row["name"], row["path"], id=row["id"],
+                                      dated=row["dated"], notes=row["notes"],
+                                      photo_count=row["photo_count"])
 
     def remove_album_by_name(self, album_name):
         sql = f"DELETE FROM albums WHERE name = \"{album_name}\""
@@ -332,20 +329,39 @@ class PlornDb:
         module_logger.debug(f"removed album by name: {album_name}")
         return 
 
+    def remove_album(self, album):
+        sql = f"DELETE FROM albums WHERE id = \"{album.get_id()}\""
+        res = self.cursor.execute(sql)
+        sql = f"DELETE FROM photos WHERE album_id = \"{album.get_id()}\""
+        res = self.cursor.execute(sql)
+        self.db.commit()
+        module_logger.debug(f"removed album by name: {album.get_name()}")
+        return 
+
     def get_albums(self):
-        sql = f"SELECT id, name, path, photo_count FROM albums"
+        sql = f"SELECT * FROM albums"
         res = self.cursor.execute(sql)
         rows = res.fetchall()
-        module_logger.debug(f"get_albums: {rows}")
-        return rows
+        rows.sort(key=lambda x: int(x["id"]))
+        result = []
+        for ii in rows:
+            p = plorn_album.PlornAlbum(ii["name"], ii["path"], id=ii["id"],
+                                       dated=ii["dated"], notes=ii["notes"],
+                                       photo_count=ii["photo_count"])
+            result.append(p)
+        return result
 
     def get_photos(self, album_id):
-        sql  = f"SELECT id, name, path FROM photos"
-        sql += f" WHERE album_id = \"{album_id}\""
+        sql  = f"SELECT * FROM photos WHERE album_id = \"{album_id}\""
         res = self.cursor.execute(sql)
         rows = res.fetchall()
-        module_logger.debug(f"get_photos: {rows}")
-        return rows
+        rows.sort(key=lambda x: int(x["id"]))
+        result = []
+        for ii in rows:
+            p = plorn_photo.PlornPhoto(ii["name"], ii["path"], id=ii["id"],
+                                       dated=ii["dated"], notes=ii["notes"])
+            result.append(p)
+        return result
 
     def album_count(self):
         sql = f"SELECT id FROM albums"
@@ -368,38 +384,31 @@ class PlornDb:
         res = self.cursor.execute(sql)
         self.db.commit()
 
-        sql  = "SELECT id FROM albums"
+        sql  = "SELECT * FROM albums"
         sql += f" WHERE name = \"{updated_album.get_name()}\""
         res = self.cursor.execute(sql)
         row = res.fetchone()
         msg = f"updated album: from {album.get_name()}"
         msg += f" to {row["id"]}"
         module_logger.debug(msg)
-        return row["id"]
+        return plorn_album.PlornAlbum(row["name"], row["path"], id=row["id"],
+                                      dated=row["dated"], notes=row["notes"],
+                                      photo_count=row["photo_count"])
 
-    def get_album_object(self, album_id):
-        row = self.get_album_by_id(album_id)
-        if row == None:
-            return None
-        return plorn_album.PlornAlbum(row["name"], row["path"],
-                        id=row["id"], dated=row["dated"],
-                        notes=row["notes"],
-                        photo_count=row["photo_count"])
+    def get_album(self, album_id):
+        return self.get_album_by_id(album_id)
 
     def get_photo_by_id(self, photo_id):
-        sql = f"SELECT * FROM photos WHERE id = \"{photo_id}\""
+        sql = f"SELECT * FROM photos WHERE id = {photo_id}"
         res = self.cursor.execute(sql)
         row = res.fetchone()
         module_logger.debug(f"got photo by id: {str(row)}")
-        return row
-
-    def get_photo_object(self, photo_id):
-        row = self.get_photo_by_id(photo_id)
-        if row == None:
-            return None
         return plorn_photo.PlornPhoto(row["name"], row["path"],
-                        id=row["id"], album_id=row["album_id"],
-                        dated=row["dated"], notes=row["notes"])
+                                      id=row["id"], album_id=row["album_id"],
+                                      dated=row["dated"], notes=row["notes"])
+
+    def get_photo(self, photo_id):
+        return self.get_photo_by_id(photo_id)
 
     def increment_photo_count(self, album):
         album_copy = album
@@ -417,15 +426,16 @@ class PlornDb:
         sql += f" \"{photo.get_name()}\", \"{photo.get_path()}\","
         sql += f" \"{photo.get_dated()}\", \"{photo.get_notes()}\")"
         res = self.cursor.execute(sql)
-        album = self.get_album_object(album_id)
+        album = self.get_album(album_id)
         self.increment_photo_count(album)
         self.db.commit()
         sql = f"SELECT * FROM photos WHERE path = \"{photo.get_path()}\""
         res = self.cursor.execute(sql)
         row = res.fetchone()
         module_logger.debug(f"added photo {str(row)}")
-        self.last_photo_id = row["id"]
-        return row["id"]
+        return plorn_photo.PlornPhoto(row["name"], row["path"],
+                                      id=row["id"], album_id=row["album_id"],
+                                      dated=row["dated"], notes=row["notes"])
 
     def remove_photo_by_id(self, photo_id):
         sql = f"SELECT * FROM photos WHERE id = \"{photo_id}\""
@@ -450,14 +460,16 @@ class PlornDb:
         res = self.cursor.execute(sql)
         self.db.commit()
 
-        sql  = "SELECT id FROM photos"
+        sql  = "SELECT * FROM photos"
         sql += f" WHERE id = \"{updated_photo.get_id()}\""
         res = self.cursor.execute(sql)
         row = res.fetchone()
         msg = f"updated photo: from {photo.get_name()}"
         msg += f" to {row["id"]}"
         module_logger.debug(msg)
-        return row["id"]
+        return plorn_photo.PlornPhoto(row["name"], row["path"],
+                                      id=row["id"], album_id=row["album_id"],
+                                      dated=row["dated"], notes=row["notes"])
 
     def add_name(self, name, parent_id=0):
         sql  = "INSERT INTO names (name, parent_id) VALUES "

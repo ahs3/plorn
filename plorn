@@ -39,7 +39,8 @@ class Plorn(Tk):
         self.aview = None
         self.album_list = []
         self.album_count = 0
-        self.album_count_label = StringVar()
+        self.album_count_str = StringVar()
+        self.album_count_label = None
         self.current_album = None
         self.current_album_name = StringVar()
         self.album_label = StringVar()
@@ -50,7 +51,8 @@ class Plorn(Tk):
         self.button_imgs = {}
         self.last_button_img = None
         self.photo_count = 0
-        self.photo_count_label = StringVar()
+        self.photo_count_str = StringVar()
+        self.photo_count_label = None
         self.current_photo = None
         self.current_photo_button = None
         self.current_photo_name = StringVar()
@@ -154,16 +156,13 @@ class Plorn(Tk):
         #-- and some counts of albums and photos ....
         sep3 = ttk.Separator(self.mainframe, orient=HORIZONTAL)
         sep3.grid(column=0, row=4, columnspan=3, sticky=(W+E))
-
-        self.album_count_label.set(f"Albums: {self.db.album_count()}")
-        album_count_label = ttk.Label(self.mainframe, width=16,
-                                      textvariable=self.album_count_label)
-        album_count_label.grid(column=0, row=5, sticky=(W))
-
-        self.photo_count_label.set(f"Photos: {self.db.photo_count()}")
-        photo_count_label = ttk.Label(self.mainframe, width=16,
-                                      textvariable=self.photo_count_label)
-        photo_count_label.grid(column=1, row=5, sticky=(W))
+        self.album_count_label = ttk.Label(self.mainframe, width=16,
+                                      textvariable=self.album_count_str)
+        self.album_count_label.grid(column=0, row=5, sticky=(W))
+        self.photo_count_label = ttk.Label(self.mainframe, width=16,
+                                      textvariable=self.photo_count_str)
+        self.photo_count_label.grid(column=1, row=5, sticky=(W))
+        self.update_counts()
 
         #-- and an exit button ....
         sep4 = ttk.Separator(self.mainframe, orient=HORIZONTAL)
@@ -171,17 +170,20 @@ class Plorn(Tk):
         b = ttk.Button(self.mainframe, text="Quit", command=self.destroy)
         b.grid(column=1, row=7)
 
+    def update_counts(self):
+        self.album_count_str.set(f"Albums: {self.db.album_count()}")
+        self.photo_count_str.set(f"Photos: {self.db.photo_count()}")
+
     def update_albumview(self):
         for ii in self.aview.get_children():
             self.aview.delete(ii)
         self.album_list.clear()
         self.album_list = self.db.get_albums()
-        self.album_list.sort(key=lambda x: x["name"])
         for ii in self.album_list:
             self.aview.insert("", END,
-                              text=ii["id"],
-                              values=(ii["name"], ii["path"],
-                                      ii["photo_count"]))
+                              text=ii.get_id(),
+                              values=(ii.get_name(), ii.get_path(),
+                                      ii.get_photo_count()))
         self.aview.focus_set()
         kids = self.aview.get_children()
         if len(kids) > 0:
@@ -190,11 +192,9 @@ class Plorn(Tk):
                 self.aview.focus(child_id)
                 self.aview.selection_set(child_id)
                 entry = self.aview.item(child_id)
-                self.current_album = self.db.get_album_object(entry["text"])
+                self.current_album = self.db.get_album(entry["text"])
                 self.current_album_name.set(self.current_album.get_name())
-
-        self.album_count_label.set(f"Albums: {self.db.album_count()}")
-        self.photo_count_label.set(f"Photos: {self.db.photo_count()}")
+        self.update_counts()
 
     def get_symlink(self):
         linkname = os.path.join(config.get_datadir(),
@@ -220,16 +220,13 @@ class Plorn(Tk):
 
     def add_album(self):
         logger.debug("adding album")
-        addone = plorn_album.PlornAddAlbum(self, self.album_list)
+        addone = plorn_album.PlornAddAlbum(self)
         addone.grab_set()
         self.wait_window(addone)
+        album = addone.get_new_album()
         
-        album_id = self.db.get_last_album_id()
-        if album_id != None:
-            row = self.db.get_album_by_id(album_id)
-            self.current_album = plorn_album.PlornAlbum(row["name"],
-                                        row["path"], id=row["id"],
-                                        dated=row["dated"], notes=row["notes"])
+        if album != None and album.get_id() != None:
+            self.current_album = album
             logger.debug(f"add photos to {self.current_album.get_name()}")
             linkname = self.get_symlink()
             photo_list = self.collect_images(linkname)
@@ -238,10 +235,10 @@ class Plorn(Tk):
             self.button_imgs.clear()
             for ii in photo_list:
                 name = os.path.basename(ii)
-                photo = plorn_photo.PlornPhoto(name, ii, id=None,
-                                               album_id=album_id)
+                tmp = plorn_photo.PlornPhoto(name, ii, id=None,
+                                             album_id=album_id)
                 logger.debug(f"add photo {ii} with album_id {album_id}")
-                id = self.db.add_photo(photo, album_id)
+                photo = self.db.add_photo(tmp, album_id)
             for ii in self.db.get_photos(album_id):
                 self.photo_list.append(ii)
             logger.debug(f"photo_list {str(self.photo_list)}")
@@ -252,10 +249,9 @@ class Plorn(Tk):
         row = self.aview.focus()
         if row != "":
             album = self.aview.item(row)
-            album_name = album["values"][0]
-            logger.debug(f"remove album {album_name}")
-            rmone = plorn_album.PlornRemoveAlbum(self, album_name,
-                                                 self.album_list)
+            album_id = album["text"]
+            logger.debug(f"remove album {album["values"][0]}")
+            rmone = plorn_album.PlornRemoveAlbum(self, album_id)
             rmone.grab_set()
             self.wait_window(rmone)
             self.update_albumview()
@@ -270,7 +266,7 @@ class Plorn(Tk):
             album = self.aview.item(row)
             album_name = album["values"][0]
             logger.debug(f"show info for {album_name}")
-            showone = plorn_album.PlornShowAlbum(self, album_name)
+            showone = plorn_album.PlornShowAlbum(self, album["text"])
             showone.grab_set()
             self.wait_window(showone)
         else:
@@ -325,17 +321,16 @@ class Plorn(Tk):
             self.pview.delete(ii)
         self.photo_list.clear()
         self.photo_list = self.db.get_photos(album_id)
-        self.photo_list.sort(key=lambda x: x["id"])
         self.button_imgs.clear()
         for ii in self.photo_list:
             child = self.pview.insert("", END,
-                                      text=ii["id"],
-                                      values=(ii["name"], ii["path"]))
-            raw_img = pilImage.open(ii["path"])
+                                      text=ii.get_id(),
+                                      values=(ii.get_name(), ii.get_path()))
+            raw_img = pilImage.open(ii.get_path())
             thumbnail = raw_img.resize((100,100))
             button_img = ImageTk.PhotoImage(image=thumbnail)
             self.button_imgs[child] = button_img
-            logger.debug(f"add btn img for child {child} from {ii["path"]}")
+            logger.debug(f"add btn img for child {child} from {ii.get_path()}")
 
         self.pview.focus_set()
         kids = self.pview.get_children()
@@ -346,11 +341,9 @@ class Plorn(Tk):
             self.pview.focus(child_id)
             self.set_button_img(child_id)
             db_id = self.pview.item(child_id)["text"]
-            self.current_photo = self.db.get_photo_object(db_id)
+            self.current_photo = self.db.get_photo(db_id)
             self.photo_label.set(f"Photo: {self.current_photo.get_name()}")
-
-    def got_called(self, event):
-        logger.debug(f"got called for {str(event)}")
+        self.update_counts()
 
     def open_album(self):
         row = self.aview.focus()
@@ -358,7 +351,7 @@ class Plorn(Tk):
             album_info = self.aview.item(row)
             album_id = album_info["text"]
             album_name = album_info["values"][0]
-            self.current_album = self.db.get_album_object(album_id)
+            self.current_album = self.db.get_album(album_id)
             logger.debug(f"open album {album_name}")
             self.notebook.select(self.photos_tab)
             self.update_photoview(album_id)
@@ -373,9 +366,7 @@ class Plorn(Tk):
             album = self.aview.item(row)
             album_name = album["values"][0]
             logger.debug(f"edit album {album_name}")
-            showone = plorn_album.PlornEditAlbum(self,
-                                                 album_name,
-                                                 self.album_list)
+            showone = plorn_album.PlornEditAlbum(self, album["text"])
             showone.grab_set()
             self.wait_window(showone)
             self.update_albumview()
@@ -545,7 +536,7 @@ class Plorn(Tk):
             rmone.grab_set()
             self.wait_window(rmone)
             del self.button_imgs[row]
-            album = self.db.get_album_object(photo["album_id"])
+            album = self.db.get_album(photo["album_id"])
             self.update_photoview(album.get_id())
             self.update_albumview()
         else:
@@ -563,7 +554,7 @@ class Plorn(Tk):
             rmone = plorn_photo.PlornEditPhoto(self, photo_id)
             rmone.grab_set()
             self.wait_window(rmone)
-            album = self.db.get_album_object(photo["album_id"])
+            album = self.db.get_album(photo["album_id"])
             self.update_photoview(album.get_id())
             self.update_albumview()
         else:

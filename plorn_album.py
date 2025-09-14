@@ -75,13 +75,14 @@ class PlornAlbum:
 
 
 class PlornAddAlbum(Toplevel):
-    def __init__(self, parent, album_list):
+    def __init__(self, parent):
         super().__init__(parent)
         module_logger.debug("started PlornAddAlbum")
         tfont = font.nametofont("TkDefaultFont")
         self.name = ""
         self.path = ""
-        self.album_list = album_list
+        self.new_album = None
+        self.db = plorn_db.open()
 
         self.geometry("800x600")
         self.title("Add an Album")
@@ -154,6 +155,9 @@ class PlornAddAlbum(Toplevel):
         if self.path:
             self.path_entry.insert(0, self.path)
 
+    def get_new_album(self):
+        return self.new_album
+
     def clear_entries(self):
         self.name = ""
         self.album_name.set(self.name)
@@ -164,22 +168,19 @@ class PlornAddAlbum(Toplevel):
         self.photo_count = 0
 
     def add_album(self):
-        global last_album
-
         module_logger.debug("entered add_album")
         self.name = self.album_name.get()
         self.path = self.album_path.get()
         module_logger.debug(f"add album name: {self.name}, path: {self.path}")
         album = PlornAlbum(self.album_name.get(),
-                                        self.album_path.get(),
-                                        id=None,
-                                        dated=self.dated.get(),
-                                        notes=self.notes.get("1.0", END),
-                                        photo_count=self.photo_count,
-                                       )
+                           self.album_path.get(),
+                           id=None,
+                           dated=self.dated.get(),
+                           notes=self.notes.get("1.0", END),
+                           photo_count=self.photo_count,
+                          )
 
-        db = plorn_db.open()
-        if db.album_exists(album):
+        if self.db.album_exists(album):
             messagebox.showerror(parent=self,
                                  title="Adding an Album",
                                  message="Album already exists",
@@ -189,15 +190,7 @@ class PlornAddAlbum(Toplevel):
             fullpath = os.path.expandvars(os.path.expanduser(self.path))
             module_logger.debug(f"new album {self.name} from {fullpath}")
             if os.path.isdir(fullpath):
-                id = db.add_album(album)
-                album.set_id(id)
-                self.album_list.append({"id": album.get_id(),
-                                        "name": album.get_name(),
-                                        "path": album.get_path(),
-                                        "dated": album.get_dated(),
-                                        "notes": album.get_notes(),
-                                        "photo_count": album.get_photo_count()}
-                                      )
+                self.new_album = self.db.add_album(album)
                 msg = f"Adding Album \"{album.get_name()}\""
                 messagebox.showinfo(message=msg, parent=self)
             else:
@@ -207,28 +200,13 @@ class PlornAddAlbum(Toplevel):
                                      detail="Please choose another path",
                                     )
 
-def retrieve_album_record(name):
-    db = plorn_db.open()
-    record = db.get_album_by_name(name)
-    return PlornAlbum(record["name"],
-                      record["path"],
-                      id=record["id"],
-                      dated=record["dated"],
-                      notes=record["notes"],
-                      photo_count=record["photo_count"],
-                     )
-
-def delete_album_by_name(name):
-    db = plorn_db.open()
-    db.remove_album_by_name(name)
-    return
-
 class PlornShowAlbum(Toplevel):
-    def __init__(self, parent, album_name):
+    def __init__(self, parent, album_id):
         super().__init__(parent)
         module_logger.debug("started PlornShowAlbum")
         tfont = font.nametofont("TkDefaultFont")
-        album = retrieve_album_record(album_name)
+        self.db = plorn_db.open()
+        self.album = self.db.get_album(album_id)
 
         self.geometry("800x600")
         self.title("Album Info")
@@ -242,7 +220,7 @@ class PlornShowAlbum(Toplevel):
         lab1 = ttk.Label(self.frame, width=10, text="Name:")
         lab1.grid(column=0, row=0, sticky=(W))
         self.album_name = StringVar(self.frame)
-        self.album_name.set(album.get_name())
+        self.album_name.set(self.album.get_name())
         self.album_entry = ttk.Entry(self.frame, width=40,
                                      textvariable=self.album_name,
                                      font=tfont, state="readonly")
@@ -252,7 +230,7 @@ class PlornShowAlbum(Toplevel):
         lab2 = ttk.Label(self.frame, width=10, text="Path:")
         lab2.grid(column=0, row=1, sticky=(W))
         self.album_path = StringVar(self.frame)
-        self.album_path.set(album.get_path())
+        self.album_path.set(self.album.get_path())
         self.path_entry = ttk.Entry(self.frame, width=40,
                                     textvariable=self.album_path,
                                     font=tfont, state="readonly")
@@ -261,7 +239,7 @@ class PlornShowAlbum(Toplevel):
         lab3 = ttk.Label(self.frame, width=10, text="Dated:")
         lab3.grid(column=0, row=2, sticky=(W))
         self.dated = StringVar(self.frame)
-        self.dated.set(album.get_dated())
+        self.dated.set(self.album.get_dated())
         self.date_entry = ttk.Entry(self.frame, width=40,
                                     textvariable=self.dated,
                                     font=tfont, state="readonly")
@@ -270,15 +248,15 @@ class PlornShowAlbum(Toplevel):
         lab4 = ttk.Label(self.frame, width=10, text="Notes:")
         lab4.grid(column=0, row=3, sticky=(N, W))
         self.notes = Text(self.frame, height=10, width=40, font=tfont)
-        self.notes.insert("1.0", album.get_notes())
+        self.notes.insert("1.0", self.album.get_notes())
         self.notes.configure(state="disabled")
-        module_logger.debug(f"notes: {album.get_notes()}")
+        module_logger.debug(f"notes: {self.album.get_notes()}")
         self.notes.grid(column=1, row=3, sticky=(N, W, E, S))
 
         lab5 = ttk.Label(self.frame, width=10, text="Photos:")
         lab5.grid(column=0, row=4, sticky=(N, W))
         self.photo_count = StringVar(self.frame)
-        self.photo_count.set(album.get_photo_count())
+        self.photo_count.set(self.album.get_photo_count())
         self.photos = ttk.Entry(self.frame, width=40,
                                 textvariable=self.photo_count,
                                 font=tfont, state="readonly")
@@ -295,12 +273,13 @@ class PlornShowAlbum(Toplevel):
 
 
 class PlornRemoveAlbum(Toplevel):
-    def __init__(self, parent, album_name, album_list):
+    def __init__(self, parent, album_id):
         super().__init__(parent)
         module_logger.debug("started PlornRemoveAlbum")
         tfont = font.nametofont("TkDefaultFont")
-        album = retrieve_album_record(album_name)
-        self.album_list = album_list
+        self.db = plorn_db.open()
+        self.album_id = album_id
+        self.album = self.db.get_album(album_id)
 
         self.geometry("800x600")
         self.title("Album to Remove")
@@ -314,7 +293,7 @@ class PlornRemoveAlbum(Toplevel):
         lab1 = ttk.Label(self.frame, width=10, text="Name:")
         lab1.grid(column=0, row=0, sticky=(W))
         self.album_name = StringVar(self.frame)
-        self.album_name.set(album.get_name())
+        self.album_name.set(self.album.get_name())
         self.album_entry = ttk.Entry(self.frame, width=40,
                                      textvariable=self.album_name,
                                      font=tfont, state="readonly")
@@ -324,7 +303,7 @@ class PlornRemoveAlbum(Toplevel):
         lab2 = ttk.Label(self.frame, width=10, text="Path:")
         lab2.grid(column=0, row=1, sticky=(W))
         self.album_path = StringVar(self.frame)
-        self.album_path.set(album.get_path())
+        self.album_path.set(self.album.get_path())
         self.path_entry = ttk.Entry(self.frame, width=40,
                                     textvariable=self.album_path,
                                     font=tfont, state="readonly")
@@ -333,7 +312,7 @@ class PlornRemoveAlbum(Toplevel):
         lab3 = ttk.Label(self.frame, width=10, text="Dated:")
         lab3.grid(column=0, row=2, sticky=(W))
         self.dated = StringVar(self.frame)
-        self.dated.set(album.get_dated())
+        self.dated.set(self.album.get_dated())
         self.date_entry = ttk.Entry(self.frame, width=40,
                                     textvariable=self.dated,
                                     font=tfont, state="readonly")
@@ -342,15 +321,15 @@ class PlornRemoveAlbum(Toplevel):
         lab4 = ttk.Label(self.frame, width=10, text="Notes:")
         lab4.grid(column=0, row=3, sticky=(N, W))
         self.notes = Text(self.frame, height=10, width=40, font=tfont)
-        self.notes.insert("1.0", album.get_notes())
+        self.notes.insert("1.0", self.album.get_notes())
         self.notes.configure(state="disabled")
-        module_logger.debug(f"notes: {album.get_notes()}")
+        module_logger.debug(f"notes: {self.album.get_notes()}")
         self.notes.grid(column=1, row=3, sticky=(N, W, E, S))
 
         lab5 = ttk.Label(self.frame, width=10, text="Photos:")
         lab5.grid(column=0, row=4, sticky=(N, W))
         self.photo_count = StringVar(self.frame)
-        self.photo_count.set(album.get_photo_count())
+        self.photo_count.set(self.album.get_photo_count())
         self.photos = ttk.Entry(self.frame, width=40,
                                 textvariable=self.photo_count,
                                 font=tfont, state="readonly")
@@ -377,22 +356,16 @@ class PlornRemoveAlbum(Toplevel):
                  )
         if result is True:
             idx = 0
-            for ii in self.album_list:
-                if ii["name"] == album_name:
-                    break
-                else:
-                    idx += 1
-            delete_album_by_name(album_name)
-            self.album_list.pop(idx)
+            self.db.remove_album(self.album)
             self.destroy()
 
 class PlornEditAlbum(Toplevel):
-    def __init__(self, parent, album_name, album_list):
+    def __init__(self, parent, album_id):
         super().__init__(parent)
         module_logger.debug("started PlornEditAlbum")
         tfont = font.nametofont("TkDefaultFont")
-        self.album = retrieve_album_record(album_name)
-        self.album_list = album_list
+        self.db = plorn_db.open()
+        self.album = self.db.get_album(album_id)
 
         self.geometry("800x600")
         self.title("Edit Album")
@@ -419,11 +392,8 @@ class PlornEditAlbum(Toplevel):
         self.album_path.set(self.album.get_path())
         self.path_entry = ttk.Entry(self.frame, width=40,
                                     textvariable=self.album_path,
-                                    font=tfont)
+                                    font=tfont, state="readonly")
         self.path_entry.grid(column=1, row=1, sticky=(W))
-        self.bdir = ttk.Button(self.frame, text="Browse",
-                               command=self.get_dirname)
-        self.bdir.grid(column=2, row=1)
 
         lab3 = ttk.Label(self.frame, width=10, text="Dated:")
         lab3.grid(column=0, row=2, sticky=(W))
@@ -478,39 +448,25 @@ class PlornEditAlbum(Toplevel):
                                     )
             return
 
-        album_copy = self.album.copy()
-        db = plorn_db.open()
-        if db.album_exists(album_copy):
-            messagebox.showerror(parent=self,
-                                 title="Adding an Album",
-                                 message="Album already exists",
-                                 detail="Please use another name",
-                                )
-            return
+        album_copy = self.album
+        self.db = plorn_db.open()
+        if self.album_name.get() != self.album.get_name():
+            if self.db.album_exists(self.album_name.get()):
+                messagebox.showerror(parent=self,
+                                    title="Adding an Album",
+                                    message="Album already exists",
+                                    detail="Please use another name",
+                                    )
+                return
 
-        album_copy.set_name(self.album_name.get())
         album_copy.set_name(self.album_name.get())
         album_copy.set_path(self.album_path.get())
         album_copy.set_dated(self.dated.get())
         album_copy.set_notes(self.notes.get("1.0", END))
         album_copy.set_photo_count(self.photo_count.get())
-        id = db.update_album(self.album, album_copy)
+        self.album = self.db.update_album(self.album, album_copy)
 
         msg = f"Updated Album \"{self.album_name.get()}\""
         messagebox.showinfo(message=msg, parent=self)
-        idx = 0
-        for ii in self.album_list:
-            if ii["name"] == self.album_name.get():
-                break
-            else:
-                idx += 1
-        self.album_list.pop(idx)
-        self.album_list.append({"id": album_copy.get_id(),
-                                "name": album_copy.get_name(),
-                                "path": album_copy.get_path(),
-                                "dated": album_copy.get_dated(),
-                                "notes": album_copy.get_notes(),
-                                "photo_count": album_copy.get_photo_count()}
-                              )
         self.destroy()
 
