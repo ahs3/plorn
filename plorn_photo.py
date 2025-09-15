@@ -74,22 +74,14 @@ class PlornPhoto:
         val += f", notes: \"{self.notes}\""
         return val
 
-def retrieve_photo_record(photo_id):
-    db = plorn_db.open()
-    record = db.get_photo_by_id(photo_id)
-    return PlornPhoto(name=record["name"],
-                      path=record["path"],
-                      id=record["id"],
-                      dated=record["dated"],
-                      notes=record["notes"],
-                     )
 
 class PlornShowPhoto(Toplevel):
     def __init__(self, parent, photo_id):
         super().__init__(parent)
         module_logger.debug("started PlornShowPhoto")
         tfont = font.nametofont("TkDefaultFont")
-        photo = retrieve_photo_record(photo_id)
+        self.db = plorn_db.open()
+        self.photo = self.db.get_photo(photo_id)
 
         self.geometry("1250x600")
         self.title("Photo Info")
@@ -105,7 +97,7 @@ class PlornShowPhoto(Toplevel):
         lab1 = ttk.Label(self.frame, width=10, text="Name:")
         lab1.grid(column=0, row=0, sticky=(W))
         self.photo_name = StringVar(self.frame)
-        self.photo_name.set(photo.get_name())
+        self.photo_name.set(self.photo.get_name())
         self.photo_entry = ttk.Entry(self.frame, width=40,
                                      textvariable=self.photo_name,
                                      font=tfont, state="readonly")
@@ -115,7 +107,7 @@ class PlornShowPhoto(Toplevel):
         lab2 = ttk.Label(self.frame, width=10, text="Path:")
         lab2.grid(column=0, row=1, sticky=(W))
         self.photo_path = StringVar(self.frame)
-        self.photo_path.set(photo.get_path())
+        self.photo_path.set(self.photo.get_path())
         self.path_entry = ttk.Entry(self.frame, width=40,
                                     textvariable=self.photo_path,
                                     font=tfont, state="readonly")
@@ -124,7 +116,7 @@ class PlornShowPhoto(Toplevel):
         lab3 = ttk.Label(self.frame, width=10, text="Dated:")
         lab3.grid(column=0, row=2, sticky=(W))
         self.dated = StringVar(self.frame)
-        self.dated.set(photo.get_dated())
+        self.dated.set(self.photo.get_dated())
         self.date_entry = ttk.Entry(self.frame, width=40,
                                     textvariable=self.dated,
                                     font=tfont, state="readonly")
@@ -133,9 +125,9 @@ class PlornShowPhoto(Toplevel):
         lab4 = ttk.Label(self.frame, width=10, text="Notes:")
         lab4.grid(column=0, row=3, sticky=(N, W))
         self.notes = Text(self.frame, height=10, width=40, font=tfont)
-        self.notes.insert("1.0", photo.get_notes())
+        self.notes.insert("1.0", self.photo.get_notes())
         self.notes.configure(state="disabled")
-        module_logger.debug(f"notes: {photo.get_notes()}")
+        module_logger.debug(f"notes: {self.photo.get_notes()}")
         self.notes.grid(column=1, row=3, sticky=(N, W, E, S))
 
         sep1 = ttk.Separator(self.frame, orient=HORIZONTAL)
@@ -150,25 +142,20 @@ class PlornShowPhoto(Toplevel):
         self.canvas = Canvas(self.frame, width=600, height=450)
         self.canvas.grid(column=2, row=1, rowspan=3, sticky=NE,
                          padx=(20,20))
-        self.img = pilImage.open(photo.get_path())
+        self.img = pilImage.open(self.photo.get_path())
         self.resize_img = self.img.resize((600, 450))
         self.canvas_img = ImageTk.PhotoImage(image=self.resize_img)
         self.canvas.create_image(10, 10, anchor=NW, image=self.canvas_img)
 
 
-def delete_photo_by_id(photo_id):
-    module_logger.debug(f"removing photo {photo_id}")
-    db = plorn_db.open()
-    db.remove_photo_by_id(photo_id)
-
 class PlornRemovePhoto(Toplevel):
-    def __init__(self, parent, photo_id, photo_list):
+    def __init__(self, parent, photo_id):
         super().__init__(parent)
         module_logger.debug("started PlornRemovePhoto")
         tfont = font.nametofont("TkDefaultFont")
-        photo = retrieve_photo_record(photo_id)
+        self.db = plorn_db.open()
+        self.photo = self.db.get_photo(photo_id)
         self.photo_id = photo_id
-        self.photo_list = photo_list
 
         self.geometry("1250x600")
         self.title("Photo to Remove")
@@ -184,7 +171,7 @@ class PlornRemovePhoto(Toplevel):
         lab1 = ttk.Label(self.frame, width=10, text="Name:")
         lab1.grid(column=0, row=0, sticky=(W))
         self.photo_name = StringVar(self.frame)
-        self.photo_name.set(photo.get_name())
+        self.photo_name.set(self.photo.get_name())
         self.photo_entry = ttk.Entry(self.frame, width=40,
                                      textvariable=self.photo_name,
                                      font=tfont, state="readonly")
@@ -194,7 +181,7 @@ class PlornRemovePhoto(Toplevel):
         lab2 = ttk.Label(self.frame, width=10, text="Path:")
         lab2.grid(column=0, row=1, sticky=(W))
         self.photo_path = StringVar(self.frame)
-        self.photo_path.set(photo.get_path())
+        self.photo_path.set(self.photo.get_path())
         self.path_entry = ttk.Entry(self.frame, width=40,
                                     textvariable=self.photo_path,
                                     font=tfont, state="readonly")
@@ -203,7 +190,7 @@ class PlornRemovePhoto(Toplevel):
         lab3 = ttk.Label(self.frame, width=10, text="Dated:")
         lab3.grid(column=0, row=2, sticky=(W))
         self.dated = StringVar(self.frame)
-        self.dated.set(photo.get_dated())
+        self.dated.set(self.photo.get_dated())
         self.date_entry = ttk.Entry(self.frame, width=40,
                                     textvariable=self.dated,
                                     font=tfont, state="readonly")
@@ -212,9 +199,9 @@ class PlornRemovePhoto(Toplevel):
         lab4 = ttk.Label(self.frame, width=10, text="Notes:")
         lab4.grid(column=0, row=3, sticky=(N, W))
         self.notes = Text(self.frame, height=10, width=40, font=tfont)
-        self.notes.insert("1.0", photo.get_notes())
+        self.notes.insert("1.0", self.photo.get_notes())
         self.notes.configure(state="disabled")
-        module_logger.debug(f"notes: {photo.get_notes()}")
+        module_logger.debug(f"notes: {self.photo.get_notes()}")
         self.notes.grid(column=1, row=3, sticky=(N, W, E, S))
 
         sep1 = ttk.Separator(self.frame, orient=HORIZONTAL)
@@ -232,7 +219,7 @@ class PlornRemovePhoto(Toplevel):
         self.canvas = Canvas(self.frame, width=600, height=450)
         self.canvas.grid(column=2, row=1, rowspan=3, sticky=NE,
                          padx=(20,20))
-        self.img = pilImage.open(photo.get_path())
+        self.img = pilImage.open(self.photo.get_path())
         self.resize_img = self.img.resize((600, 450))
         self.canvas_img = ImageTk.PhotoImage(image=self.resize_img)
         self.canvas.create_image(10, 10, anchor=NW, image=self.canvas_img)
@@ -246,24 +233,17 @@ class PlornRemovePhoto(Toplevel):
                     parent=self,
                  )
         if result is True:
-            idx = 0
-            for ii in self.photo_list:
-                if ii["path"] == photo_path:
-                    break
-                else:
-                    idx += 1
-            delete_photo_by_id(self.photo_id)
-            self.photo_list.pop(idx)
+            self.db.remove_photo_by_id(self.photo_id)
             self.destroy()
-
 
 class PlornEditPhoto(Toplevel):
     def __init__(self, parent, photo_id):
         super().__init__(parent)
         module_logger.debug("started PlornEditPhoto")
         tfont = font.nametofont("TkDefaultFont")
+        self.db = plorn_db.open()
+        self.photo = self.db.get_photo(photo_id)
         self.photo_id = photo_id
-        self.photo = retrieve_photo_record(photo_id)
 
         self.geometry("1250x600")
         self.title("Edit Photo")
@@ -342,8 +322,7 @@ class PlornEditPhoto(Toplevel):
                 photo_copy.set_path(self.photo_path.get())
                 photo_copy.set_dated(self.dated.get())
                 photo_copy.set_notes(self.notes.get("1.0", END))
-                db = plorn_db.open()
-                id = db.update_photo(self.photo, photo_copy)
+                self.photo = self.db.update_photo(self.photo, photo_copy)
                 msg = f"Updated Photo \"{self.photo_name.get()}\""
                 messagebox.showinfo(parent=self, message=msg)
             else:
@@ -367,8 +346,9 @@ class PlornAddPhoto(Toplevel):
         tfont = font.nametofont("TkDefaultFont")
         self.album_id = album_id
         self.db = plorn_db.open()
-        self.album = self.db.get_album_object(album_id)
+        self.album = self.db.get_album(album_id)
         self.path = None
+        self.new_photo = None
 
         self.geometry("800x600")
         self.title("Add Photo")
@@ -437,6 +417,9 @@ class PlornAddPhoto(Toplevel):
         if self.path:
             self.path_entry.insert(0, self.path)
 
+    def get_new_photo(self):
+        return self.new_photo
+
     def add_photo(self):
         albumpath = os.path.expandvars(os.path.expanduser(self.album.get_path()))
         basename = os.path.basename(self.photo_path.get())
@@ -456,8 +439,7 @@ class PlornAddPhoto(Toplevel):
                                    album_id=self.album_id,
                                    dated=self.dated.get(),
                                    notes=self.notes.get("1.0", END))
-                db = plorn_db.open()
-                id = db.add_photo(photo, self.album_id)
+                self.new_photo = self.db.add_photo(photo)
                 msg = f"Added Photo \"{self.photo_name.get()}\""
                 messagebox.showinfo(parent=self, message=msg)
             else:

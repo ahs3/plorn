@@ -420,13 +420,13 @@ class PlornDb:
         album_copy.set_photo_count(album.get_photo_count() - 1)
         self.update_album(album, album_copy)
 
-    def add_photo(self, photo, album_id):
+    def add_photo(self, photo):
         sql = "INSERT INTO photos (album_id,name,path,dated,notes) VALUES "
-        sql += f"(\"{album_id}\","
+        sql += f"(\"{photo.get_album_id()}\","
         sql += f" \"{photo.get_name()}\", \"{photo.get_path()}\","
         sql += f" \"{photo.get_dated()}\", \"{photo.get_notes()}\")"
         res = self.cursor.execute(sql)
-        album = self.get_album(album_id)
+        album = self.get_album(photo.get_album_id())
         self.increment_photo_count(album)
         self.db.commit()
         sql = f"SELECT * FROM photos WHERE path = \"{photo.get_path()}\""
@@ -445,7 +445,7 @@ class PlornDb:
         sql = f"DELETE FROM photos WHERE id = \"{photo_id}\""
         res = self.cursor.execute(sql)
         module_logger.debug(f"removed photo by id: {photo_id}")
-        album = self.get_album_object(album_id)
+        album = self.get_album(album_id)
         self.decrement_photo_count(album)
         self.db.commit()
         return 

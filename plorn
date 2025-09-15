@@ -529,15 +529,13 @@ class Plorn(Tk):
         if row != "":
             photo_entry = self.pview.item(row)
             photo_id = photo_entry["text"]
-            photo = self.db.get_photo_by_id(photo_id)
+            photo = self.db.get_photo(photo_id)
             logger.debug(f"remove_photo: row {row}, id {photo_id}, photo {str(photo)}")
-            rmone = plorn_photo.PlornRemovePhoto(self, photo_id,
-                                                 self.photo_list)
+            rmone = plorn_photo.PlornRemovePhoto(self, photo_id)
             rmone.grab_set()
             self.wait_window(rmone)
             del self.button_imgs[row]
-            album = self.db.get_album(photo["album_id"])
-            self.update_photoview(album.get_id())
+            self.update_photoview(photo.get_album_id())
             self.update_albumview()
         else:
             messagebox.showerror(parent=self,
@@ -549,13 +547,11 @@ class Plorn(Tk):
         if row != "":
             photo_entry = self.pview.item(row)
             photo_id = photo_entry["text"]
-            photo = self.db.get_photo_by_id(photo_id)
-            logger.debug(f"edit_photo: row {row}, id {photo_id}, photo {str(photo)}")
+            photo = self.db.get_photo(photo_id)
             rmone = plorn_photo.PlornEditPhoto(self, photo_id)
             rmone.grab_set()
             self.wait_window(rmone)
-            album = self.db.get_album(photo["album_id"])
-            self.update_photoview(album.get_id())
+            self.update_photoview(photo.get_album_id())
             self.update_albumview()
         else:
             messagebox.showerror(parent=self,
@@ -568,16 +564,14 @@ class Plorn(Tk):
         addone = plorn_photo.PlornAddPhoto(self, album_id)
         addone.grab_set()
         self.wait_window(addone)
+        photo = addone.get_new_photo()
         
-        photo_id = self.db.get_last_photo_id()
-        if photo_id != None:
-            photo = self.db.get_photo_object(photo_id)
+        if photo != None and photo.get_id() != None:
             logger.debug(f"add a photo to {self.current_album.get_name()}")
             linkname = self.get_symlink()
             self.photo_list.clear()
             self.button_imgs.clear()
             logger.debug(f"add photo {photo.get_name()} with album_id {album_id}")
-            id = self.db.add_photo(photo, album_id)
             for ii in self.db.get_photos(album_id):
                 self.photo_list.append(ii)
             self.update_photoview(album_id)

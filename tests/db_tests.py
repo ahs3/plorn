@@ -323,9 +323,9 @@ class TestDbPhotoMethods(unittest.TestCase):
         # make sure total photo count is correct
         album_id = album.get_id()
         tmp1 = self.make_photo("bilbo", "shire", None, album_id, "now", "")
-        photo1 = db.add_photo(tmp1, album_id)
+        photo1 = db.add_photo(tmp1)
         tmp2 = self.make_photo("frodo", "shire", None, album_id, "now", "")
-        photo1 = db.add_photo(tmp2, album_id)
+        photo1 = db.add_photo(tmp2)
         nphotos = db.photo_count()
         self.assertEqual(nphotos, 2)
 
@@ -343,7 +343,7 @@ class TestDbPhotoMethods(unittest.TestCase):
         self.assertEqual(nphotos, 0)
 
         tmp = self.make_photo("bilbo", "shire", None, album_id, "now", "")
-        orig = db.add_photo(tmp, album_id)
+        orig = db.add_photo(tmp)
 
         # can i get back what i added?
         photo = db.get_photo_by_id(orig.get_id())
@@ -378,9 +378,9 @@ class TestDbPhotoMethods(unittest.TestCase):
 
         # add some photos
         tmp1 = self.make_photo("bilbo", "shire1", None, album_id, "now", "")
-        photo1 = db.add_photo(tmp1, album_id)
+        photo1 = db.add_photo(tmp1)
         tmp2 = self.make_photo("frodo", "shire2", None, album_id, "now", "")
-        photo2 = db.add_photo(tmp2, album_id)
+        photo2 = db.add_photo(tmp2)
         self.assertTrue(photo1 != photo2)
         self.assertTrue(photo1.get_id() != photo2.get_id())
 
