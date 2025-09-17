@@ -16,18 +16,21 @@ module_logger = logging.getLogger("plorn.photo")
 module_logger.setLevel(logging.DEBUG)
 
 class PlornPhoto:
-    def __init__(self, name, path, id=None, album_id=None, dated="", notes=""):
+    def __init__(self, name, path, id=None, album_id=None,
+                 dated="", notes="", thumbnail=""):
         self.id = id
         self.album_id = album_id
         self.name = name
         self.path = path
         self.dated = dated
         self.notes = notes
+        self.thumbnail = thumbnail          # path to an image
 
     def __copy__(self):
         return PlornPhoto(self.name, self.path, id=self.id,
                           album_id=self.album_id,
-                          dated=self.dated, notes=self.notes)
+                          dated=self.dated, notes=self.notes,
+                          thumbnail=self.thumbnail)
 
     def set_id(self, id):
         self.id = id
@@ -65,6 +68,12 @@ class PlornPhoto:
     def get_notes(self):
         return self.notes
 
+    def set_thumbnail(self, thumbnail):
+        self.thumbnail = thumbnail
+
+    def get_thumbnail(self):
+        return self.thumbnail
+
     def __str__(self):
         val  = f"id: \"{self.id}\""
         val += f", album_id: \"{self.album_id}\""
@@ -72,6 +81,7 @@ class PlornPhoto:
         val += f", path: \"{self.path}\""
         val += f", dated: \"{self.dated}\""
         val += f", notes: \"{self.notes}\""
+        val += f", thumbnail: \"{self.thumbnail}\""
         return val
 
 

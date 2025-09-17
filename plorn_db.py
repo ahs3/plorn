@@ -1,8 +1,10 @@
-import datetime
 import logging
 import os
 import sqlite3
 import sys
+
+from PIL import Image as pilImage
+from PIL import ImageTk
 
 import plorn_album
 import plorn_config
@@ -109,6 +111,7 @@ class PlornDb:
                 path TEXT NOT NULL,
                 dated TEXT,
                 notes TEXT,
+                thumbnail TEXT,
                 FOREIGN KEY (album_id)
                 REFERENCES albums (id)
                     ON DELETE CASCADE
@@ -289,6 +292,12 @@ class PlornDb:
         rows = res.fetchone()
         return rows != None
 
+    def photo_exists(self, photo):
+        sql = f"SELECT * FROM photos WHERE id = \"{photo.get_id()}\""
+        res = self.cursor.execute(sql)
+        rows = res.fetchone()
+        return rows != None
+
     def add_album(self, album):
         sql = "INSERT INTO albums (name,path,dated,notes,photo_count) VALUES "
         sql += f"(\"{album.get_name()}\", \"{album.get_path()}\", "
@@ -318,6 +327,8 @@ class PlornDb:
         res = self.cursor.execute(sql)
         row = res.fetchone()
         module_logger.debug(f"got by id: {str(row)}")
+        if row == None:
+            return None
         return plorn_album.PlornAlbum(row["name"], row["path"], id=row["id"],
                                       dated=row["dated"], notes=row["notes"],
                                       photo_count=row["photo_count"])
@@ -359,7 +370,8 @@ class PlornDb:
         result = []
         for ii in rows:
             p = plorn_photo.PlornPhoto(ii["name"], ii["path"], id=ii["id"],
-                                       dated=ii["dated"], notes=ii["notes"])
+                                       dated=ii["dated"], notes=ii["notes"],
+                                       thumbnail=ii["thumbnail"])
             result.append(p)
         return result
 
@@ -420,13 +432,36 @@ class PlornDb:
         album_copy.set_photo_count(album.get_photo_count() - 1)
         self.update_album(album, album_copy)
 
+    def get_thumbnails_dir(self, album_id):
+        dirname = os.path.join(self.config.get_datadir(),
+                               "thumbnails",
+                               f"album{album_id:04}")
+        if not (os.path.exists(dirname) and os.path.isdir(dirname)):
+            module_logger.debug(f"make thumbnail dir {dirname}")
+            os.makedirs(dirname, exist_ok=True)
+        return dirname
+
+    def make_thumbnail(self, photo, album):
+        fullpath = os.path.expandvars(os.path.expanduser(photo.get_path()))
+        base = os.path.basename(fullpath)
+        thumbpath = os.path.join(self.get_thumbnails_dir(album.get_id()), base)
+        raw_img = pilImage.open(fullpath)
+        small_img = raw_img.resize((100,100))
+        small_img.save(thumbpath)
+        small_img.close()
+        return thumbpath
+
     def add_photo(self, photo):
-        sql = "INSERT INTO photos (album_id,name,path,dated,notes) VALUES "
+        album = self.get_album(photo.get_album_id())
+        thumb = self.make_thumbnail(photo, album)
+        photo.set_thumbnail(thumb)
+        sql  = "INSERT INTO photos "
+        sql += f"(album_id,name,path,dated,notes,thumbnail) VALUES "
         sql += f"(\"{photo.get_album_id()}\","
         sql += f" \"{photo.get_name()}\", \"{photo.get_path()}\","
-        sql += f" \"{photo.get_dated()}\", \"{photo.get_notes()}\")"
+        sql += f" \"{photo.get_dated()}\", \"{photo.get_notes()}\","
+        sql += f" \"{photo.get_thumbnail()}\")"
         res = self.cursor.execute(sql)
-        album = self.get_album(photo.get_album_id())
         self.increment_photo_count(album)
         self.db.commit()
         sql = f"SELECT * FROM photos WHERE path = \"{photo.get_path()}\""
@@ -435,7 +470,8 @@ class PlornDb:
         module_logger.debug(f"added photo {str(row)}")
         return plorn_photo.PlornPhoto(row["name"], row["path"],
                                       id=row["id"], album_id=row["album_id"],
-                                      dated=row["dated"], notes=row["notes"])
+                                      dated=row["dated"], notes=row["notes"],
+                                      thumbnail=row["thumbnail"])
 
     def remove_photo_by_id(self, photo_id):
         sql = f"SELECT * FROM photos WHERE id = \"{photo_id}\""

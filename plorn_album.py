@@ -1,5 +1,10 @@
+import filetype
 import logging
 import os
+import shutil
+
+from PIL import Image as pilImage
+from PIL import ImageTk
 
 from tkinter import *
 from tkinter import ttk
@@ -8,6 +13,8 @@ from tkinter import filedialog
 from tkinter import messagebox
 
 import plorn_db
+import plorn_config
+import plorn_photo
 
 module_logger = logging.getLogger("plorn.album")
 module_logger.setLevel(logging.DEBUG)
@@ -82,7 +89,9 @@ class PlornAddAlbum(Toplevel):
         self.name = ""
         self.path = ""
         self.new_album = None
+        self.photo_list = {}
         self.db = plorn_db.open()
+        self.cfg = plorn_config.get_config()
 
         self.geometry("800x600")
         self.title("Add an Album")
@@ -158,6 +167,9 @@ class PlornAddAlbum(Toplevel):
     def get_new_album(self):
         return self.new_album
 
+    def get_photo_list(self):
+        return self.photo_list
+
     def clear_entries(self):
         self.name = ""
         self.album_name.set(self.name)
@@ -166,6 +178,41 @@ class PlornAddAlbum(Toplevel):
         self.dated.set("")
         self.notes.delete("1.0", END)
         self.photo_count = 0
+        self.photo_list.clear()
+
+    def get_symlink_dir(self):
+        linkname = os.path.join(self.cfg.get_datadir(),
+                                f"album{self.new_album.get_id():04}")
+        if not (os.path.exists(linkname) and os.path.islink(linkname)):
+            path = self.new_album.get_path()
+            fullpath = os.path.expandvars(os.path.expanduser(path))
+            actualdir = os.path.abspath(fullpath)
+            module_logger.debug(f"make symlink {linkname}")
+            os.symlink(actualdir, linkname, target_is_directory=True)
+        return linkname
+
+    def collect_images(self):
+        image_list = []
+        symlink = self.get_symlink_dir()
+        entries = os.listdir(symlink)
+        for ii in entries:
+            fullpath = os.path.join(symlink, ii)
+            module_logger.debug(f"checking file type of {fullpath}")
+            if os.path.isfile(fullpath):
+                if filetype.is_image(fullpath):
+                    module_logger.debug(f"collected image {fullpath}")
+                    image_list.append(fullpath)
+        return image_list
+
+    def add_photos(self):
+        album_id = self.new_album.get_id()
+        self.photo_list.clear()
+        image_list = self.collect_images()
+        for path in image_list:
+            name = os.path.basename(path)
+            tmp = plorn_photo.PlornPhoto(name, path, id=None, album_id=album_id)
+            photo = self.db.add_photo(tmp)
+            self.photo_list[photo.get_id()] = photo
 
     def add_album(self):
         module_logger.debug("entered add_album")
@@ -193,12 +240,14 @@ class PlornAddAlbum(Toplevel):
                 self.new_album = self.db.add_album(album)
                 msg = f"Adding Album \"{album.get_name()}\""
                 messagebox.showinfo(message=msg, parent=self)
+                self.add_photos()
             else:
                 messagebox.showerror(parent=self,
                                      title="Adding an Album",
                                      message="Path is not a directory",
                                      detail="Please choose another path",
                                     )
+
 
 class PlornShowAlbum(Toplevel):
     def __init__(self, parent, album_id):

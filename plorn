@@ -3,6 +3,7 @@
 import filetype
 import logging
 import os
+import shutil
 import sys
 import time
 from PIL import Image as pilImage
@@ -196,28 +197,6 @@ class Plorn(Tk):
                 self.current_album_name.set(self.current_album.get_name())
         self.update_counts()
 
-    def get_symlink(self):
-        linkname = os.path.join(config.get_datadir(),
-                                f"album{self.current_album.get_id():04}")
-        if not (os.path.exists(linkname) and os.path.islink(linkname)):
-            fullpath = os.path.expanduser(self.current_album.get_path())
-            actualdir = os.path.abspath(fullpath)
-            logger.debug(f"symlink {linkname} to {actualdir}")
-            os.symlink(actualdir, linkname, target_is_directory=True)
-        return linkname
-
-    def collect_images(self, linkname):
-        photo_list = []
-        entries = os.listdir(linkname)
-        for ii in entries:
-            fullpath = os.path.join(linkname, ii)
-            logger.debug(f"checking file type of {fullpath}")
-            if os.path.isfile(fullpath):
-                if filetype.is_image(fullpath):
-                    logger.debug(f"collected image {fullpath}")
-                    photo_list.append(fullpath)
-        return photo_list
-
     def add_album(self):
         logger.debug("adding album")
         addone = plorn_album.PlornAddAlbum(self)
@@ -227,22 +206,9 @@ class Plorn(Tk):
         
         if album != None and album.get_id() != None:
             self.current_album = album
-            logger.debug(f"add photos to {self.current_album.get_name()}")
-            linkname = self.get_symlink()
-            photo_list = self.collect_images(linkname)
-            album_id = self.current_album.get_id()
-            self.photo_list.clear()
-            self.button_imgs.clear()
-            for ii in photo_list:
-                name = os.path.basename(ii)
-                tmp = plorn_photo.PlornPhoto(name, ii, id=None,
-                                             album_id=album_id)
-                logger.debug(f"add photo {ii} with album_id {album_id}")
-                photo = self.db.add_photo(tmp, album_id)
-            for ii in self.db.get_photos(album_id):
-                self.photo_list.append(ii)
+            self.photo_list = addone.get_photo_list()
             logger.debug(f"photo_list {str(self.photo_list)}")
-            self.update_photoview(album_id)
+            self.update_photoview(album.get_id())
             self.update_albumview()
 
     def remove_album(self):
@@ -250,7 +216,7 @@ class Plorn(Tk):
         if row != "":
             album = self.aview.item(row)
             album_id = album["text"]
-            logger.debug(f"remove album {album["values"][0]}")
+            logger.debug(f"remove album {album['values'][0]}")
             rmone = plorn_album.PlornRemoveAlbum(self, album_id)
             rmone.grab_set()
             self.wait_window(rmone)
@@ -323,11 +289,14 @@ class Plorn(Tk):
         self.photo_list = self.db.get_photos(album_id)
         self.button_imgs.clear()
         for ii in self.photo_list:
+            thumb_path = ii.get_thumbnail()
             child = self.pview.insert("", END,
                                       text=ii.get_id(),
-                                      values=(ii.get_name(), ii.get_path()))
-            raw_img = pilImage.open(ii.get_path())
-            thumbnail = raw_img.resize((100,100))
+                                      values=(ii.get_name(), ii.get_path(),
+                                              thumb_path)
+                                     )
+            logger.debug(f"thumb_path: {thumb_path}")
+            thumbnail = pilImage.open(thumb_path)
             button_img = ImageTk.PhotoImage(image=thumbnail)
             self.button_imgs[child] = button_img
             logger.debug(f"add btn img for child {child} from {ii.get_path()}")
@@ -454,7 +423,7 @@ class Plorn(Tk):
         album_label.grid(column=0, row=0, sticky=(W))
 
         lframe = ttk.Frame(parent, padding=(5, 5, 5, 5))
-        lframe.grid(column=0, row=1)
+        lframe.grid(column=0, row=1, sticky=(N+E+S+W))
         rframe = ttk.Frame(parent, padding=(5, 5, 5, 5))
         rframe.grid(column=1, row=1)
 
@@ -473,7 +442,7 @@ class Plorn(Tk):
         style.configure("plorn.Treeview.Heading",
                         font=("TkDefaultFont", FONTSIZE))
         pview = ttk.Treeview(lframe,
-                             columns=("name", "path", "photos"),
+                             columns=("name", "path", "thumb"),
                              selectmode="browse",
                              style="plorn.Treeview")
         pview.column("#0", anchor="center", minwidth=0, width=100)
@@ -482,7 +451,10 @@ class Plorn(Tk):
         pview.heading("name", text="Name")
         pview.column("path", anchor="w", minwidth=0, width=200)
         pview.heading("path", text="Path")
+        pview.column("thumb", anchor="w", minwidth=0, width=50)
+        pview.heading("thumb", text="Thumbnail")
         pview.grid(column=0, row=0)
+        pview["displaycolumns"] = ("name", "path")
         xscrollbar = ttk.Scrollbar(lframe, orient="vertical",
                                   command=pview.yview)
         xscrollbar.grid(column=1, row=0)
