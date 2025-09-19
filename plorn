@@ -28,20 +28,39 @@ class Plorn(Tk):
         global config
 
         super().__init__()
-        self.geometry("800x600")
-        self.title("plorn")
+        self.geometry('800x600')
+        self.title('plorn')
         self.columnconfigure(0, weight=1)
         self.rowconfigure(0, weight=1)
-        font.nametofont("TkDefaultFont").configure(size=FONTSIZE)
+        font.nametofont('TkDefaultFont').configure(size=FONTSIZE)
         self.db = plorn_db.open(config.get_dbname())
+
+        #-- create the main app frame
+        self.mainframe = ttk.Frame(self, padding='10 10 10 10')
+        self.mainframe['borderwidth'] = 5
+        self.mainframe['relief'] = 'groove'
+        self.mainframe.grid(column=0, row=0, sticky=(N,W,E,S))
+        self.mainframe.columnconfigure(0, weight=1)
+        self.mainframe.rowconfigure(0, weight=1)
+        self.mainframe.rowconfigure(1, weight=40)
+        self.mainframe.rowconfigure(2, weight=1)
+        self.static_widgets = {}
+
+        #-- add in title info
+        self.header = self.setup_header(self.mainframe)
+        self.header.grid(column=0, row=0, sticky=(N,E,S,W))
+
+        #-- footer information that changes over time
+        self.album_count_str = StringVar()
+        self.album_count_label = None
+        self.photo_count_str = StringVar()
+        self.photo_count_label = None
 
         #-- create these as placeholders
         self.albums_tab = 0
         self.aview = None
         self.album_list = []
         self.album_count = 0
-        self.album_count_str = StringVar()
-        self.album_count_label = None
         self.current_album = None
         self.current_album_name = StringVar()
         self.album_label = StringVar()
@@ -52,8 +71,6 @@ class Plorn(Tk):
         self.button_imgs = {}
         self.last_button_img = None
         self.photo_count = 0
-        self.photo_count_str = StringVar()
-        self.photo_count_label = None
         self.current_photo = None
         self.current_photo_button = None
         self.current_photo_name = StringVar()
@@ -71,105 +88,148 @@ class Plorn(Tk):
 
         self.settings_tab = 4
 
-        #-- main frame for the application
-        self.mainframe = ttk.Frame(self, padding="10 10 10 10")
-        self.mainframe["borderwidth"] = 5
-        self.mainframe["relief"] = "groove"
-        self.mainframe.grid(column=0, row=0, sticky=(N, W, E, S))
-        self.mainframe.columnconfigure(0, weight=1)
-        self.mainframe.columnconfigure(1, weight=1)
-        self.mainframe.columnconfigure(2, weight=1)
-        self.mainframe.rowconfigure(0, weight=10)
-        self.mainframe.rowconfigure(1, weight=1)
-        self.mainframe.rowconfigure(2, weight=1)
-        self.mainframe.rowconfigure(3, weight=30)
-        self.mainframe.rowconfigure(4, weight=1)
-        self.mainframe.rowconfigure(5, weight=1)
-        self.mainframe.rowconfigure(6, weight=1)
-        self.mainframe.rowconfigure(7, weight=10)
+        #-- create tabbed pane windows for albums, photos, names, places,
+        #   and so on
+        self.notebook = self.setup_notebook()
+        self.notebook.grid(column=0, row=1, sticky=(N, W, E, S))
 
-        label_text = "plorn: photo catalog"
-        lheader = ttk.Label(self.mainframe, width=30,
-                            text=f"{label_text:<30}")
+        #-- add in footer info, including an exit button
+        self.footer = self.setup_footer(self.mainframe)
+        self.footer.grid(column=0, row=2, sticky=(N,E,S,W))
+
+    def setup_header(self, parent):
+        #-- header for the application
+        header = ttk.Frame(parent, padding='10 10 10 10')
+        header.columnconfigure(0, weight=1)
+        header.columnconfigure(1, weight=4)
+        header.columnconfigure(2, weight=1)
+        header.rowconfigure(0, weight=4)
+        header.rowconfigure(1, weight=1)
+        header.rowconfigure(2, weight=1)
+
+        label_text = 'plorn: photo catalog'
+        lheader = ttk.Label(header, width=30, text=f'{label_text:<30}')
         lheader.grid(column=0, row=0, sticky=(W))
-        blanks = "      "
-        mheader = ttk.Label(self.mainframe, width=30, text=f"{blanks:^30}")
-        mheader.grid(column=1, row=0)
-        value = f"version {plorn_config.version} "
-        rheader = ttk.Label(self.mainframe, width=30, text=f"{value:>30}")
-        rheader.grid(column=2, row=0, sticky=(E))
-        sep1 = ttk.Separator(self.mainframe, orient=HORIZONTAL)
-        sep1.grid(column=0, row=1, columnspan=3, sticky=(W+E))
-        sep2 = ttk.Separator(self.mainframe, orient=HORIZONTAL)
-        sep2.grid(column=0, row=2, columnspan=3, sticky=(W+E))
+        self.static_widgets['header.left'] = lheader
 
-        #-- create a tabbed pane windows
-        self.notebook = ttk.Notebook(self.mainframe)
-        self.notebook.grid(column=0, row=3, columnspan=3, sticky=(N, W, E, S))
+        blanks = '      '
+        mheader = ttk.Label(header, width=30, text=f'{blanks:^30}')
+        mheader.grid(column=1, row=0)
+        self.static_widgets['header.middle'] = mheader
+
+        value = f'version {plorn_config.version}'
+        rheader = ttk.Label(header, width=30, text=f'{value:>30}')
+        rheader.grid(column=2, row=0, sticky=(E))
+        self.static_widgets['header.right'] = rheader
+
+        sep1 = ttk.Separator(header, orient=HORIZONTAL)
+        sep1.grid(column=0, row=1, columnspan=3, sticky=(W+E))
+        self.static_widgets['header.sep1'] = rheader
+        sep2 = ttk.Separator(header, orient=HORIZONTAL)
+        sep2.grid(column=0, row=2, columnspan=3, sticky=(W+E))
+        self.static_widgets['header.sep2'] = rheader
+
+        return header
+
+    def setup_notebook(self):
+        #-- build up a tabbed notebook
+        notebook = ttk.Notebook(self.mainframe)
+        notebook.columnconfigure(0, weight=1)
+        notebook.rowconfigure(0, weight=1)
 
         #   ... that has an album list
-        self.albums = ttk.Frame(self.notebook, padding="5 5 5 5")
-        self.albums["borderwidth"] = 2
-        self.albums["relief"] = "groove"
+        self.album_frame = ttk.Frame(notebook, padding="5 5 5 5")
+        self.album_frame["borderwidth"] = 2
+        self.album_frame["relief"] = "groove"
+        self.album_frame.columnconfigure(0, weight=1)
+        self.album_frame.rowconfigure(0, weight=1)
         self.album_buttons = []
-        self.build_album_list(self.albums)
-        self.notebook.add(self.albums, text=" Albums ")
+        self.album_subwidgets = []
+        self.build_album_list(self.album_frame)
+        notebook.add(self.album_frame, text=" Albums ", sticky="nwes")
         self.albums_tab = 0
 
         #   ... and that has a photo list for the current album
-        self.photos = ttk.Frame(self.notebook, padding="5 5 5 5")
+        self.photos = ttk.Frame(notebook, padding="5 5 5 5")
         self.photos["borderwidth"] = 2
         self.photos["relief"] = "groove"
+        self.photos.columnconfigure(0, weight=1)
+        self.photos.rowconfigure(0, weight=1)
         self.photo_buttons = []
         self.current_album = None
         self.build_photo_list(self.photos)
-        self.notebook.add(self.photos, text=" Photos ")
+        notebook.add(self.photos, text=" Photos ")
         self.photos_tab = 1
 
         #   ... and there are all sorts of names to choose from
-        self.names = ttk.Frame(self.notebook, padding="5 5 5 5")
+        self.names = ttk.Frame(notebook, padding="5 5 5 5")
         self.names["borderwidth"] = 2
         self.names["relief"] = "groove"
+        self.names.columnconfigure(0, weight=1)
+        self.names.rowconfigure(0, weight=1)
         self.current_photo = None
         self.build_name_list(self.names)
-        self.notebook.add(self.names, text=" Names ")
+        notebook.add(self.names, text=" Names ")
         self.names_tab = 2
 
         #   ... and there are all sorts of places to choose from
-        self.places = ttk.Frame(self.notebook, padding="5 5 5 5")
+        self.places = ttk.Frame(notebook, padding="5 5 5 5")
         self.places["borderwidth"] = 2
         self.places["relief"] = "groove"
+        self.places.columnconfigure(0, weight=1)
+        self.places.rowconfigure(0, weight=1)
         self.current_photo = None
         self.build_place_list(self.places)
-        self.notebook.add(self.places, text=" Places ")
+        notebook.add(self.places, text=" Places ")
         self.places_tab = 3
 
         #   ... and that has a config table for the application
-        self.settings = ttk.Frame(self.notebook, padding="5 5 5 5")
+        self.settings = ttk.Frame(notebook, padding="5 5 5 5")
         self.settings["borderwidth"] = 2
         self.settings["relief"] = "groove"
         self.settings.columnconfigure(0, weight=1)
+        self.settings.rowconfigure(0, weight=1)
+        self.settings.columnconfigure(0, weight=1)
         self.settings.columnconfigure(1, weight=2)
         self.build_settings(self.settings)
-        self.notebook.add(self.settings, text=" Settings ")
+        notebook.add(self.settings, text=" Settings ")
         self.settings_tab = 4
 
+        return notebook
+
+    def setup_footer(self, parent):
+        #-- footer for the main app
+        footer = ttk.Frame(parent, padding='10 10 10 10')
+        footer.columnconfigure(0, weight=1)
+        footer.columnconfigure(1, weight=4)
+        footer.columnconfigure(2, weight=1)
+        footer.rowconfigure(0, weight=4)
+        footer.rowconfigure(1, weight=1)
+        footer.rowconfigure(2, weight=1)
+        footer.rowconfigure(3, weight=4)
+
         #-- and some counts of albums and photos ....
-        sep3 = ttk.Separator(self.mainframe, orient=HORIZONTAL)
-        sep3.grid(column=0, row=4, columnspan=3, sticky=(W+E))
-        self.album_count_label = ttk.Label(self.mainframe, width=16,
+        sep3 = ttk.Separator(footer, orient=HORIZONTAL)
+        sep3.grid(column=0, row=0, columnspan=3, sticky=(W+E))
+        self.static_widgets['footer.sep3'] = sep3
+        self.album_count_label = ttk.Label(footer, width=16,
                                       textvariable=self.album_count_str)
-        self.album_count_label.grid(column=0, row=5, sticky=(W))
-        self.photo_count_label = ttk.Label(self.mainframe, width=16,
+        self.album_count_label.grid(column=0, row=1, sticky=(W))
+        self.photo_count_label = ttk.Label(footer, width=16,
                                       textvariable=self.photo_count_str)
-        self.photo_count_label.grid(column=1, row=5, sticky=(W))
+        self.photo_count_label.grid(column=1, row=1, sticky=(W))
         self.update_counts()
 
         #-- and an exit button ....
-        sep4 = ttk.Separator(self.mainframe, orient=HORIZONTAL)
-        sep4.grid(column=0, row=6, columnspan=3, sticky=(W+E))
-        b = ttk.Button(self.mainframe, text="Quit", command=self.destroy)
-        b.grid(column=1, row=7)
+        sep4 = ttk.Separator(footer, orient=HORIZONTAL)
+        sep4.grid(column=0, row=2, columnspan=3, sticky=(W+E))
+        self.static_widgets['footer.sep4'] = sep4
+
+        b = ttk.Button(footer, text="Quit", command=self.destroy)
+        b.grid(column=2, row=3)
+        self.static_widgets['footer.exit_button'] = b
+
+        return footer
 
     def update_counts(self):
         self.album_count_str.set(f"Albums: {self.db.album_count()}")
@@ -181,19 +241,18 @@ class Plorn(Tk):
         self.album_list.clear()
         self.album_list = self.db.get_albums()
         for ii in self.album_list:
-            self.aview.insert("", END,
-                              text=ii.get_id(),
-                              values=(ii.get_name(), ii.get_path(),
-                                      ii.get_photo_count()))
+            self.aview.insert('', END,
+                              text=f'{ii.get_id():04}',
+                              values=(ii.get_photo_count(), ii.get_name()))
         self.aview.focus_set()
         kids = self.aview.get_children()
         if len(kids) > 0:
             child_id = kids[0]
-            if child_id != "":
+            if child_id != '':
                 self.aview.focus(child_id)
                 self.aview.selection_set(child_id)
                 entry = self.aview.item(child_id)
-                self.current_album = self.db.get_album(entry["text"])
+                self.current_album = self.db.get_album(entry['text'])
                 self.current_album_name.set(self.current_album.get_name())
         self.update_counts()
 
@@ -239,6 +298,23 @@ class Plorn(Tk):
             messagebox.showerror(parent=self,
                                  title="Select an Album",
                                  detail="Please select an album to show")
+
+    def import_photos(self):
+        row = self.aview.focus()
+        if row != "":
+            album = self.aview.item(row)
+            album_name = album["values"][0]
+            logger.debug(f"show info for {album_name}")
+            #showone = plorn_album.PlornShowAlbum(self, album["text"])
+            #showone.grab_set()
+            #self.wait_window(showone)
+            messagebox.showinfo(parent=self,
+                                 title="Import Photos to Album",
+                                 detail="<not implemented yet>")
+        else:
+            messagebox.showerror(parent=self,
+                                 title="Select an Album",
+                                 detail="Please select an album to import into")
 
     def up_photo(self, event):
         cur = self.last_button_img
@@ -347,21 +423,20 @@ class Plorn(Tk):
     def build_album_list(self, parent):
         tfont = font.nametofont("TkDefaultFont")
 
-        parent.columnconfigure(0, weight=8)
-        parent.columnconfigure(1, weight=2)
-        parent.rowconfigure(0, weight=1)
-        parent.pack()
-
         lframe = ttk.Frame(parent, padding=(5, 5, 5, 5))
-        lframe.grid(column=0, row=0)
+        lframe.columnconfigure(0, weight=1)
+        lframe.rowconfigure(0, weight=1)
+        lframe.grid(column=0, row=0, sticky=(N,S,E,W))
         rframe = ttk.Frame(parent, padding=(5, 5, 5, 5))
+        rframe.columnconfigure(0, weight=1)
+        rframe.rowconfigure(0, weight=1)
         rframe.grid(column=1, row=0)
 
         style = ttk.Style()
         style.layout("plorn.Treeview",
-            [("Treeview.field", {"sticky": "NWES", "border": 1, "children": [
-                ("Treeview.padding", {"sticky": "NWES", "children": [
-                    ("Treeview.treearea", {"sticky": "NWES"})
+            [("Treeview.field", {"sticky": "nwes", "border": 1, "children": [
+                ("Treeview.padding", {"sticky": "nwes", "children": [
+                    ("Treeview.treearea", {"sticky": "nwes"})
                     ]})
                 ]})
             ])
@@ -371,47 +446,48 @@ class Plorn(Tk):
                        )
         style.configure("plorn.Treeview.Heading",
                         font=("TkDefaultFont", FONTSIZE))
+        logger.debug(f"style: {str(style)}")
         aview = ttk.Treeview(lframe,
-                             columns=("name", "path", "photos"),
+                             columns=("photos", "name"),
                              selectmode="browse",
-                             style="plorn.Treeview")
-        aview.column("#0", anchor="center", minwidth=0, width=100)
+                             style="plorn.Treeview",
+                            )
+        aview.column("#0", anchor="center", minwidth=100)
         aview.heading("#0", text="ID")
-        aview.column("name", anchor="w", minwidth=0, width=200)
-        aview.heading("name", text="Name")
-        aview.column("path", anchor="w", minwidth=0, width=200)
-        aview.heading("path", text="Path")
-        aview.column("photos", anchor="center", minwidth=0, width=100)
+        aview.column("photos", anchor="center", minwidth=100)
         aview.heading("photos", text="Photos")
-        aview.grid(column=0, row=0)
+        aview.column("name", anchor="w", minwidth=400, stretch=True)
+        aview.heading("name", text="Name")
+        aview.grid(column=0, row=0, sticky=(N,S,E,W))
         xscrollbar = ttk.Scrollbar(lframe, orient="vertical",
                                   command=aview.yview)
-        xscrollbar.grid(column=1, row=0)
-        aview.configure(xscrollcommand=xscrollbar.set)
+        xscrollbar.grid(column=1, row=0, sticky=(N,S,E,W))
         yscrollbar = ttk.Scrollbar(lframe, orient="horizontal",
                                   command=aview.xview)
-        yscrollbar.grid(column=0, row=1)
-        aview.configure(yscrollcommand=yscrollbar.set)
+        yscrollbar.grid(column=0, row=1, sticky=(N,S,E,W))
+        aview.configure(xscrollcommand=yscrollbar.set)
+        aview.configure(yscrollcommand=xscrollbar.set)
         self.aview = aview
         self.update_albumview()
 
         self.album_buttons = [
-            ttk.Button(rframe, text="open", command=self.open_album),
-            ttk.Button(rframe, text="view", command=self.album_info),
+            ttk.Button(rframe, text="info", command=self.album_info),
             ttk.Button(rframe, text="add", command=self.add_album),
             ttk.Button(rframe, text="remove", command=self.remove_album),
             ttk.Button(rframe, text="edit", command=self.edit_album),
+            ttk.Button(rframe, text="import", command=self.import_photos),
         ]
         for n in range(0, len(self.album_buttons)):
             self.album_buttons[n].grid(column=0, row=n)
 
+        # keep some permanent references for these objects
+        self.album_subwidgets.append(lframe)
+        self.album_subwidgets.append(rframe)
+        self.album_subwidgets.append(xscrollbar)
+        self.album_subwidgets.append(yscrollbar)
+
     def build_photo_list(self, parent):
         tfont = font.nametofont("TkDefaultFont")
-
-        parent.columnconfigure(0, weight=8)
-        parent.columnconfigure(1, weight=2)
-        parent.rowconfigure(0, weight=1)
-        parent.pack()
 
         context_msg = "Album: <none>"
         if self.current_album != None:
@@ -423,8 +499,12 @@ class Plorn(Tk):
         album_label.grid(column=0, row=0, sticky=(W))
 
         lframe = ttk.Frame(parent, padding=(5, 5, 5, 5))
+        lframe.columnconfigure(0, weight=1)
+        lframe.rowconfigure(0, weight=1)
         lframe.grid(column=0, row=1, sticky=(N+E+S+W))
         rframe = ttk.Frame(parent, padding=(5, 5, 5, 5))
+        rframe.columnconfigure(0, weight=1)
+        rframe.rowconfigure(0, weight=1)
         rframe.grid(column=1, row=1)
 
         style = ttk.Style()
@@ -674,14 +754,13 @@ class Plorn(Tk):
     def build_name_list(self, parent):
         tfont = font.nametofont("TkDefaultFont")
 
-        parent.columnconfigure(0, weight=8)
-        parent.columnconfigure(1, weight=2)
-        parent.rowconfigure(0, weight=1)
-        parent.pack()
-
         lframe = ttk.Frame(parent, padding=(5, 5, 5, 5))
+        lframe.columnconfigure(0, weight=1)
+        lframe.rowconfigure(0, weight=1)
         lframe.grid(column=0, row=0)
         rframe = ttk.Frame(parent, padding=(5, 5, 5, 5))
+        rframe.columnconfigure(0, weight=1)
+        rframe.rowconfigure(0, weight=1)
         rframe.grid(column=1, row=0)
 
         style = ttk.Style()
@@ -762,14 +841,13 @@ class Plorn(Tk):
     def build_place_list(self, parent):
         tfont = font.nametofont("TkDefaultFont")
 
-        parent.columnconfigure(0, weight=8)
-        parent.columnconfigure(1, weight=2)
-        parent.rowconfigure(0, weight=1)
-        parent.pack()
-
         lframe = ttk.Frame(parent, padding=(5, 5, 5, 5))
+        lframe.columnconfigure(0, weight=1)
+        lframe.rowconfigure(0, weight=1)
         lframe.grid(column=0, row=0)
         rframe = ttk.Frame(parent, padding=(5, 5, 5, 5))
+        rframe.columnconfigure(0, weight=1)
+        rframe.rowconfigure(0, weight=1)
         rframe.grid(column=1, row=0)
 
         style = ttk.Style()

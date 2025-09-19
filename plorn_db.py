@@ -85,7 +85,6 @@ class PlornDb:
             CREATE TABLE IF NOT EXISTS albums (
                 id INTEGER PRIMARY KEY,
                 name text NOT NULL,
-                path text NOT NULL,
                 dated text,
                 notes text,
                 photo_count INT
