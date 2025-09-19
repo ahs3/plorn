@@ -189,7 +189,6 @@ class Plorn(Tk):
         self.settings['relief'] = 'groove'
         self.settings.columnconfigure(0, weight=1)
         self.settings.columnconfigure(1, weight=2)
-        #self.settings.rowconfigure(0, weight=1)
         self.build_settings(self.settings)
         notebook.add(self.settings, text=' Settings ')
         self.settings_tab = 4
@@ -302,14 +301,18 @@ class Plorn(Tk):
         row = self.aview.focus()
         if row != '':
             album = self.aview.item(row)
-            album_name = album['values'][0]
+            album_name = album['values'][1]
             logger.debug(f'show info for {album_name}')
-            #showone = plorn_album.PlornShowAlbum(self, album['text'])
-            #showone.grab_set()
-            #self.wait_window(showone)
+            added = plorn_album.PlornImportToAlbum(self, album['text'])
+            count = added.get_photo_count()
+            suffix=''
+            if count > 1:
+                suffix = 's'
+            detail = f'Added {count} photo{suffix} to album \"{album_name}\"'
             messagebox.showinfo(parent=self,
-                                 title='Import Photos to Album',
-                                 detail='<not implemented yet>')
+                                title='Import Photos to Album',
+                                detail=detail)
+            self.update_albumview()
         else:
             messagebox.showerror(parent=self,
                                  title='Select an Album',

@@ -1,4 +1,5 @@
 import filetype
+import getpass
 import logging
 import os
 import shutil
@@ -17,10 +18,9 @@ module_logger = logging.getLogger('plorn.album')
 module_logger.setLevel(logging.DEBUG)
 
 class PlornAlbum:
-    def __init__(self, name, path, id=None, dated='', notes='', photo_count=0):
+    def __init__(self, name, id=None, dated='', notes='', photo_count=0):
         self.id = id
         self.name = name
-        self.path = path
         self.dated = dated
         self.notes = notes
         self.photo_count = photo_count
@@ -28,7 +28,7 @@ class PlornAlbum:
         module_logger.debug('adding ' + str(self))
 
     def __copy__(self):
-        return PlornAlbum(self.name, self.path, id=self.id,
+        return PlornAlbum(self.name, id=self.id,
                           dated=self.dated, notes=self.notes,
                           photo_count=self.photo_count)
 
@@ -43,12 +43,6 @@ class PlornAlbum:
 
     def get_name(self):
         return self.name
-
-    def set_path(self, path):
-        self.path = path
-
-    def get_path(self):
-        return self.path
 
     def set_dated(self, dated):
         self.dated = dated
@@ -71,7 +65,6 @@ class PlornAlbum:
     def __str__(self):
         val  = f'id: \'{self.id}\''
         val += f', name: \'{self.name}\''
-        val += f', path: \'{self.path}\''
         val += f', dated: \'{self.dated}\''
         val += f', notes: \'{self.notes}\''
         val += f', photo_count: \'{self.photo_count}\''
@@ -84,7 +77,6 @@ class PlornAddAlbum(Toplevel):
         module_logger.debug('started PlornAddAlbum')
         tfont = font.nametofont('TkDefaultFont')
         self.name = ''
-        self.path = ''
         self.new_album = None
         self.photo_list = {}
         self.db = plorn_db.open()
@@ -96,7 +88,7 @@ class PlornAddAlbum(Toplevel):
         self.rowconfigure(0, weight=1)
         self.frame = ttk.Frame(self, padding='10 10 10 10')
         self.frame.grid(column=0, row=0, sticky=(N, W, E, S))
-        for ii in range(0,7):
+        for ii in range(0,6):
             self.frame.rowconfigure(ii, weight=1)
 
         lab1 = ttk.Label(self.frame, width=10, text='Name:')
@@ -108,34 +100,23 @@ class PlornAddAlbum(Toplevel):
         self.album_entry.grid(column=1, row=0, sticky=(W))
         self.album_entry.focus_set()
 
-        lab2 = ttk.Label(self.frame, width=10, text='Path:')
+        lab2 = ttk.Label(self.frame, width=10, text='Dated:')
         lab2.grid(column=0, row=1, sticky=(W))
-        self.album_path = StringVar(self.frame)
-        self.path_entry = ttk.Entry(self.frame, width=40,
-                                    textvariable=self.album_path,
-                                    font=tfont)
-        self.path_entry.grid(column=1, row=1, sticky=(W))
-        self.bdir = ttk.Button(self.frame, text='Browse',
-                               command=self.get_dirname)
-        self.bdir.grid(column=2, row=1)
-
-        lab3 = ttk.Label(self.frame, width=10, text='Dated:')
-        lab3.grid(column=0, row=2, sticky=(W))
         self.dated = StringVar(self.frame)
         self.date_entry = ttk.Entry(self.frame, width=40,
                                     textvariable=self.dated,
                                     font=tfont)
-        self.date_entry.grid(column=1, row=2, sticky=(W))
+        self.date_entry.grid(column=1, row=1, sticky=(W))
 
-        lab4 = ttk.Label(self.frame, width=10, text='Notes:')
-        lab4.grid(column=0, row=3, sticky=(N, W))
+        lab3 = ttk.Label(self.frame, width=10, text='Notes:')
+        lab3.grid(column=0, row=2, sticky=(N, W))
         self.notes = Text(self.frame, height=10, width=40, font=tfont)
-        self.notes.grid(column=1, row=3, sticky=(N, W, E, S))
+        self.notes.grid(column=1, row=2, sticky=(N, W, E, S))
 
         sep1 = ttk.Separator(self.frame, orient=HORIZONTAL)
-        sep1.grid(column=0, row=4, columnspan=3, sticky=(W+E))
+        sep1.grid(column=0, row=3, columnspan=3, sticky=(W+E))
         sep2 = ttk.Separator(self.frame, orient=HORIZONTAL)
-        sep2.grid(column=0, row=5, columnspan=3, sticky=(W+E))
+        sep2.grid(column=0, row=4, columnspan=3, sticky=(W+E))
 
         self.photo_count = 0
         self.badd = ttk.Button(self.frame, text='Add',
@@ -170,54 +151,16 @@ class PlornAddAlbum(Toplevel):
     def clear_entries(self):
         self.name = ''
         self.album_name.set(self.name)
-        self.path = ''
-        self.album_path.set(self.path)
         self.dated.set('')
         self.notes.delete('1.0', END)
         self.photo_count = 0
         self.photo_list.clear()
 
-    def get_symlink_dir(self):
-        linkname = os.path.join(self.cfg.get_datadir(),
-                                f'album{self.new_album.get_id():04}')
-        if not (os.path.exists(linkname) and os.path.islink(linkname)):
-            path = self.new_album.get_path()
-            fullpath = os.path.expandvars(os.path.expanduser(path))
-            actualdir = os.path.abspath(fullpath)
-            module_logger.debug(f'make symlink {linkname}')
-            os.symlink(actualdir, linkname, target_is_directory=True)
-        return linkname
-
-    def collect_images(self):
-        image_list = []
-        symlink = self.get_symlink_dir()
-        entries = os.listdir(symlink)
-        for ii in entries:
-            fullpath = os.path.join(symlink, ii)
-            module_logger.debug(f'checking file type of {fullpath}')
-            if os.path.isfile(fullpath):
-                if filetype.is_image(fullpath):
-                    module_logger.debug(f'collected image {fullpath}')
-                    image_list.append(fullpath)
-        return image_list
-
-    def add_photos(self):
-        album_id = self.new_album.get_id()
-        self.photo_list.clear()
-        image_list = self.collect_images()
-        for path in image_list:
-            name = os.path.basename(path)
-            tmp = plorn_photo.PlornPhoto(name, path, id=None, album_id=album_id)
-            photo = self.db.add_photo(tmp)
-            self.photo_list[photo.get_id()] = photo
-
     def add_album(self):
         module_logger.debug('entered add_album')
         self.name = self.album_name.get()
-        self.path = self.album_path.get()
-        module_logger.debug(f'add album name: {self.name}, path: {self.path}')
+        module_logger.debug(f'add album name: {self.name}')
         album = PlornAlbum(self.album_name.get(),
-                           self.album_path.get(),
                            id=None,
                            dated=self.dated.get(),
                            notes=self.notes.get('1.0', END),
@@ -231,19 +174,9 @@ class PlornAddAlbum(Toplevel):
                                  detail='Please use another name',
                                 )
         else:
-            fullpath = os.path.expandvars(os.path.expanduser(self.path))
-            module_logger.debug(f'new album {self.name} from {fullpath}')
-            if os.path.isdir(fullpath):
-                self.new_album = self.db.add_album(album)
-                msg = f'Adding Album \'{album.get_name()}\''
-                messagebox.showinfo(message=msg, parent=self)
-                self.add_photos()
-            else:
-                messagebox.showerror(parent=self,
-                                     title='Adding an Album',
-                                     message='Path is not a directory',
-                                     detail='Please choose another path',
-                                    )
+            self.new_album = self.db.add_album(album)
+            msg = f'Adding Album \'{album.get_name()}\''
+            messagebox.showinfo(message=msg, parent=self)
 
 
 class PlornShowAlbum(Toplevel):
@@ -260,7 +193,7 @@ class PlornShowAlbum(Toplevel):
         self.rowconfigure(0, weight=1)
         self.frame = ttk.Frame(self, padding='10 10 10 10')
         self.frame.grid(column=0, row=0, sticky=(N, W, E, S))
-        for ii in range(0,8):
+        for ii in range(0,7):
             self.frame.rowconfigure(ii, weight=1)
 
         lab1 = ttk.Label(self.frame, width=10, text='Name:')
@@ -273,49 +206,40 @@ class PlornShowAlbum(Toplevel):
         self.album_entry.grid(column=1, row=0, sticky=(W))
         self.album_entry.focus_set()
 
-        lab2 = ttk.Label(self.frame, width=10, text='Path:')
+        lab2 = ttk.Label(self.frame, width=10, text='Dated:')
         lab2.grid(column=0, row=1, sticky=(W))
-        self.album_path = StringVar(self.frame)
-        self.album_path.set(self.album.get_path())
-        self.path_entry = ttk.Entry(self.frame, width=40,
-                                    textvariable=self.album_path,
-                                    font=tfont, state='readonly')
-        self.path_entry.grid(column=1, row=1, sticky=(W))
-
-        lab3 = ttk.Label(self.frame, width=10, text='Dated:')
-        lab3.grid(column=0, row=2, sticky=(W))
         self.dated = StringVar(self.frame)
         self.dated.set(self.album.get_dated())
         self.date_entry = ttk.Entry(self.frame, width=40,
                                     textvariable=self.dated,
                                     font=tfont, state='readonly')
-        self.date_entry.grid(column=1, row=2, sticky=(W))
+        self.date_entry.grid(column=1, row=1, sticky=(W))
 
-        lab4 = ttk.Label(self.frame, width=10, text='Notes:')
-        lab4.grid(column=0, row=3, sticky=(N, W))
+        lab3 = ttk.Label(self.frame, width=10, text='Notes:')
+        lab3.grid(column=0, row=2, sticky=(N, W))
         self.notes = Text(self.frame, height=10, width=40, font=tfont)
         self.notes.insert('1.0', self.album.get_notes())
         self.notes.configure(state='disabled')
         module_logger.debug(f'notes: {self.album.get_notes()}')
-        self.notes.grid(column=1, row=3, sticky=(N, W, E, S))
+        self.notes.grid(column=1, row=2, sticky=(N, W, E, S))
 
-        lab5 = ttk.Label(self.frame, width=10, text='Photos:')
-        lab5.grid(column=0, row=4, sticky=(N, W))
+        lab4 = ttk.Label(self.frame, width=10, text='Photos:')
+        lab4.grid(column=0, row=3, sticky=(N, W))
         self.photo_count = StringVar(self.frame)
         self.photo_count.set(self.album.get_photo_count())
         self.photos = ttk.Entry(self.frame, width=40,
                                 textvariable=self.photo_count,
                                 font=tfont, state='readonly')
-        self.photos.grid(column=1, row=4, sticky=(W))
+        self.photos.grid(column=1, row=3, sticky=(W))
 
         sep1 = ttk.Separator(self.frame, orient=HORIZONTAL)
-        sep1.grid(column=0, row=5, columnspan=3, sticky=(W+E))
+        sep1.grid(column=0, row=4, columnspan=3, sticky=(W+E))
         sep2 = ttk.Separator(self.frame, orient=HORIZONTAL)
-        sep2.grid(column=0, row=6, columnspan=3, sticky=(W+E))
+        sep2.grid(column=0, row=5, columnspan=3, sticky=(W+E))
 
         self.bdone = ttk.Button(self.frame, text='Done',
                                command=self.destroy)
-        self.bdone.grid(column=1, row=7)
+        self.bdone.grid(column=1, row=6)
 
 
 class PlornRemoveAlbum(Toplevel):
@@ -333,7 +257,7 @@ class PlornRemoveAlbum(Toplevel):
         self.rowconfigure(0, weight=1)
         self.frame = ttk.Frame(self, padding='10 10 10 10')
         self.frame.grid(column=0, row=0, sticky=(N, W, E, S))
-        for ii in range(0,8):
+        for ii in range(0,7):
             self.frame.rowconfigure(ii, weight=1)
 
         lab1 = ttk.Label(self.frame, width=10, text='Name:')
@@ -346,58 +270,49 @@ class PlornRemoveAlbum(Toplevel):
         self.album_entry.grid(column=1, row=0, sticky=(W))
         self.album_entry.focus_set()
 
-        lab2 = ttk.Label(self.frame, width=10, text='Path:')
-        lab2.grid(column=0, row=1, sticky=(W))
-        self.album_path = StringVar(self.frame)
-        self.album_path.set(self.album.get_path())
-        self.path_entry = ttk.Entry(self.frame, width=40,
-                                    textvariable=self.album_path,
-                                    font=tfont, state='readonly')
-        self.path_entry.grid(column=1, row=1, sticky=(W))
-
         lab3 = ttk.Label(self.frame, width=10, text='Dated:')
-        lab3.grid(column=0, row=2, sticky=(W))
+        lab3.grid(column=0, row=1, sticky=(W))
         self.dated = StringVar(self.frame)
         self.dated.set(self.album.get_dated())
         self.date_entry = ttk.Entry(self.frame, width=40,
                                     textvariable=self.dated,
                                     font=tfont, state='readonly')
-        self.date_entry.grid(column=1, row=2, sticky=(W))
+        self.date_entry.grid(column=1, row=1, sticky=(W))
 
         lab4 = ttk.Label(self.frame, width=10, text='Notes:')
-        lab4.grid(column=0, row=3, sticky=(N, W))
+        lab4.grid(column=0, row=2, sticky=(N, W))
         self.notes = Text(self.frame, height=10, width=40, font=tfont)
         self.notes.insert('1.0', self.album.get_notes())
         self.notes.configure(state='disabled')
         module_logger.debug(f'notes: {self.album.get_notes()}')
-        self.notes.grid(column=1, row=3, sticky=(N, W, E, S))
+        self.notes.grid(column=1, row=2, sticky=(N, W, E, S))
 
         lab5 = ttk.Label(self.frame, width=10, text='Photos:')
-        lab5.grid(column=0, row=4, sticky=(N, W))
+        lab5.grid(column=0, row=3, sticky=(N, W))
         self.photo_count = StringVar(self.frame)
         self.photo_count.set(self.album.get_photo_count())
         self.photos = ttk.Entry(self.frame, width=40,
                                 textvariable=self.photo_count,
                                 font=tfont, state='readonly')
-        self.photos.grid(column=1, row=4, sticky=(W))
+        self.photos.grid(column=1, row=3, sticky=(W))
 
         sep1 = ttk.Separator(self.frame, orient=HORIZONTAL)
-        sep1.grid(column=0, row=5, columnspan=3, sticky=(W+E))
+        sep1.grid(column=0, row=4, columnspan=3, sticky=(W+E))
         sep2 = ttk.Separator(self.frame, orient=HORIZONTAL)
-        sep2.grid(column=0, row=6, columnspan=3, sticky=(W+E))
+        sep2.grid(column=0, row=5, columnspan=3, sticky=(W+E))
 
         self.do_remove = ttk.Button(self.frame, text='Remove',
                                     command=self.confirm_remove)
-        self.do_remove.grid(column=1, row=7, sticky=(E))
+        self.do_remove.grid(column=1, row=6, sticky=(E))
         self.cancel = ttk.Button(self.frame, text='Cancel',
                                  command=self.destroy)
-        self.cancel.grid(column=2, row=7, sticky=(W))
+        self.cancel.grid(column=2, row=6, sticky=(W))
 
     def confirm_remove(self):
         album_name = self.album_name.get()
         result = messagebox.askyesnocancel('Confirm Removal',
                     message=f'Remove album {album_name}?',
-                    detail='Only removes the catalog entry, not the files.',
+                    detail='Removes only the catalog entries, not the files.',
                     parent=self,
                  )
         if result is True:
@@ -419,7 +334,7 @@ class PlornEditAlbum(Toplevel):
         self.rowconfigure(0, weight=1)
         self.frame = ttk.Frame(self, padding='10 10 10 10')
         self.frame.grid(column=0, row=0, sticky=(N, W, E, S))
-        for ii in range(0,8):
+        for ii in range(0,7):
             self.frame.rowconfigure(ii, weight=1)
 
         lab1 = ttk.Label(self.frame, width=10, text='Name:')
@@ -432,43 +347,34 @@ class PlornEditAlbum(Toplevel):
         self.album_entry.grid(column=1, row=0, sticky=(W))
         self.album_entry.focus_set()
 
-        lab2 = ttk.Label(self.frame, width=10, text='Path:')
-        lab2.grid(column=0, row=1, sticky=(W))
-        self.album_path = StringVar(self.frame)
-        self.album_path.set(self.album.get_path())
-        self.path_entry = ttk.Entry(self.frame, width=40,
-                                    textvariable=self.album_path,
-                                    font=tfont, state='readonly')
-        self.path_entry.grid(column=1, row=1, sticky=(W))
-
         lab3 = ttk.Label(self.frame, width=10, text='Dated:')
-        lab3.grid(column=0, row=2, sticky=(W))
+        lab3.grid(column=0, row=1, sticky=(W))
         self.dated = StringVar(self.frame)
         self.dated.set(self.album.get_dated())
         self.date_entry = ttk.Entry(self.frame, width=40,
                                     textvariable=self.dated,
                                     font=tfont)
-        self.date_entry.grid(column=1, row=2, sticky=(W))
+        self.date_entry.grid(column=1, row=1, sticky=(W))
 
         lab4 = ttk.Label(self.frame, width=10, text='Notes:')
-        lab4.grid(column=0, row=3, sticky=(N, W))
+        lab4.grid(column=0, row=2, sticky=(N, W))
         self.notes = Text(self.frame, height=10, width=40, font=tfont)
         self.notes.insert('1.0', self.album.get_notes())
-        self.notes.grid(column=1, row=3, sticky=(N, W, E, S))
+        self.notes.grid(column=1, row=2, sticky=(N, W, E, S))
 
         lab5 = ttk.Label(self.frame, width=10, text='Photos:')
-        lab5.grid(column=0, row=4, sticky=(N, W))
+        lab5.grid(column=0, row=3, sticky=(N, W))
         self.photo_count = StringVar(self.frame)
         self.photo_count.set(self.album.get_photo_count())
         self.photos = ttk.Entry(self.frame, width=40,
                                 textvariable=self.photo_count,
-                                font=tfont)
-        self.photos.grid(column=1, row=4, sticky=(W))
+                                font=tfont, state="readonly")
+        self.photos.grid(column=1, row=3, sticky=(W))
 
         sep1 = ttk.Separator(self.frame, orient=HORIZONTAL)
-        sep1.grid(column=0, row=5, columnspan=3, sticky=(W+E))
+        sep1.grid(column=0, row=4, columnspan=3, sticky=(W+E))
         sep2 = ttk.Separator(self.frame, orient=HORIZONTAL)
-        sep2.grid(column=0, row=6, columnspan=3, sticky=(W+E))
+        sep2.grid(column=0, row=5, columnspan=3, sticky=(W+E))
 
         self.bupdate = ttk.Button(self.frame, text='Update',
                                command=self.update_album)
@@ -477,23 +383,7 @@ class PlornEditAlbum(Toplevel):
                                   command=self.destroy)
         self.bcancel.grid(column=2, row=7, sticky=(W))
 
-    def get_dirname(self):
-        self.path = filedialog.askdirectory(parent=self,
-                                            title='Select a Directory',
-                                            mustexist=True)
-        if self.path:
-            self.path_entry.insert(0, self.path)
-
     def update_album(self):
-        fullpath = os.path.expandvars(os.path.expanduser(self.album_path.get()))
-        if not os.path.isdir(fullpath):
-            messagebox.showerror(parent=self,
-                                     title='Adding an Album',
-                                     message='Path is not a directory',
-                                     detail='Please choose another path',
-                                    )
-            return
-
         album_copy = self.album
         self.db = plorn_db.open()
         if self.album_name.get() != self.album.get_name():
@@ -506,7 +396,6 @@ class PlornEditAlbum(Toplevel):
                 return
 
         album_copy.set_name(self.album_name.get())
-        album_copy.set_path(self.album_path.get())
         album_copy.set_dated(self.dated.get())
         album_copy.set_notes(self.notes.get('1.0', END))
         album_copy.set_photo_count(self.photo_count.get())
@@ -515,4 +404,44 @@ class PlornEditAlbum(Toplevel):
         msg = f'Updated Album \'{self.album_name.get()}\''
         messagebox.showinfo(message=msg, parent=self)
         self.destroy()
+
+
+class PlornImportToAlbum:
+    def __init__(self, parent, album_id):
+        module_logger.debug('started PlornImportAlbum')
+        self.parent = parent
+        self.album_id = album_id
+        self.added_count = 0
+        tfont = font.nametofont('TkDefaultFont')
+        self.db = plorn_db.open()
+        self.album = self.db.get_album(self.album_id)
+
+        image_list = self.collect_images()
+        for path in image_list:
+            name = os.path.basename(path)
+            tmp = plorn_photo.PlornPhoto(name, path, id=None, album_id=album_id)
+            photo = self.db.add_photo(tmp)
+            self.added_count += 1
+
+    def get_photo_count(self):
+        return self.added_count
+
+    def collect_images(self):
+        home = os.path.expanduser('~/Pictures')
+        startdir = os.path.expandvars(home)
+        filelist = filedialog.askopenfilenames(parent=self.parent,
+                                    initialdir=startdir,
+                                    title='Select Images to Import',
+                                    multiple=True,
+                                   )
+        
+        image_list = []
+        for ii in filelist:
+            module_logger.debug(f'checking file type of {ii}')
+            if os.path.isfile(ii):
+                if filetype.is_image(ii):
+                    module_logger.debug(f'collected image {ii}')
+                    image_list.append(ii)
+        module_logger.debug(f'selected images: {image_list}')
+        return image_list
 

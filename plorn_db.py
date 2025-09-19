@@ -298,17 +298,19 @@ class PlornDb:
         return rows != None
 
     def add_album(self, album):
-        sql = 'INSERT INTO albums (name,path,dated,notes,photo_count) VALUES '
-        sql += f'(\'{album.get_name()}\', \'{album.get_path()}\', '
-        sql += f'\'{album.get_dated()}\', \'{album.get_notes()}\', '
-        sql += f'{album.get_photo_count()})'
+        sql = 'INSERT INTO albums (name,dated,notes,photo_count) VALUES '
+        sql += f'("{album.get_name()}", '
+        sql += f' "{album.get_dated()}", '
+        sql += f' "{album.get_notes()}", '
+        sql += f' {album.get_photo_count()}'
+        sql += f')'
         res = self.cursor.execute(sql)
         self.db.commit()
-        sql = f'SELECT * FROM albums WHERE name = \'{album.get_name()}\''
+        sql = f'SELECT * FROM albums WHERE name = "{album.get_name()}"'
         res = self.cursor.execute(sql)
         row = res.fetchone()
         module_logger.debug(f'added album {str(row)}')
-        return plorn_album.PlornAlbum(row['name'], row['path'], id=row['id'],
+        return plorn_album.PlornAlbum(row['name'], id=row['id'],
                                       dated=row['dated'], notes=row['notes'],
                                       photo_count=row['photo_count'])
 
@@ -317,7 +319,7 @@ class PlornDb:
         res = self.cursor.execute(sql)
         row = res.fetchone()
         module_logger.debug(f'got by name: {str(row)}')
-        return plorn_album.PlornAlbum(row['name'], row['path'], id=row['id'],
+        return plorn_album.PlornAlbum(row['name'], id=row['id'],
                                       dated=row['dated'], notes=row['notes'],
                                       photo_count=row['photo_count'])
 
@@ -328,7 +330,7 @@ class PlornDb:
         module_logger.debug(f'got by id: {str(row)}')
         if row == None:
             return None
-        return plorn_album.PlornAlbum(row['name'], row['path'], id=row['id'],
+        return plorn_album.PlornAlbum(row['name'], id=row['id'],
                                       dated=row['dated'], notes=row['notes'],
                                       photo_count=row['photo_count'])
 
@@ -355,7 +357,7 @@ class PlornDb:
         rows.sort(key=lambda x: int(x['id']))
         result = []
         for ii in rows:
-            p = plorn_album.PlornAlbum(ii['name'], ii['path'], id=ii['id'],
+            p = plorn_album.PlornAlbum(ii['name'], id=ii['id'],
                                        dated=ii['dated'], notes=ii['notes'],
                                        photo_count=ii['photo_count'])
             result.append(p)
@@ -386,23 +388,22 @@ class PlornDb:
 
     def update_album(self, album, updated_album):
         sql  = f'UPDATE albums'
-        sql += f' SET name = \'{updated_album.get_name()}\','
-        sql += f' path = \'{updated_album.get_path()}\','
-        sql += f' dated = \'{updated_album.get_dated()}\','
-        sql += f' notes = \'{updated_album.get_notes()}\','
-        sql += f' photo_count = \'{updated_album.get_photo_count()}\''
-        sql += f' WHERE name = \'{album.get_name()}\''
+        sql += f' SET name = "{updated_album.get_name()}",'
+        sql += f' dated = "{updated_album.get_dated()}",'
+        sql += f' notes = "{updated_album.get_notes()}",'
+        sql += f' photo_count = {updated_album.get_photo_count()}'
+        sql += f' WHERE id = {album.get_id()}'
         res = self.cursor.execute(sql)
         self.db.commit()
 
         sql  = 'SELECT * FROM albums'
-        sql += f' WHERE name = \'{updated_album.get_name()}\''
+        sql += f' WHERE name = "{updated_album.get_name()}"'
         res = self.cursor.execute(sql)
         row = res.fetchone()
         msg = f'updated album: from {album.get_name()}'
         msg += f' to {row['id']}'
         module_logger.debug(msg)
-        return plorn_album.PlornAlbum(row['name'], row['path'], id=row['id'],
+        return plorn_album.PlornAlbum(row['name'], id=row['id'],
                                       dated=row['dated'], notes=row['notes'],
                                       photo_count=row['photo_count'])
 
