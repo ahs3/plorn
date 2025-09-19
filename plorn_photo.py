@@ -12,12 +12,12 @@ from tkinter import messagebox
 
 import plorn_db
 
-module_logger = logging.getLogger("plorn.photo")
+module_logger = logging.getLogger('plorn.photo')
 module_logger.setLevel(logging.DEBUG)
 
 class PlornPhoto:
     def __init__(self, name, path, id=None, album_id=None,
-                 dated="", notes="", thumbnail=""):
+                 dated='', notes='', thumbnail=''):
         self.id = id
         self.album_id = album_id
         self.name = name
@@ -75,69 +75,69 @@ class PlornPhoto:
         return self.thumbnail
 
     def __str__(self):
-        val  = f"id: \"{self.id}\""
-        val += f", album_id: \"{self.album_id}\""
-        val += f", name: \"{self.name}\""
-        val += f", path: \"{self.path}\""
-        val += f", dated: \"{self.dated}\""
-        val += f", notes: \"{self.notes}\""
-        val += f", thumbnail: \"{self.thumbnail}\""
+        val  = f'id: \'{self.id}\''
+        val += f', album_id: \'{self.album_id}\''
+        val += f', name: \'{self.name}\''
+        val += f', path: \'{self.path}\''
+        val += f', dated: \'{self.dated}\''
+        val += f', notes: \'{self.notes}\''
+        val += f', thumbnail: \'{self.thumbnail}\''
         return val
 
 
 class PlornShowPhoto(Toplevel):
     def __init__(self, parent, photo_id):
         super().__init__(parent)
-        module_logger.debug("started PlornShowPhoto")
-        tfont = font.nametofont("TkDefaultFont")
+        module_logger.debug('started PlornShowPhoto')
+        tfont = font.nametofont('TkDefaultFont')
         self.db = plorn_db.open()
         self.photo = self.db.get_photo(photo_id)
 
-        self.geometry("1250x600")
-        self.title("Photo Info")
+        self.geometry('1250x600')
+        self.title('Photo Info')
         self.columnconfigure(0, weight=1)
         self.columnconfigure(1, weight=5)
         self.columnconfigure(2, weight=5)
         self.rowconfigure(0, weight=1)
-        self.frame = ttk.Frame(self, padding="10 10 10 10")
+        self.frame = ttk.Frame(self, padding='10 10 10 10')
         self.frame.grid(column=0, row=0, sticky=(N, W, E, S))
         for ii in range(0,8):
             self.frame.rowconfigure(ii, weight=1)
 
-        lab1 = ttk.Label(self.frame, width=10, text="Name:")
+        lab1 = ttk.Label(self.frame, width=10, text='Name:')
         lab1.grid(column=0, row=0, sticky=(W))
         self.photo_name = StringVar(self.frame)
         self.photo_name.set(self.photo.get_name())
         self.photo_entry = ttk.Entry(self.frame, width=40,
                                      textvariable=self.photo_name,
-                                     font=tfont, state="readonly")
+                                     font=tfont, state='readonly')
         self.photo_entry.grid(column=1, row=0, sticky=(W))
         self.photo_entry.focus_set()
 
-        lab2 = ttk.Label(self.frame, width=10, text="Path:")
+        lab2 = ttk.Label(self.frame, width=10, text='Path:')
         lab2.grid(column=0, row=1, sticky=(W))
         self.photo_path = StringVar(self.frame)
         self.photo_path.set(self.photo.get_path())
         self.path_entry = ttk.Entry(self.frame, width=40,
                                     textvariable=self.photo_path,
-                                    font=tfont, state="readonly")
+                                    font=tfont, state='readonly')
         self.path_entry.grid(column=1, row=1, sticky=(W))
 
-        lab3 = ttk.Label(self.frame, width=10, text="Dated:")
+        lab3 = ttk.Label(self.frame, width=10, text='Dated:')
         lab3.grid(column=0, row=2, sticky=(W))
         self.dated = StringVar(self.frame)
         self.dated.set(self.photo.get_dated())
         self.date_entry = ttk.Entry(self.frame, width=40,
                                     textvariable=self.dated,
-                                    font=tfont, state="readonly")
+                                    font=tfont, state='readonly')
         self.date_entry.grid(column=1, row=2, sticky=(W))
 
-        lab4 = ttk.Label(self.frame, width=10, text="Notes:")
+        lab4 = ttk.Label(self.frame, width=10, text='Notes:')
         lab4.grid(column=0, row=3, sticky=(N, W))
         self.notes = Text(self.frame, height=10, width=40, font=tfont)
-        self.notes.insert("1.0", self.photo.get_notes())
-        self.notes.configure(state="disabled")
-        module_logger.debug(f"notes: {self.photo.get_notes()}")
+        self.notes.insert('1.0', self.photo.get_notes())
+        self.notes.configure(state='disabled')
+        module_logger.debug(f'notes: {self.photo.get_notes()}')
         self.notes.grid(column=1, row=3, sticky=(N, W, E, S))
 
         sep1 = ttk.Separator(self.frame, orient=HORIZONTAL)
@@ -145,7 +145,7 @@ class PlornShowPhoto(Toplevel):
         sep2 = ttk.Separator(self.frame, orient=HORIZONTAL)
         sep2.grid(column=0, row=5, columnspan=3, sticky=(W+E))
 
-        self.bdone = ttk.Button(self.frame, text="Done",
+        self.bdone = ttk.Button(self.frame, text='Done',
                                command=self.destroy)
         self.bdone.grid(column=1, row=6)
 
@@ -161,57 +161,57 @@ class PlornShowPhoto(Toplevel):
 class PlornRemovePhoto(Toplevel):
     def __init__(self, parent, photo_id):
         super().__init__(parent)
-        module_logger.debug("started PlornRemovePhoto")
-        tfont = font.nametofont("TkDefaultFont")
+        module_logger.debug('started PlornRemovePhoto')
+        tfont = font.nametofont('TkDefaultFont')
         self.db = plorn_db.open()
         self.photo = self.db.get_photo(photo_id)
         self.photo_id = photo_id
 
-        self.geometry("1250x600")
-        self.title("Photo to Remove")
+        self.geometry('1250x600')
+        self.title('Photo to Remove')
         self.columnconfigure(0, weight=1)
         self.columnconfigure(1, weight=5)
         self.columnconfigure(2, weight=5)
         self.rowconfigure(0, weight=1)
-        self.frame = ttk.Frame(self, padding="10 10 10 10")
+        self.frame = ttk.Frame(self, padding='10 10 10 10')
         self.frame.grid(column=0, row=0, sticky=(N, W, E, S))
         for ii in range(0,8):
             self.frame.rowconfigure(ii, weight=1)
 
-        lab1 = ttk.Label(self.frame, width=10, text="Name:")
+        lab1 = ttk.Label(self.frame, width=10, text='Name:')
         lab1.grid(column=0, row=0, sticky=(W))
         self.photo_name = StringVar(self.frame)
         self.photo_name.set(self.photo.get_name())
         self.photo_entry = ttk.Entry(self.frame, width=40,
                                      textvariable=self.photo_name,
-                                     font=tfont, state="readonly")
+                                     font=tfont, state='readonly')
         self.photo_entry.grid(column=1, row=0, sticky=(W))
         self.photo_entry.focus_set()
 
-        lab2 = ttk.Label(self.frame, width=10, text="Path:")
+        lab2 = ttk.Label(self.frame, width=10, text='Path:')
         lab2.grid(column=0, row=1, sticky=(W))
         self.photo_path = StringVar(self.frame)
         self.photo_path.set(self.photo.get_path())
         self.path_entry = ttk.Entry(self.frame, width=40,
                                     textvariable=self.photo_path,
-                                    font=tfont, state="readonly")
+                                    font=tfont, state='readonly')
         self.path_entry.grid(column=1, row=1, sticky=(W))
 
-        lab3 = ttk.Label(self.frame, width=10, text="Dated:")
+        lab3 = ttk.Label(self.frame, width=10, text='Dated:')
         lab3.grid(column=0, row=2, sticky=(W))
         self.dated = StringVar(self.frame)
         self.dated.set(self.photo.get_dated())
         self.date_entry = ttk.Entry(self.frame, width=40,
                                     textvariable=self.dated,
-                                    font=tfont, state="readonly")
+                                    font=tfont, state='readonly')
         self.date_entry.grid(column=1, row=2, sticky=(W))
 
-        lab4 = ttk.Label(self.frame, width=10, text="Notes:")
+        lab4 = ttk.Label(self.frame, width=10, text='Notes:')
         lab4.grid(column=0, row=3, sticky=(N, W))
         self.notes = Text(self.frame, height=10, width=40, font=tfont)
-        self.notes.insert("1.0", self.photo.get_notes())
-        self.notes.configure(state="disabled")
-        module_logger.debug(f"notes: {self.photo.get_notes()}")
+        self.notes.insert('1.0', self.photo.get_notes())
+        self.notes.configure(state='disabled')
+        module_logger.debug(f'notes: {self.photo.get_notes()}')
         self.notes.grid(column=1, row=3, sticky=(N, W, E, S))
 
         sep1 = ttk.Separator(self.frame, orient=HORIZONTAL)
@@ -219,10 +219,10 @@ class PlornRemovePhoto(Toplevel):
         sep2 = ttk.Separator(self.frame, orient=HORIZONTAL)
         sep2.grid(column=0, row=5, columnspan=3, sticky=(W+E))
 
-        self.bcancel = ttk.Button(self.frame, text="Cancel",
+        self.bcancel = ttk.Button(self.frame, text='Cancel',
                                   command=self.destroy)
         self.bcancel.grid(column=0, row=6)
-        self.bremove = ttk.Button(self.frame, text="Remove",
+        self.bremove = ttk.Button(self.frame, text='Remove',
                                command=self.confirm_remove)
         self.bremove.grid(column=1, row=6)
 
@@ -237,9 +237,9 @@ class PlornRemovePhoto(Toplevel):
     def confirm_remove(self):
         photo_name = self.photo_name.get()
         photo_path = self.photo_path.get()
-        result = messagebox.askyesnocancel("Confirm Removal",
-                    message=f"Remove photo {photo_name}?",
-                    detail="Only removes the catalog entry, not the file.",
+        result = messagebox.askyesnocancel('Confirm Removal',
+                    message=f'Remove photo {photo_name}?',
+                    detail='Only removes the catalog entry, not the file.',
                     parent=self,
                  )
         if result is True:
@@ -249,24 +249,24 @@ class PlornRemovePhoto(Toplevel):
 class PlornEditPhoto(Toplevel):
     def __init__(self, parent, photo_id):
         super().__init__(parent)
-        module_logger.debug("started PlornEditPhoto")
-        tfont = font.nametofont("TkDefaultFont")
+        module_logger.debug('started PlornEditPhoto')
+        tfont = font.nametofont('TkDefaultFont')
         self.db = plorn_db.open()
         self.photo = self.db.get_photo(photo_id)
         self.photo_id = photo_id
 
-        self.geometry("1250x600")
-        self.title("Edit Photo")
+        self.geometry('1250x600')
+        self.title('Edit Photo')
         self.columnconfigure(0, weight=1)
         self.columnconfigure(1, weight=5)
         self.columnconfigure(2, weight=5)
         self.rowconfigure(0, weight=1)
-        self.frame = ttk.Frame(self, padding="10 10 10 10")
+        self.frame = ttk.Frame(self, padding='10 10 10 10')
         self.frame.grid(column=0, row=0, sticky=(N, W, E, S))
         for ii in range(0,8):
             self.frame.rowconfigure(ii, weight=1)
 
-        lab1 = ttk.Label(self.frame, width=10, text="Name:")
+        lab1 = ttk.Label(self.frame, width=10, text='Name:')
         lab1.grid(column=0, row=0, sticky=(W))
         self.photo_name = StringVar(self.frame)
         self.photo_name.set(self.photo.get_name())
@@ -276,7 +276,7 @@ class PlornEditPhoto(Toplevel):
         self.photo_entry.grid(column=1, row=0, sticky=(W))
         self.photo_entry.focus_set()
 
-        lab2 = ttk.Label(self.frame, width=10, text="Path:")
+        lab2 = ttk.Label(self.frame, width=10, text='Path:')
         lab2.grid(column=0, row=1, sticky=(W))
         self.photo_path = StringVar(self.frame)
         self.photo_path.set(self.photo.get_path())
@@ -285,7 +285,7 @@ class PlornEditPhoto(Toplevel):
                                     font=tfont)
         self.path_entry.grid(column=1, row=1, sticky=(W))
 
-        lab3 = ttk.Label(self.frame, width=10, text="Dated:")
+        lab3 = ttk.Label(self.frame, width=10, text='Dated:')
         lab3.grid(column=0, row=2, sticky=(W))
         self.dated = StringVar(self.frame)
         self.dated.set(self.photo.get_dated())
@@ -294,10 +294,10 @@ class PlornEditPhoto(Toplevel):
                                     font=tfont)
         self.date_entry.grid(column=1, row=2, sticky=(W))
 
-        lab4 = ttk.Label(self.frame, width=10, text="Notes:")
+        lab4 = ttk.Label(self.frame, width=10, text='Notes:')
         lab4.grid(column=0, row=3, sticky=(N, W))
         self.notes = Text(self.frame, height=10, width=40, font=tfont)
-        self.notes.insert("1.0", self.photo.get_notes())
+        self.notes.insert('1.0', self.photo.get_notes())
         self.notes.grid(column=1, row=3, sticky=(N, W, E, S))
 
         sep1 = ttk.Separator(self.frame, orient=HORIZONTAL)
@@ -305,13 +305,13 @@ class PlornEditPhoto(Toplevel):
         sep2 = ttk.Separator(self.frame, orient=HORIZONTAL)
         sep2.grid(column=0, row=5, columnspan=3, sticky=(W+E))
 
-        self.bupdate = ttk.Button(self.frame, text="Update",
+        self.bupdate = ttk.Button(self.frame, text='Update',
                                   command=self.update_photo)
         self.bupdate.grid(column=0, row=6)
-        self.bcancel = ttk.Button(self.frame, text="Cancel",
+        self.bcancel = ttk.Button(self.frame, text='Cancel',
                                   command=self.destroy)
         self.bcancel.grid(column=1, row=6)
-        self.bdone = ttk.Button(self.frame, text="Done",
+        self.bdone = ttk.Button(self.frame, text='Done',
                                 command=self.destroy)
         self.bdone.grid(column=2, row=6)
 
@@ -331,20 +331,20 @@ class PlornEditPhoto(Toplevel):
                 photo_copy.set_name(self.photo_name.get())
                 photo_copy.set_path(self.photo_path.get())
                 photo_copy.set_dated(self.dated.get())
-                photo_copy.set_notes(self.notes.get("1.0", END))
+                photo_copy.set_notes(self.notes.get('1.0', END))
                 self.photo = self.db.update_photo(self.photo, photo_copy)
-                msg = f"Updated Photo \"{self.photo_name.get()}\""
+                msg = f'Updated Photo \'{self.photo_name.get()}\''
                 messagebox.showinfo(parent=self, message=msg)
             else:
                 messagebox.showerror(parent=self,
-                                    title="Update a Photo",
-                                    message="File is not a known image type",
-                                    detail="Please choose another path.")
+                                    title='Update a Photo',
+                                    message='File is not a known image type',
+                                    detail='Please choose another path.')
         else:
             messagebox.showerror(parent=self,
-                                 title="Update a Photo",
-                                 message="Image is not a regular file",
-                                 detail="Please choose another path.")
+                                 title='Update a Photo',
+                                 message='Image is not a regular file',
+                                 detail='Please choose another path.')
 
         return
 
@@ -352,26 +352,26 @@ class PlornEditPhoto(Toplevel):
 class PlornAddPhoto(Toplevel):
     def __init__(self, parent, album_id):
         super().__init__(parent)
-        module_logger.debug("started PlornAddPhoto")
-        tfont = font.nametofont("TkDefaultFont")
+        module_logger.debug('started PlornAddPhoto')
+        tfont = font.nametofont('TkDefaultFont')
         self.album_id = album_id
         self.db = plorn_db.open()
         self.album = self.db.get_album(album_id)
         self.path = None
         self.new_photo = None
 
-        self.geometry("800x600")
-        self.title("Add Photo")
+        self.geometry('800x600')
+        self.title('Add Photo')
         self.columnconfigure(0, weight=1)
         self.columnconfigure(1, weight=5)
         self.columnconfigure(2, weight=5)
         self.rowconfigure(0, weight=1)
-        self.frame = ttk.Frame(self, padding="10 10 10 10")
+        self.frame = ttk.Frame(self, padding='10 10 10 10')
         self.frame.grid(column=0, row=0, sticky=(N, W, E, S))
         for ii in range(0,8):
             self.frame.rowconfigure(ii, weight=1)
 
-        lab1 = ttk.Label(self.frame, width=10, text="Name:")
+        lab1 = ttk.Label(self.frame, width=10, text='Name:')
         lab1.grid(column=0, row=0, sticky=(W))
         self.photo_name = StringVar(self.frame)
         self.photo_entry = ttk.Entry(self.frame, width=40,
@@ -380,18 +380,18 @@ class PlornAddPhoto(Toplevel):
         self.photo_entry.grid(column=1, row=0, sticky=(W))
         self.photo_entry.focus_set()
 
-        lab2 = ttk.Label(self.frame, width=10, text="Path:")
+        lab2 = ttk.Label(self.frame, width=10, text='Path:')
         lab2.grid(column=0, row=1, sticky=(W))
         self.photo_path = StringVar(self.frame)
         self.path_entry = ttk.Entry(self.frame, width=40,
                                     textvariable=self.photo_path,
                                     font=tfont)
         self.path_entry.grid(column=1, row=1, sticky=(W))
-        self.bdir = ttk.Button(self.frame, text="Browse",
+        self.bdir = ttk.Button(self.frame, text='Browse',
                                command=self.get_image_name)
         self.bdir.grid(column=2, row=1)
 
-        lab3 = ttk.Label(self.frame, width=10, text="Dated:")
+        lab3 = ttk.Label(self.frame, width=10, text='Dated:')
         lab3.grid(column=0, row=2, sticky=(W))
         self.dated = StringVar(self.frame)
         self.date_entry = ttk.Entry(self.frame, width=40,
@@ -399,7 +399,7 @@ class PlornAddPhoto(Toplevel):
                                     font=tfont)
         self.date_entry.grid(column=1, row=2, sticky=(W))
 
-        lab4 = ttk.Label(self.frame, width=10, text="Notes:")
+        lab4 = ttk.Label(self.frame, width=10, text='Notes:')
         lab4.grid(column=0, row=3, sticky=(N, W))
         self.notes = Text(self.frame, height=10, width=40, font=tfont)
         self.notes.grid(column=1, row=3, sticky=(N, W, E, S))
@@ -409,19 +409,19 @@ class PlornAddPhoto(Toplevel):
         sep2 = ttk.Separator(self.frame, orient=HORIZONTAL)
         sep2.grid(column=0, row=5, columnspan=3, sticky=(W+E))
 
-        self.bupdate = ttk.Button(self.frame, text="Add",
+        self.bupdate = ttk.Button(self.frame, text='Add',
                                   command=self.add_photo)
         self.bupdate.grid(column=0, row=6)
-        self.bcancel = ttk.Button(self.frame, text="Cancel",
+        self.bcancel = ttk.Button(self.frame, text='Cancel',
                                   command=self.destroy)
         self.bcancel.grid(column=1, row=6)
-        self.bdone = ttk.Button(self.frame, text="Done",
+        self.bdone = ttk.Button(self.frame, text='Done',
                                 command=self.destroy)
         self.bdone.grid(column=2, row=6)
 
     def get_image_name(self):
         self.path = filedialog.askopenfilename(parent=self,
-                                       title="Select an Image",
+                                       title='Select an Image',
                                        initialdir=self.album.get_path(),
                                       )
         if self.path:
@@ -435,9 +435,9 @@ class PlornAddPhoto(Toplevel):
         basename = os.path.basename(self.photo_path.get())
         if not os.path.exists(os.path.join(albumpath, basename)):
             messagebox.showerror(parent=self,
-                                 title="Add a Photo",
-                                 message=f"No path to image in {albumpath}",
-                                 detail="Please choose another image.")
+                                 title='Add a Photo',
+                                 message=f'No path to image in {albumpath}',
+                                 detail='Please choose another image.')
             return
 
         fullpath = os.path.expandvars(os.path.expanduser(self.photo_path.get()))
@@ -448,18 +448,18 @@ class PlornAddPhoto(Toplevel):
                                    id=None,
                                    album_id=self.album_id,
                                    dated=self.dated.get(),
-                                   notes=self.notes.get("1.0", END))
+                                   notes=self.notes.get('1.0', END))
                 self.new_photo = self.db.add_photo(photo)
-                msg = f"Added Photo \"{self.photo_name.get()}\""
+                msg = f'Added Photo \'{self.photo_name.get()}\''
                 messagebox.showinfo(parent=self, message=msg)
             else:
                 messagebox.showerror(parent=self,
-                                    title="Add a Photo",
-                                    message="File is not a known image type",
-                                    detail="Please choose another path.")
+                                    title='Add a Photo',
+                                    message='File is not a known image type',
+                                    detail='Please choose another path.')
         else:
             messagebox.showerror(parent=self,
-                                 title="Add a Photo",
-                                 message="Image is not a regular file",
-                                 detail="Please choose another path.")
+                                 title='Add a Photo',
+                                 message='Image is not a regular file',
+                                 detail='Please choose another path.')
 
