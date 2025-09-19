@@ -188,9 +188,8 @@ class Plorn(Tk):
         self.settings['borderwidth'] = 2
         self.settings['relief'] = 'groove'
         self.settings.columnconfigure(0, weight=1)
-        self.settings.rowconfigure(0, weight=1)
-        self.settings.columnconfigure(0, weight=1)
         self.settings.columnconfigure(1, weight=2)
+        #self.settings.rowconfigure(0, weight=1)
         self.build_settings(self.settings)
         notebook.add(self.settings, text=' Settings ')
         self.settings_tab = 4
