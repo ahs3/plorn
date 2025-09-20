@@ -5,7 +5,7 @@ import os
 import pwd
 import sys
 
-version = '0.12.4'
+version = '0.12.5'
 config = None
 
 FONTSIZE = 16

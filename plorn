@@ -61,6 +61,7 @@ class Plorn(Tk):
         self.albums_tab = 0
         self.aview = None
         self.album_list = []
+        self.album_name_list = []
         self.album_count = 0
         self.current_album = None
         self.current_album_name = StringVar()
@@ -76,6 +77,8 @@ class Plorn(Tk):
         self.current_photo_button = None
         self.current_photo_name = StringVar()
         self.photo_label = StringVar()
+        self.album_selector = None
+        self.album_selected = StringVar()
 
         self.names_tab  = 2
         self.nview = None
@@ -147,24 +150,20 @@ class Plorn(Tk):
         self.album_frame = ttk.Frame(notebook, padding='5 5 5 5')
         self.album_frame['borderwidth'] = 2
         self.album_frame['relief'] = 'groove'
-        self.album_frame.columnconfigure(0, weight=1)
-        self.album_frame.rowconfigure(0, weight=1)
         self.album_buttons = []
-        self.album_subwidgets = []
+        self.album_selected.set('')
         self.build_album_list(self.album_frame)
         notebook.add(self.album_frame, text=' Albums ', sticky='nwes')
         self.albums_tab = 0
 
         #   ... and that has a photo list for the current album
-        self.photos = ttk.Frame(notebook, padding='5 5 5 5')
-        self.photos['borderwidth'] = 2
-        self.photos['relief'] = 'groove'
-        self.photos.columnconfigure(0, weight=1)
-        self.photos.rowconfigure(0, weight=1)
+        self.photo_frame = ttk.Frame(notebook, padding='5 5 5 5')
+        self.photo_frame['borderwidth'] = 2
+        self.photo_frame['relief'] = 'groove'
         self.photo_buttons = []
         self.current_album = None
-        self.build_photo_list(self.photos)
-        notebook.add(self.photos, text=' Photos ')
+        self.build_photo_list(self.photo_frame)
+        notebook.add(self.photo_frame, text=' Photos ', sticky='nwes')
         self.photos_tab = 1
 
         #   ... and there are all sorts of names to choose from
@@ -356,6 +355,8 @@ class Plorn(Tk):
 
     def select_photo(self, event):
         child = self.pview.identify_row(event.y)
+        if not self.last_button_img:
+            return
         if not child:
             child = self.last_button_img
         logger.debug(f'select_photo selection: {str(child)}')
@@ -369,23 +370,20 @@ class Plorn(Tk):
             logger.debug(f'set_button_img: [{len(self.button_imgs)}] {str(child)}')
             self.current_photo_button.config(image=self.button_imgs[child])
 
-    def update_photoview(self, album_id):
-        if self.current_album == None:
-            return
-
-        self.current_album_name.set(self.current_album.get_name())
-        context_msg = f'Album: {self.current_album_name.get()}'
-        self.album_label.set(context_msg)
-
+    def update_photoview(self, album_id=None):
         for ii in self.pview.get_children():
             self.pview.delete(ii)
         self.photo_list.clear()
-        self.photo_list = self.db.get_photos(album_id)
         self.button_imgs.clear()
+
+        if self.current_album == None or album_id == None:
+            return
+
+        self.photo_list = self.db.get_photos(album_id)
         for ii in self.photo_list:
             thumb_path = ii.get_thumbnail()
             child = self.pview.insert('', END,
-                                      text=ii.get_id(),
+                                      text=f'{ii.get_id():04}',
                                       values=(ii.get_name(), ii.get_path(),
                                               thumb_path)
                                      )
@@ -405,7 +403,6 @@ class Plorn(Tk):
             self.set_button_img(child_id)
             db_id = self.pview.item(child_id)['text']
             self.current_photo = self.db.get_photo(db_id)
-            self.photo_label.set(f'Photo: {self.current_photo.get_name()}')
         self.update_counts()
 
     def open_album(self):
@@ -441,14 +438,20 @@ class Plorn(Tk):
     def build_album_list(self, parent):
         tfont = font.nametofont('TkDefaultFont')
 
+        parent.columnconfigure(0, weight=1)
+        parent.rowconfigure(0, weight=1)
+
         lframe = ttk.Frame(parent, padding=(5, 5, 5, 5))
         lframe.columnconfigure(0, weight=1)
         lframe.rowconfigure(0, weight=1)
-        lframe.grid(column=0, row=0, sticky=(N,S,E,W))
+        lframe.grid(column=0, row=0, sticky=(N,W,E,S))
+        self.static_widgets['album.lframe'] = lframe
+
         rframe = ttk.Frame(parent, padding=(5, 5, 5, 5))
         rframe.columnconfigure(0, weight=1)
         rframe.rowconfigure(0, weight=1)
-        rframe.grid(column=1, row=0)
+        rframe.grid(column=1, row=0, sticky=(N,W,E,S))
+        self.static_widgets['album.rframe'] = rframe
 
         style = ttk.Style()
         style.layout('plorn.Treeview',
@@ -476,7 +479,7 @@ class Plorn(Tk):
         aview.heading('photos', text='Photos')
         aview.column('name', anchor='w', minwidth=400, stretch=True)
         aview.heading('name', text='Name')
-        aview.grid(column=0, row=0, sticky=(N,S,E,W))
+        aview.grid(column=0, row=0, sticky=(N,W,E,S))
         xscrollbar = ttk.Scrollbar(lframe, orient='vertical',
                                   command=aview.yview)
         xscrollbar.grid(column=1, row=0, sticky=(N,S,E,W))
@@ -485,6 +488,8 @@ class Plorn(Tk):
         yscrollbar.grid(column=0, row=1, sticky=(N,S,E,W))
         aview.configure(xscrollcommand=yscrollbar.set)
         aview.configure(yscrollcommand=xscrollbar.set)
+        self.static_widgets['album.xscrollbar'] = xscrollbar
+        self.static_widgets['album.yscrollbar'] = yscrollbar
         self.aview = aview
         self.update_albumview()
 
@@ -498,38 +503,90 @@ class Plorn(Tk):
         for n in range(0, len(self.album_buttons)):
             self.album_buttons[n].grid(column=0, row=n)
 
-        # keep some permanent references for these objects
-        self.album_subwidgets.append(lframe)
-        self.album_subwidgets.append(rframe)
-        self.album_subwidgets.append(xscrollbar)
-        self.album_subwidgets.append(yscrollbar)
+    def build_album_selector(self, parent):
+        tfont = font.nametofont('TkDefaultFont')
+
+        aframe = ttk.Frame(parent, padding=(5,5,5,5))
+        aframe.columnconfigure(0, weight=1)
+        aframe.columnconfigure(1, weight=5)
+        aframe.rowconfigure(0, weight=1)
+        aframe.option_add('*TCombobox*Listbox.font', tfont)
+
+        lab1 = ttk.Label(aframe, width=10, text='Album:')
+        lab1.grid(column=0, row=0, sticky=(W))
+        self.static_widgets['photos.lab1'] = lab1
+
+        self.album_selector = ttk.Combobox(aframe, font=tfont,
+                                    textvariable=self.album_selected)
+        self.update_album_selections()
+        self.album_selector.config(values=self.album_name_list)
+        self.album_selector.config(state="readonly")
+        self.album_selector.bind('<<ComboboxSelected>>', self.album_chosen)
+        self.album_selector.grid(column=1, row=0, sticky=(W+E))
+
+        return aframe
+
+    def album_chosen(self, event):
+        album_name = self.album_selected.get()
+        album_id = None
+        logger.debug(f'album chosen: {album_name}')
+        if album_name == '':
+            self.current_album = None
+            album_id = None
+        else:
+            self.current_album = self.db.get_album_by_name(album_name)
+            album_id = self.current_album.get_id()
+        self.update_photoview(album_id)
+
+    def update_album_selections(self):
+        self.album_list.clear()
+        self.album_list = self.db.get_albums()
+        self.album_name_list.clear()
+        self.album_name_list.append('')
+        for ii in self.album_list:
+            self.album_name_list.append(ii.get_name())
 
     def build_photo_list(self, parent):
         tfont = font.nametofont('TkDefaultFont')
 
-        context_msg = 'Album: <none>'
-        if self.current_album != None:
-            self.current_album_name.set(self.current_album.get_name())
-            context_msg = f'Album: {self.current_album_name.get()}'
-        self.album_label.set(context_msg)
-        album_label = ttk.Label(parent, width=40,
-                                textvariable=self.album_label)
-        album_label.grid(column=0, row=0, sticky=(W))
+        parent.columnconfigure(0, weight=1)
+        parent.rowconfigure(0, weight=1)
+        parent.rowconfigure(1, weight=4)
+        parent.rowconfigure(2, weight=1)
 
-        lframe = ttk.Frame(parent, padding=(5, 5, 5, 5))
+        sframe = self.build_album_selector(parent)
+        sframe.grid(column=0, row=0, columnspan=2, sticky=(N,W,E,S))
+        self.static_widgets['photo.sframe'] = sframe
+        if self.current_album == None:
+            selected_album = ''
+        else:
+            selected_album = self.current_album.get_name()
+        self.album_selected.set(selected_album)
+
+        tframe = ttk.Frame(parent, padding=(5,5,5,5))
+        tframe.columnconfigure(0, weight=4)
+        tframe.columnconfigure(0, weight=1)
+        tframe.rowconfigure(0, weight=1)
+        tframe.grid(column=0, row=1, sticky=(N,W,E,S))
+        self.static_widgets['photo.tframe'] = tframe
+
+        lframe = ttk.Frame(tframe, padding=(5,5,5,5))
         lframe.columnconfigure(0, weight=1)
         lframe.rowconfigure(0, weight=1)
-        lframe.grid(column=0, row=1, sticky=(N+E+S+W))
-        rframe = ttk.Frame(parent, padding=(5, 5, 5, 5))
+        lframe.grid(column=0, row=0, sticky=(N,W,E,S))
+        self.static_widgets['photo.lframe'] = lframe
+
+        rframe = ttk.Frame(tframe, padding=(5, 5, 5, 5))
         rframe.columnconfigure(0, weight=1)
         rframe.rowconfigure(0, weight=1)
-        rframe.grid(column=1, row=1)
+        rframe.grid(column=1, row=0, sticky=(N,W,E,S))
+        self.static_widgets['photo.rframe'] = rframe
 
         style = ttk.Style()
         style.layout('plorn.Treeview',
-            [('Treeview.field', {'sticky': 'NWES', 'border': 1, 'children': [
-                ('Treeview.padding', {'sticky': 'NWES', 'children': [
-                    ('Treeview.treearea', {'sticky': 'NWES'})
+            [('Treeview.field', {'sticky': 'nwes', 'border': 1, 'children': [
+                ('Treeview.padding', {'sticky': 'nwes', 'children': [
+                    ('Treeview.treearea', {'sticky': 'nwes'})
                     ]})
                 ]})
             ])
@@ -543,28 +600,28 @@ class Plorn(Tk):
                              columns=('name', 'path', 'thumb'),
                              selectmode='browse',
                              style='plorn.Treeview')
-        pview.column('#0', anchor='center', minwidth=0, width=100)
+        pview.column('#0', anchor='center', width=100, stretch=False)
         pview.heading('#0', text='ID')
-        pview.column('name', anchor='w', minwidth=0, width=200)
+        pview.column('name', anchor='w', width=200, stretch=True)
         pview.heading('name', text='Name')
-        pview.column('path', anchor='w', minwidth=0, width=200)
+        pview.column('path', anchor='w', width=200, stretch=True)
         pview.heading('path', text='Path')
-        pview.column('thumb', anchor='w', minwidth=0, width=50)
-        pview.heading('thumb', text='Thumbnail')
-        pview.grid(column=0, row=0)
+        #pview.column('thumb', anchor='w', minwidth=0)
+        #pview.heading('thumb', text='Thumbnail')
+        pview.grid(column=0, row=0, sticky=(N,W,E,S))
         pview['displaycolumns'] = ('name', 'path')
         xscrollbar = ttk.Scrollbar(lframe, orient='vertical',
                                   command=pview.yview)
-        xscrollbar.grid(column=1, row=0)
-        pview.configure(xscrollcommand=xscrollbar.set)
+        xscrollbar.grid(column=1, row=0, sticky=(N,W,E,S))
         yscrollbar = ttk.Scrollbar(lframe, orient='horizontal',
                                   command=pview.xview)
-        yscrollbar.grid(column=0, row=1)
-        pview.configure(yscrollcommand=yscrollbar.set)
+        yscrollbar.grid(column=0, row=1, sticky=(N,W,E,S))
+        pview.configure(yscrollcommand=xscrollbar.set)
         pview.bind('<Up>', self.up_photo)
         pview.bind('<Down>', self.down_photo)
         pview.bind('<ButtonRelease-1>', self.select_photo)
         self.pview = pview
+        self.update_photoview()
 
         self.current_photo_button = ttk.Button(rframe,
                                         state='readonly',
