@@ -21,6 +21,7 @@ import plorn_db
 import plorn_name
 import plorn_photo
 import plorn_place
+import plorn_tag
 
 #-- the application
 class Plorn(Tk):
@@ -86,7 +87,12 @@ class Plorn(Tk):
         self.place_list = []
         self.last_place_id = None
 
-        self.settings_tab = 4
+        self.tags_tab = 4
+        self.tview = None
+        self.tag_list = []
+        self.last_tag_id = None
+
+        self.settings_tab = 5
 
         #-- create tabbed pane windows for albums, photos, names, places,
         #   and so on
@@ -183,6 +189,16 @@ class Plorn(Tk):
         notebook.add(self.places, text=' Places ')
         self.places_tab = 3
 
+        #   ... and there are all sorts of tags to choose from
+        self.tags = ttk.Frame(notebook, padding='5 5 5 5')
+        self.tags['borderwidth'] = 2
+        self.tags['relief'] = 'groove'
+        self.tags.columnconfigure(0, weight=1)
+        self.tags.rowconfigure(0, weight=1)
+        self.build_tag_list(self.tags)
+        notebook.add(self.tags, text=' Tags ')
+        self.tags_tab = 4
+
         #   ... and that has a config table for the application
         self.settings = ttk.Frame(notebook, padding='5 5 5 5')
         self.settings['borderwidth'] = 2
@@ -191,7 +207,7 @@ class Plorn(Tk):
         self.settings.columnconfigure(1, weight=2)
         self.build_settings(self.settings)
         notebook.add(self.settings, text=' Settings ')
-        self.settings_tab = 4
+        self.settings_tab = 5
 
         return notebook
 
@@ -991,6 +1007,184 @@ class Plorn(Tk):
             messagebox.showerror(parent=self,
                                  title='Select a Place',
                                  detail='Please select a place to edit')
+
+    def up_tag(self, event):
+        cur = self.last_tag_id
+        child = self.tview.prev(cur)
+        if not child:
+            child = cur
+        logger.debug(f'up_tag selection: {str(cur)} -> {str(child)}')
+        self.tview.selection_set(child)
+        self.last_tag_id = child
+
+    def down_tag(self, event):
+        cur = self.last_tag_id
+        child = self.tview.next(cur)
+        if not child:
+            child = cur
+        logger.debug(f'down_tag selection: {str(cur)} -> {str(child)}')
+        self.tview.selection_set(child)
+        self.last_tag_id = child
+
+    def select_tag(self, event):
+        child = self.tview.identify_row(event.y)
+        if not child:
+            child = self.last_tag_id
+        logger.debug(f'select_tag selection: {str(child)}')
+        self.tview.selection_set(child)
+        self.last_tag_id = child
+
+    def build_tag_list(self, parent):
+        tfont = font.nametofont('TkDefaultFont')
+
+        lframe = ttk.Frame(parent, padding=(5, 5, 5, 5))
+        lframe.columnconfigure(0, weight=1)
+        lframe.rowconfigure(0, weight=1)
+        lframe.grid(column=0, row=0)
+        rframe = ttk.Frame(parent, padding=(5, 5, 5, 5))
+        rframe.columnconfigure(0, weight=1)
+        rframe.rowconfigure(0, weight=1)
+        rframe.grid(column=1, row=0)
+
+        style = ttk.Style()
+        style.layout('plorn.Treeview',
+            [('Treeview.field', {'sticky': 'NWES', 'border': 1, 'children': [
+                ('Treeview.padding', {'sticky': 'NWES', 'children': [
+                    ('Treeview.treearea', {'sticky': 'NWES'})
+                    ]})
+                ]})
+            ])
+        style.configure('plorn.Treeview',
+                        font=('TkDefaultFont', FONTSIZE),
+                        rowheight=30,
+                       )
+        style.configure('plorn.Treeview.Heading',
+                        font=('TkDefaultFont', FONTSIZE))
+        tview = ttk.Treeview(lframe,
+                             columns=('id', 'parent'),
+                             selectmode='browse',
+                             style='plorn.Treeview')
+        tview.column('#0', anchor='w', minwidth=0, width=500)
+        tview.heading('#0', text='Tag')
+        tview.column('id', anchor='w', minwidth=0, width=100)
+        tview.heading('id', text='ID')
+        tview.column('parent', anchor='w', minwidth=0, width=100)
+        tview.heading('parent', text='Parent')
+        tview['displaycolumns'] = ()
+        tview.grid(column=0, row=0)
+        xscrollbar = ttk.Scrollbar(lframe, orient='vertical',
+                                  command=tview.yview)
+        xscrollbar.grid(column=1, row=0)
+        tview.configure(xscrollcommand=xscrollbar.set)
+        yscrollbar = ttk.Scrollbar(lframe, orient='horizontal',
+                                  command=tview.xview)
+        yscrollbar.grid(column=0, row=1)
+        tview.configure(yscrollcommand=yscrollbar.set)
+        tview.bind('<Up>', self.up_tag)
+        tview.bind('<Down>', self.down_tag)
+        tview.bind('<ButtonRelease-1>', self.select_tag)
+        self.tview = tview
+
+        self.tag_buttons = [
+            ttk.Button(rframe, text='add', command=self.add_tag),
+            ttk.Button(rframe, text='remove', command=self.remove_tag),
+            ttk.Button(rframe, text='edit', command=self.edit_tag),
+        ]
+        for n in range(0, len(self.tag_buttons)):
+            self.tag_buttons[n].grid(column=0, row=n+1)
+        self.update_tagview()
+
+    def update_tagview(self):
+        for ii in self.tview.get_children():
+            self.tview.delete(ii)
+        self.tag_list.clear()
+        self.tag_list = self.db.get_tags()
+        tree_ids = {}
+        while len(tree_ids) < len(self.tag_list):
+            for ii in self.tag_list:
+                #logger.debug(f'insert: {str(ii)}')
+                id = ii.get_id()
+                pid = ii.get_parent_id()
+                tag = ii.get_tag()
+                under_id = ''
+                if pid == 0 and id not in tree_ids:
+                    curid = self.tview.insert(under_id, END,
+                                              text=tag,
+                                              values=(id, pid)
+                                             )
+                    tree_ids[id] = curid
+                elif pid != 0 and id not in tree_ids:
+                    if pid in tree_ids:
+                        under_id = tree_ids[pid]
+                        curid = self.tview.insert(under_id, END,
+                                                  text=tag,
+                                                  values=(id, pid)
+                                                 )
+                        tree_ids[id] = curid
+
+            #logger.debug(f'tree {len(tree_ids)}, tags {len(self.tag_list)}')
+
+    def add_tag(self):
+        logger.debug(f'adding tag')
+        parent = self.tview.focus()
+        if parent == '':
+            pid = 0
+        else:
+            entry = self.tview.item(parent)
+            pid = entry['values'][1]
+        addone = plorn_tag.PlornAddTag(self, parent_id=pid)
+        addone.grab_set()
+        self.wait_window(addone)
+        tag = addone.get_new_tag()
+        
+        if tag and tag.get_id() != None:
+            logger.debug(f'add tag {tag.get_tag()}')
+            self.update_tagview()
+
+    def remove_tag(self):
+        entry_id = self.tview.focus()
+        if entry_id == '':
+            messagebox.showerror(parent=self,
+                                 title='Remove Tag',
+                                 detail='Please select a tag to remove')
+            return
+        entry = self.tview.item(entry_id)
+        logger.debug(f'entry: {str(entry)}')
+        e_id = entry['values'][0]
+        e_pid = entry['values'][1]
+        
+        kids = self.db.get_tag_children(e_id)
+        if len(kids) > 0:
+            msg = 'Cannot remove a tag that still contains other tags'
+            messagebox.showerror(parent=self, title='Remove Tag', detail=msg)
+            return
+
+        tag = self.db.get_tag(e_id, parent_id=e_pid)
+        tag_id = tag.get_id()
+        parent_id = tag.get_parent_id()
+        logger.debug(f'removing tag {tag.get_tag()} from {parent_id}')
+        rmone = plorn_tag.PlornRemoveTag(self, tag_id, parent_id)
+        rmone.grab_set()
+        self.wait_window(rmone)
+        self.update_tagview()
+
+    def edit_tag(self):
+        entry = self.tview.focus()
+        if entry != '':
+            tag_entry = self.tview.item(entry)
+            tag = tag_entry['text']
+            tag_id = tag_entry['values'][0]
+            parent_id = tag_entry['values'][1]
+            logger.debug(f'edit tag {str(entry)}')
+            showone = plorn_tag.PlornEditTag(self, tag, tag_id,
+                                                 parent_id=parent_id)
+            showone.grab_set()
+            self.wait_window(showone)
+            self.update_tagview()
+        else:
+            messagebox.showerror(parent=self,
+                                 title='Select a Tag',
+                                 detail='Please select a tag to edit')
 
     def build_settings(self, parent):
         config = plorn_config.get_config()

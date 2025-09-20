@@ -11,6 +11,7 @@ import plorn_config
 import plorn_name
 import plorn_photo
 import plorn_place
+import plorn_tag
 
 module_logger = logging.getLogger('plorn.db')
 module_logger.setLevel(logging.DEBUG)
@@ -46,6 +47,7 @@ class PlornDb:
         self.create_photos_table()
         self.create_names_table()
         self.create_places_table()
+        self.create_tags_table()
         self.create_album_names_table()
         self.create_album_places_table()
         self.create_photo_names_table()
@@ -159,6 +161,29 @@ class PlornDb:
                 place TEXT NOT NULL,
                 FOREIGN KEY (parent_id)
                 REFERENCES places (id)
+                    ON DELETE CASCADE
+                    ON UPDATE CASCADE
+            );
+        '''
+        self.cursor.execute(sql_stmt)
+        self.db.commit()
+        rowid = self.cursor.lastrowid + 2
+        sql = f'SELECT name FROM sqlite_master WHERE rowid = {rowid}'
+        res = self.cursor.execute(sql)
+        row = res.fetchone()
+        module_logger.debug('added table: ' + str(row))
+        self.db.commit()
+
+    def create_tags_table(self):
+        global module_logger
+
+        sql_stmt = '''
+            CREATE TABLE IF NOT EXISTS tags (
+                id INTEGER PRIMARY KEY,
+                parent_id INT DEFAULT 0,
+                tag TEXT NOT NULL,
+                FOREIGN KEY (parent_id)
+                REFERENCES tags (id)
                     ON DELETE CASCADE
                     ON UPDATE CASCADE
             );
@@ -736,6 +761,151 @@ class PlornDb:
         msg += f' to {row['place']}'
         module_logger.debug(msg)
         return row['id']
+
+    def add_tag(self, tag, parent_id=0):
+        sql = 'INSERT INTO tags (tag, parent_id) VALUES '
+        pid = parent_id
+        if parent_id == None:
+            pid = 0
+        sql += f'(\'{tag}\', \'{pid}\')'
+        res = self.cursor.execute(sql)
+        self.db.commit()
+        sql = f'SELECT * FROM tags WHERE tag = \'{tag}\''
+        res = self.cursor.execute(sql)
+        row = res.fetchone()
+        module_logger.debug(f'added tag {str(row)}')
+        return plorn_tag.PlornTag(row['tag'], id=row['id'],
+                                  parent_id=row['parent_id'])
+
+    def tag_exists(self, tag, parent_id=0):
+        sql = f'SELECT * FROM tags WHERE tag = \'{tag}\''
+        res = self.cursor.execute(sql)
+        rows = res.fetchall()
+        for ii in rows:
+            if ii['parent_id'] == parent_id:
+                return True
+        return False
+
+    def get_tag(self, tag_id, parent_id=0):
+        sql = f'SELECT * FROM tags WHERE id = \'{tag_id}\''
+        res = self.cursor.execute(sql)
+        row = res.fetchone()
+        module_logger.debug(f'get_tag: {str(row)}')
+        return plorn_tag.PlornTag(row['tag'], id=row['id'],
+                                  parent_id=row['parent_id'])
+
+    def get_tag_children(self, tag_id):
+        sql  = f'SELECT * FROM tags WHERE parent_id = {tag_id}'
+        module_logger.debug(f'get_tag_children: sql {sql} for {tag_id}')
+        res = self.cursor.execute(sql)
+        rows = res.fetchall()
+        module_logger.debug(f'get_tag_children: found {len(rows)} for {tag_id}')
+        result = []
+        for ii in rows:
+            p = plorn_tag.PlornTag(ii['tag'], id=ii['id'],
+                                   parent_id=ii['parent_id'])
+            result.append(p)
+        return result
+
+    def get_full_tag(self, tag_id, parent_id=0):
+        sql = f'SELECT * FROM tags WHERE id = \'{tag_id}\''
+        res = self.cursor.execute(sql)
+        row = res.fetchone()
+        fulltag = []
+        fulltag.append(row['tag'])
+        while row and row['parent_id'] != 0:
+            pid = row['parent_id']
+            sql = f'SELECT * FROM tags WHERE id = \'{pid}\''
+            res = self.cursor.execute(sql)
+            row = res.fetchone()
+            if row:
+                fulltag.append(row['tag'])
+        return fulltag[::-1]
+
+    def get_tags(self):
+        sql = f'SELECT * FROM tags'
+        res = self.cursor.execute(sql)
+        rows = res.fetchall()
+        rows.sort(key=lambda x: x['tag'])
+        module_logger.debug(f'get_tags: {rows}')
+        result = []
+        for ii in rows:
+            p = plorn_tag.PlornTag(ii['tag'], id=ii['id'],
+                                   parent_id=ii['parent_id'])
+            result.append(p)
+        return result
+
+    def get_tag_by_tag(self, tag, parent_id=0):
+        sql  = f'SELECT * FROM tags WHERE tag = \'{tag}\''
+        sql += f' AND parent_id = \'{parent_id}\''
+        res = self.cursor.execute(sql)
+        row = res.fetchone()
+        return row
+
+    def get_tag_object_by_tag(self, tag, parent_id=0):
+        sql  = f'SELECT * FROM tags WHERE tag = \'{tag}\''
+        res = self.cursor.execute(sql)
+        row = res.fetchone()
+        module_logger.debug(f'tag obj by tag \'{tag}\': {str(row)}')
+        return plorn_tag.PlornTag(row['tag'], id=row['id'],
+                                  parent_id=row['parent_id'])
+
+    def remove_tag(self, tag_id, parent_id):
+        sql  = f'DELETE FROM tags WHERE id = \'{tag_id}\''
+        sql += f' AND parent_id = \'{parent_id}\''
+        res = self.cursor.execute(sql)
+        row = res.fetchone()
+        self.db.commit()
+        module_logger.debug(f'removed tag: {tag_id} of {parent_id}')
+        return 
+
+    def update_tag(self, tag, updated_tag):
+        sql  = f'UPDATE tags'
+        sql += f' SET tag = \'{updated_tag.get_tag()}\','
+        sql += f' parent_id = \'{updated_tag.get_parent_id()}\''
+        sql += f' WHERE id = \'{tag.get_id()}\''
+        res = self.cursor.execute(sql)
+        self.db.commit()
+
+        sql  = 'SELECT * FROM tags'
+        sql += f' WHERE id = \'{updated_tag.get_id()}\''
+        res = self.cursor.execute(sql)
+        row = res.fetchone()
+        msg = f'updated tag: from {tag.get_tag()}'
+        msg += f' to {row['tag']}'
+        module_logger.debug(msg)
+        return row['id']
+
+
+def get_dbname(config):
+    dbpath = config.get_datadir()
+    dbname = config.get_dbname()
+    return os.path.join(dbpath, dbname)
+
+def open(dbname='plorn.db', cfgname='plorn.cfg'):
+    global module_logger, current_db
+
+    module_logger.debug('open db')
+    module_logger.debug(f'config is \'{cfgname}\'')
+
+    config = plorn_config.get_config(cfgname)
+    if config.needs_db():
+        module_logger.debug('need to create tables')
+        current_db = PlornDb(get_dbname(config), config)
+        config.db_done()
+
+    if current_db == None:
+        module_logger.debug(f'open existing db \'{get_dbname(config)}\'')
+        current_db = PlornDb(get_dbname(config), config)
+
+    return current_db
+
+def close():
+    global current_db
+
+    if current_db != None:
+        current_db.close()
+        current_db = None
 
 
 def get_dbname(config):

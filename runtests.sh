@@ -8,3 +8,4 @@ echo
 echo "=== db tests ==="
 python -m unittest tests/db_tests.py
 python -m unittest tests/more_db_tests.py
+python -m unittest tests/tag_db_tests.py

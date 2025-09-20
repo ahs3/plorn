@@ -258,7 +258,7 @@ class TestDbPhotoMethods(unittest.TestCase):
         return os.path.join(os.getcwd(), "tests/fred")
 
     def make_album(self, name, path, id, dated, notes, nphotos):
-        return plorn_album.PlornAlbum(name, path, id, dated, notes, nphotos)
+        return plorn_album.PlornAlbum(name, id, dated, notes, nphotos)
 
     def setUp(self):
         dbname = self.get_test_dbname()
