@@ -84,16 +84,19 @@ class Plorn(Tk):
         self.nview = None
         self.name_list = []
         self.last_name_id = None
+        self.name_open = False
 
         self.places_tab = 3
         self.lview = None
         self.place_list = []
         self.last_place_id = None
+        self.place_open = False
 
         self.tags_tab = 4
         self.tview = None
         self.tag_list = []
         self.last_tag_id = None
+        self.tag_open = False
 
         self.settings_tab = 5
 
@@ -763,6 +766,15 @@ class Plorn(Tk):
 
             #logger.debug(f'tree {len(tree_ids)}, names {len(self.name_list)}')
 
+    def toggle_names(self):
+        self.name_open = not self.name_open
+        if self.name_open:
+            self.name_buttons[0].configure(text="collapse")
+        else:
+            self.name_buttons[0].configure(text="expand")
+        for ii in self.nview.get_children():
+            self.nview.item(ii, open=self.name_open)
+
     def add_name(self):
         parent = self.nview.focus()
         entry = self.nview.item(parent)
@@ -879,6 +891,7 @@ class Plorn(Tk):
         self.nview = nview
 
         self.name_buttons = [
+            ttk.Button(rframe, text='expand', command=self.toggle_names),
             ttk.Button(rframe, text='add', command=self.add_name),
             ttk.Button(rframe, text='remove', command=self.remove_name),
             ttk.Button(rframe, text='edit', command=self.edit_name),
@@ -965,6 +978,7 @@ class Plorn(Tk):
         self.lview = lview
 
         self.place_buttons = [
+            ttk.Button(rframe, text='expand', command=self.toggle_places),
             ttk.Button(rframe, text='add', command=self.add_place),
             ttk.Button(rframe, text='remove', command=self.remove_place),
             ttk.Button(rframe, text='edit', command=self.edit_place),
@@ -1002,6 +1016,15 @@ class Plorn(Tk):
                         tree_ids[id] = curid
 
             #logger.debug(f'tree {len(tree_ids)}, places {len(self.place_list)}')
+
+    def toggle_places(self):
+        self.place_open = not self.place_open
+        if self.place_open:
+            self.place_buttons[0].configure(text="collapse")
+        else:
+            self.place_buttons[0].configure(text="expand")
+        for ii in self.lview.get_children():
+            self.lview.item(ii, open=self.place_open)
 
     def add_place(self):
         logger.debug(f'adding place')
@@ -1143,6 +1166,7 @@ class Plorn(Tk):
         self.tview = tview
 
         self.tag_buttons = [
+            ttk.Button(rframe, text='expand', command=self.toggle_tags),
             ttk.Button(rframe, text='add', command=self.add_tag),
             ttk.Button(rframe, text='remove', command=self.remove_tag),
             ttk.Button(rframe, text='edit', command=self.edit_tag),
@@ -1180,6 +1204,15 @@ class Plorn(Tk):
                         tree_ids[id] = curid
 
             #logger.debug(f'tree {len(tree_ids)}, tags {len(self.tag_list)}')
+
+    def toggle_tags(self):
+        self.tag_open = not self.tag_open
+        if self.tag_open:
+            self.tag_buttons[0].configure(text="collapse")
+        else:
+            self.tag_buttons[0].configure(text="expand")
+        for ii in self.tview.get_children():
+            self.tview.item(ii, open=self.tag_open)
 
     def add_tag(self):
         logger.debug(f'adding tag')
