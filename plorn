@@ -504,7 +504,7 @@ class Plorn(Tk):
             ttk.Button(rframe, text='import', command=self.import_photos),
         ]
         for n in range(0, len(self.album_buttons)):
-            self.album_buttons[n].grid(column=0, row=n)
+            self.album_buttons[n].grid(column=0, row=n+1)
 
     def build_album_selector(self, parent):
         tfont = font.nametofont('TkDefaultFont')
