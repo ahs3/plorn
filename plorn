@@ -473,7 +473,7 @@ class Plorn(Tk):
                              selectmode='browse',
                              style='plorn.Treeview',
                             )
-        aview.column('#0', anchor='center', minwidth=100)
+        aview.column('#0', anchor='center', width=100, stretch=False)
         aview.heading('#0', text='ID')
         aview.column('photos', anchor='center', minwidth=100)
         aview.heading('photos', text='Photos')
@@ -832,17 +832,17 @@ class Plorn(Tk):
         lframe = ttk.Frame(parent, padding=(5, 5, 5, 5))
         lframe.columnconfigure(0, weight=1)
         lframe.rowconfigure(0, weight=1)
-        lframe.grid(column=0, row=0)
+        lframe.grid(column=0, row=0, sticky=(N,W,E,S))
         rframe = ttk.Frame(parent, padding=(5, 5, 5, 5))
         rframe.columnconfigure(0, weight=1)
         rframe.rowconfigure(0, weight=1)
-        rframe.grid(column=1, row=0)
+        rframe.grid(column=1, row=0, sticky=(N,W,E,S))
 
         style = ttk.Style()
         style.layout('plorn.Treeview',
-            [('Treeview.field', {'sticky': 'NWES', 'border': 1, 'children': [
-                ('Treeview.padding', {'sticky': 'NWES', 'children': [
-                    ('Treeview.treearea', {'sticky': 'NWES'})
+            [('Treeview.field', {'sticky': 'nwes', 'border': 1, 'children': [
+                ('Treeview.padding', {'sticky': 'nwes', 'children': [
+                    ('Treeview.treearea', {'sticky': 'nwes'})
                     ]})
                 ]})
             ])
@@ -863,14 +863,14 @@ class Plorn(Tk):
         nview.column('parent', anchor='w', minwidth=0, width=100)
         nview.heading('parent', text='Parent')
         nview['displaycolumns'] = ()
-        nview.grid(column=0, row=0)
+        nview.grid(column=0, row=0, sticky=(N,W,E,S))
         xscrollbar = ttk.Scrollbar(lframe, orient='vertical',
                                   command=nview.yview)
-        xscrollbar.grid(column=1, row=0)
+        xscrollbar.grid(column=1, row=0, sticky=(N,W,E,S))
         nview.configure(xscrollcommand=xscrollbar.set)
         yscrollbar = ttk.Scrollbar(lframe, orient='horizontal',
                                   command=nview.xview)
-        yscrollbar.grid(column=0, row=1)
+        yscrollbar.grid(column=0, row=1, sticky=(N,W,E,S))
         nview.configure(yscrollcommand=yscrollbar.set)
         nview.bind('<Up>', self.up_name)
         nview.bind('<Down>', self.down_name)
@@ -919,11 +919,11 @@ class Plorn(Tk):
         lframe = ttk.Frame(parent, padding=(5, 5, 5, 5))
         lframe.columnconfigure(0, weight=1)
         lframe.rowconfigure(0, weight=1)
-        lframe.grid(column=0, row=0)
+        lframe.grid(column=0, row=0, sticky=(N,W,E,S))
         rframe = ttk.Frame(parent, padding=(5, 5, 5, 5))
         rframe.columnconfigure(0, weight=1)
         rframe.rowconfigure(0, weight=1)
-        rframe.grid(column=1, row=0)
+        rframe.grid(column=1, row=0, sticky=(N,W,E,S))
 
         style = ttk.Style()
         style.layout('plorn.Treeview',
@@ -950,14 +950,14 @@ class Plorn(Tk):
         lview.column('parent', anchor='w', minwidth=0, width=100)
         lview.heading('parent', text='Parent')
         lview['displaycolumns'] = ()
-        lview.grid(column=0, row=0)
+        lview.grid(column=0, row=0, sticky=(N,W,E,S))
         xscrollbar = ttk.Scrollbar(lframe, orient='vertical',
                                   command=lview.yview)
-        xscrollbar.grid(column=1, row=0)
+        xscrollbar.grid(column=1, row=0, sticky=(N,W,E,S))
         lview.configure(xscrollcommand=xscrollbar.set)
         yscrollbar = ttk.Scrollbar(lframe, orient='horizontal',
                                   command=lview.xview)
-        yscrollbar.grid(column=0, row=1)
+        yscrollbar.grid(column=0, row=1, sticky=(N,W,E,S))
         lview.configure(yscrollcommand=yscrollbar.set)
         lview.bind('<Up>', self.up_place)
         lview.bind('<Down>', self.down_place)
@@ -1097,11 +1097,11 @@ class Plorn(Tk):
         lframe = ttk.Frame(parent, padding=(5, 5, 5, 5))
         lframe.columnconfigure(0, weight=1)
         lframe.rowconfigure(0, weight=1)
-        lframe.grid(column=0, row=0)
+        lframe.grid(column=0, row=0, sticky=(N,W,E,S))
         rframe = ttk.Frame(parent, padding=(5, 5, 5, 5))
         rframe.columnconfigure(0, weight=1)
         rframe.rowconfigure(0, weight=1)
-        rframe.grid(column=1, row=0)
+        rframe.grid(column=1, row=0, sticky=(N,W,E,S))
 
         style = ttk.Style()
         style.layout('plorn.Treeview',
@@ -1128,14 +1128,14 @@ class Plorn(Tk):
         tview.column('parent', anchor='w', minwidth=0, width=100)
         tview.heading('parent', text='Parent')
         tview['displaycolumns'] = ()
-        tview.grid(column=0, row=0)
+        tview.grid(column=0, row=0, sticky=(N,W,E,S))
         xscrollbar = ttk.Scrollbar(lframe, orient='vertical',
                                   command=tview.yview)
-        xscrollbar.grid(column=1, row=0)
+        xscrollbar.grid(column=1, row=0, sticky=(N,W,E,S))
         tview.configure(xscrollcommand=xscrollbar.set)
         yscrollbar = ttk.Scrollbar(lframe, orient='horizontal',
                                   command=tview.xview)
-        yscrollbar.grid(column=0, row=1)
+        yscrollbar.grid(column=0, row=1, sticky=(N,W,E,S))
         tview.configure(yscrollcommand=yscrollbar.set)
         tview.bind('<Up>', self.up_tag)
         tview.bind('<Down>', self.down_tag)
