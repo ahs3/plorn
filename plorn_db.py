@@ -50,8 +50,10 @@ class PlornDb:
         self.create_tags_table()
         self.create_album_names_table()
         self.create_album_places_table()
+        self.create_album_tags_table()
         self.create_photo_names_table()
         self.create_photo_places_table()
+        self.create_photo_tags_table()
 
     def create_config_table(self):
         global module_logger
@@ -251,6 +253,33 @@ class PlornDb:
         module_logger.debug('added table: ' + str(row))
         self.db.commit()
 
+    def create_album_tags_table(self):
+        global module_logger
+
+        sql_stmt = '''
+            CREATE TABLE IF NOT EXISTS album_tags (
+                id INTEGER PRIMARY KEY,
+                album_id INT NOT NULL,
+                tag_id INT NOT NULL,
+                FOREIGN KEY (album_id)
+                REFERENCES albums (id)
+                    ON DELETE CASCADE
+                    ON UPDATE CASCADE
+                FOREIGN KEY (tag_id)
+                REFERENCES tags (id)
+                    ON DELETE CASCADE
+                    ON UPDATE CASCADE
+            );
+        '''
+        self.cursor.execute(sql_stmt)
+        self.db.commit()
+        rowid = self.cursor.lastrowid + 2
+        sql = f'SELECT name FROM sqlite_master WHERE rowid = {rowid}'
+        res = self.cursor.execute(sql)
+        row = res.fetchone()
+        module_logger.debug('added table: ' + str(row))
+        self.db.commit()
+
     def create_photo_names_table(self):
         global module_logger
 
@@ -292,6 +321,33 @@ class PlornDb:
                     ON UPDATE CASCADE
                 FOREIGN KEY (place_id)
                 REFERENCES places (id)
+                    ON DELETE CASCADE
+                    ON UPDATE CASCADE
+            );
+        '''
+        self.cursor.execute(sql_stmt)
+        self.db.commit()
+        rowid = self.cursor.lastrowid + 2
+        sql = f'SELECT name FROM sqlite_master WHERE rowid = {rowid}'
+        res = self.cursor.execute(sql)
+        row = res.fetchone()
+        module_logger.debug('added table: ' + str(row))
+        self.db.commit()
+
+    def create_photo_tags_table(self):
+        global module_logger
+
+        sql_stmt = '''
+            CREATE TABLE IF NOT EXISTS photo_tags (
+                id INTEGER PRIMARY KEY,
+                photo_id INT NOT NULL,
+                tag_id INT NOT NULL,
+                FOREIGN KEY (photo_id)
+                REFERENCES photos (id)
+                    ON DELETE CASCADE
+                    ON UPDATE CASCADE
+                FOREIGN KEY (tag_id)
+                REFERENCES tags (id)
                     ON DELETE CASCADE
                     ON UPDATE CASCADE
             );
@@ -607,7 +663,7 @@ class PlornDb:
             row = res.fetchone()
             if row != None:
                 fullname.append(row['name'])
-        return fullname[::-1]
+        return fullname
 
     def remove_name(self, name_id, parent_id):
         sql  = f'DELETE FROM names WHERE id = \'{name_id}\''
@@ -694,19 +750,19 @@ class PlornDb:
         return result
 
     def get_full_place(self, place_id, parent_id=0):
-        sql = f'SELECT * FROM places WHERE id = \'{place_id}\''
+        sql = f'SELECT * FROM places WHERE id = {place_id}'
         res = self.cursor.execute(sql)
         row = res.fetchone()
         fullplace = []
         fullplace.append(row['place'])
-        while row and row['parent_id'] != 0:
+        while row != None and row['parent_id'] != 0:
             pid = row['parent_id']
-            sql = f'SELECT * FROM places WHERE id = \'{pid}\''
+            sql = f'SELECT * FROM places WHERE id = {pid}'
             res = self.cursor.execute(sql)
             row = res.fetchone()
             if row:
                 fullplace.append(row['place'])
-        return fullplace[::-1]
+        return fullplace
 
     def get_places(self):
         sql = f'SELECT * FROM places'
@@ -875,6 +931,36 @@ class PlornDb:
         msg += f' to {row['tag']}'
         module_logger.debug(msg)
         return row['id']
+
+    def get_names_for_album(self, album):
+        sql  = f'SELECT * FROM album_names'
+        sql += f' WHERE album_id = {album.get_id()}'
+        res = self.cursor.execute(sql)
+        rows = res.fetchall()
+        result = []
+        for ii in rows:
+            result.append(self.get_name(ii['name_id']))
+        return result
+
+    def get_places_for_album(self, album):
+        sql  = f'SELECT * FROM album_places'
+        sql += f' WHERE album_id = {album.get_id()}'
+        res = self.cursor.execute(sql)
+        rows = res.fetchall()
+        result = []
+        for ii in rows:
+            result.append(self.get_place(ii['place_id']))
+        return result
+
+    def get_tags_for_album(self, album):
+        sql  = f'SELECT * FROM album_tags'
+        sql += f' WHERE album_id = {album.get_id()}'
+        res = self.cursor.execute(sql)
+        rows = res.fetchall()
+        result = []
+        for ii in rows:
+            result.append(self.get_tag(ii['tag_id']))
+        return result
 
 
 def get_dbname(config):

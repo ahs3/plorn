@@ -4,6 +4,7 @@ import logging
 import os
 import shutil
 
+import tkinter as tk
 from tkinter import *
 from tkinter import ttk
 from tkinter import font
@@ -12,6 +13,7 @@ from tkinter import messagebox
 
 import plorn_db
 import plorn_config
+from plorn_config import FONTSIZE
 import plorn_photo
 
 module_logger = logging.getLogger('plorn.album')
@@ -183,63 +185,157 @@ class PlornShowAlbum(Toplevel):
     def __init__(self, parent, album_id):
         super().__init__(parent)
         module_logger.debug('started PlornShowAlbum')
-        tfont = font.nametofont('TkDefaultFont')
+        self.tfont = font.nametofont('TkDefaultFont')
         self.db = plorn_db.open()
         self.album = self.db.get_album(album_id)
+        self.name_listbox = {}
+        self.place_listbox = {}
+        self.tag_listbox = {}
 
-        self.geometry('800x600')
+        self.geometry('950x650')
         self.title('Album Info')
         self.columnconfigure(0, weight=1)
-        self.rowconfigure(0, weight=1)
-        self.frame = ttk.Frame(self, padding='10 10 10 10')
-        self.frame.grid(column=0, row=0, sticky=(N, W, E, S))
-        for ii in range(0,7):
-            self.frame.rowconfigure(ii, weight=1)
+        self.columnconfigure(1, weight=3)
+        self.rowconfigure(0, weight=10)
+        self.rowconfigure(1, weight=1)
+        self.rowconfigure(2, weight=1)
+        self.rowconfigure(3, weight=1)
 
-        lab1 = ttk.Label(self.frame, width=10, text='Name:')
+        self.lframe = self.build_left_frame(self)
+        self.lframe.grid(column=0, row=0, sticky=(N,W,E,S))
+
+        self.name_tree = None
+        self.name_frame = None
+        self.place_tree = None
+        self.tag_tree = None
+        self.rframe = self.build_right_frame(self)
+        self.rframe.grid(column=1, row=0, sticky=(N,W,E,S))
+
+        sep1 = ttk.Separator(self, orient=HORIZONTAL)
+        sep1.grid(column=0, row=1, columnspan=2, sticky=(W+E))
+        sep2 = ttk.Separator(self, orient=HORIZONTAL)
+        sep2.grid(column=0, row=2, columnspan=2, sticky=(W+E))
+
+        self.bdone = ttk.Button(self, text='Done',
+                               command=self.destroy)
+        self.bdone.grid(column=1, row=3)
+
+    def build_left_frame(self, parent):
+        lframe = ttk.Frame(parent, padding='10 10 10 10')
+        lframe.columnconfigure(0, weight=1)
+        for ii in range(0,7):
+            lframe.rowconfigure(ii, weight=1)
+
+        lab1 = ttk.Label(lframe, width=10, text='Name:')
         lab1.grid(column=0, row=0, sticky=(W))
-        self.album_name = StringVar(self.frame)
+        self.album_name = StringVar(lframe)
         self.album_name.set(self.album.get_name())
-        self.album_entry = ttk.Entry(self.frame, width=40,
+        self.album_entry = ttk.Entry(lframe, width=40,
                                      textvariable=self.album_name,
-                                     font=tfont, state='readonly')
+                                     font=self.tfont, state='readonly')
         self.album_entry.grid(column=1, row=0, sticky=(W))
         self.album_entry.focus_set()
 
-        lab2 = ttk.Label(self.frame, width=10, text='Dated:')
+        lab2 = ttk.Label(lframe, width=10, text='Dated:')
         lab2.grid(column=0, row=1, sticky=(W))
-        self.dated = StringVar(self.frame)
+        self.dated = StringVar(lframe)
         self.dated.set(self.album.get_dated())
-        self.date_entry = ttk.Entry(self.frame, width=40,
+        self.date_entry = ttk.Entry(lframe, width=40,
                                     textvariable=self.dated,
-                                    font=tfont, state='readonly')
+                                    font=self.tfont, state='readonly')
         self.date_entry.grid(column=1, row=1, sticky=(W))
 
-        lab3 = ttk.Label(self.frame, width=10, text='Notes:')
+        lab3 = ttk.Label(lframe, width=10, text='Notes:')
         lab3.grid(column=0, row=2, sticky=(N, W))
-        self.notes = Text(self.frame, height=10, width=40, font=tfont)
+        self.notes = Text(lframe, height=10, width=40, font=self.tfont)
         self.notes.insert('1.0', self.album.get_notes())
         self.notes.configure(state='disabled')
         module_logger.debug(f'notes: {self.album.get_notes()}')
         self.notes.grid(column=1, row=2, sticky=(N, W, E, S))
 
-        lab4 = ttk.Label(self.frame, width=10, text='Photos:')
+        lab4 = ttk.Label(lframe, width=10, text='Photos:')
         lab4.grid(column=0, row=3, sticky=(N, W))
-        self.photo_count = StringVar(self.frame)
+        self.photo_count = StringVar(lframe)
         self.photo_count.set(self.album.get_photo_count())
-        self.photos = ttk.Entry(self.frame, width=40,
+        self.photos = ttk.Entry(lframe, width=40,
                                 textvariable=self.photo_count,
-                                font=tfont, state='readonly')
+                                font=self.tfont, state='readonly')
         self.photos.grid(column=1, row=3, sticky=(W))
 
-        sep1 = ttk.Separator(self.frame, orient=HORIZONTAL)
-        sep1.grid(column=0, row=4, columnspan=3, sticky=(W+E))
-        sep2 = ttk.Separator(self.frame, orient=HORIZONTAL)
-        sep2.grid(column=0, row=5, columnspan=3, sticky=(W+E))
+        return lframe
 
-        self.bdone = ttk.Button(self.frame, text='Done',
-                               command=self.destroy)
-        self.bdone.grid(column=1, row=6)
+    def build_listbox(self, parent, title):
+        boxdict = {}
+        lsframe = ttk.Frame(parent, padding='5 5 5 5')
+        lsframe.columnconfigure(0, weight=9)
+        lsframe.columnconfigure(1, weight=1)
+        lsframe.rowconfigure(0, weight=1)
+        lsframe.rowconfigure(1, weight=8)
+        boxdict['frame'] = lsframe
+
+        lab1 = ttk.Label(lsframe, text=f'Associated {title}:')
+        lab1.grid(column=0, row=0, sticky=(W))
+        boxdict['label'] = lab1
+
+        #lvar = tk.Variable(value=[])
+        lvar = tk.Variable(value=['abc', 'def', 'ghi', 'jkl', 'mno', 'pqr', 'stu'])
+        boxdict['listvar'] = lvar
+        lbox = tk.Listbox(lsframe,
+                          listvariable=lvar,
+                          height=3,
+                          selectmode=tk.BROWSE,
+                         )
+        lbox.grid(column=0, row=1, sticky=(N,W,E,S))
+        boxdict['listbox'] = lbox
+
+        vscrollbar = ttk.Scrollbar(lsframe, orient='vertical',
+                                   command=lbox.yview)
+        vscrollbar.grid(column=1, row=1, sticky=(N,W,E,S))
+        boxdict['vscrollbar'] = vscrollbar
+
+        hscrollbar = ttk.Scrollbar(lsframe, orient='horizontal',
+                                   command=lbox.xview)
+        hscrollbar.grid(column=0, row=2, sticky=(N,W,E,S))
+        boxdict['hscrollbar'] = hscrollbar
+
+        return boxdict
+
+    def build_right_frame(self, parent):
+        rframe = ttk.Frame(parent, padding='10 10 10 10')
+        rframe.columnconfigure(0, weight=1)
+        for ii in range(0,3):
+            rframe.rowconfigure(ii, weight=1)
+
+        self.name_listbox = self.build_listbox(rframe, "Names")
+        self.name_listbox['frame'].grid(column=0, row=0, sticky=(N,W,E,S))
+        names = self.db.get_names_for_album(self.album)
+        self.name_listbox['listvar'].set([])
+        name_list = []
+        for ii in names:
+            name_list.append(self.db.get_full_name(ii.get_id()))
+        self.name_listbox['listvar'].set(name_list)
+
+        self.place_listbox = self.build_listbox(rframe, "Places")
+        self.place_listbox['frame'].grid(column=0, row=1, sticky=(N,W,E,S))
+        places = self.db.get_places_for_album(self.album)
+        self.place_listbox['listvar'].set([])
+        place_list = []
+        for ii in places:
+            p = ', '.join(self.db.get_full_place(ii.get_id()))
+            place_list.append(p)
+        self.place_listbox['listvar'].set(place_list)
+
+        self.tag_listbox = self.build_listbox(rframe, "Tags")
+        self.tag_listbox['frame'].grid(column=0, row=2, sticky=(N,W,E,S))
+        tags = self.db.get_tags_for_album(self.album)
+        self.tag_listbox['listvar'].set([])
+        tag_list = []
+        for ii in tags:
+            p = '-'.join(self.db.get_full_tag(ii.get_id()))
+            tag_list.append(p)
+        self.tag_listbox['listvar'].set(tag_list)
+
+        return rframe
 
 
 class PlornRemoveAlbum(Toplevel):
