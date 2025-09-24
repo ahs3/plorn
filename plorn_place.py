@@ -7,43 +7,16 @@ from tkinter import font
 from tkinter import filedialog
 from tkinter import messagebox
 
+import plorn_attr
 import plorn_db
 
 module_logger = logging.getLogger("plorn.place")
 module_logger.setLevel(logging.DEBUG)
 
-class PlornPlace:
+class PlornPlace(plorn_attr.PlornAttr):
     def __init__(self, place, id=None, parent_id=0):
-        self.place = place
-        self.id = id
-        self.parent_id = parent_id
+        super().__init__(place, id=id, parent_id=parent_id, table_name='places')
 
-    def __copy__(self):
-        return PlornPlace(self.place, id=self.id, parent_id=self.parent_id)
-
-    def set_id(self, id):
-        self.id = id
-
-    def get_id(self):
-        return self.id
-
-    def set_place(self, place):
-        self.place = place
-
-    def get_place(self):
-        return self.place
-
-    def set_parent_id(self, id):
-        self.parent_id = id
-
-    def get_parent_id(self):
-        return self.parent_id
-
-    def __str__(self):
-        val  = f"id: \"{self.id}\""
-        val += f", place: \"{self.place}\""
-        val += f", parent_id: \"{self.parent_id}\""
-        return val
 
 class PlornAddPlace(Toplevel):
     def __init__(self, parent, parent_id=0):

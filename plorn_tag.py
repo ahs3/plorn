@@ -7,43 +7,16 @@ from tkinter import font
 from tkinter import filedialog
 from tkinter import messagebox
 
+import plorn_attr
 import plorn_db
 
 module_logger = logging.getLogger("plorn.tag")
 module_logger.setLevel(logging.DEBUG)
 
-class PlornTag:
+class PlornTag(plorn_attr.PlornAttr):
     def __init__(self, tag, id=None, parent_id=0):
-        self.tag = tag
-        self.id = id
-        self.parent_id = parent_id
+        super().__init__(tag, id=id, parent_id=parent_id, table_name='tags')
 
-    def __copy__(self):
-        return PlornTag(self.tag, id=self.id, parent_id=self.parent_id)
-
-    def set_id(self, id):
-        self.id = id
-
-    def get_id(self):
-        return self.id
-
-    def set_tag(self, tag):
-        self.tag = tag
-
-    def get_tag(self):
-        return self.tag
-
-    def set_parent_id(self, id):
-        self.parent_id = id
-
-    def get_parent_id(self):
-        return self.parent_id
-
-    def __str__(self):
-        val  = f"id: \"{self.id}\""
-        val += f", tag: \"{self.tag}\""
-        val += f", parent_id: \"{self.parent_id}\""
-        return val
 
 class PlornAddTag(Toplevel):
     def __init__(self, parent, parent_id=0):

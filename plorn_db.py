@@ -7,6 +7,7 @@ from PIL import Image as pilImage
 from PIL import ImageTk
 
 import plorn_album
+import plorn_attr
 import plorn_config
 import plorn_name
 import plorn_photo
@@ -45,9 +46,8 @@ class PlornDb:
         self.create_config_table()
         self.create_albums_table()
         self.create_photos_table()
-        self.create_names_table()
-        self.create_places_table()
-        self.create_tags_table()
+        for ii in ['names', 'places', 'tags']:
+            self.create_attr_table(ii)
         self.create_album_names_table()
         self.create_album_places_table()
         self.create_album_tags_table()
@@ -130,62 +130,16 @@ class PlornDb:
         module_logger.debug('added table: ' + str(row))
         self.db.commit()
 
-    def create_names_table(self):
+    def create_attr_table(self, table_name):
         global module_logger
 
-        sql_stmt = '''
-            CREATE TABLE IF NOT EXISTS names (
+        sql_stmt = f'''
+            CREATE TABLE IF NOT EXISTS {table_name} (
                 id INTEGER PRIMARY KEY,
                 parent_id INT DEFAULT 0,
-                name TEXT,
+                value TEXT,
                 FOREIGN KEY (parent_id)
                 REFERENCES names (id)
-                    ON DELETE CASCADE
-                    ON UPDATE CASCADE
-            );
-        '''
-        self.cursor.execute(sql_stmt)
-        self.db.commit()
-        rowid = self.cursor.lastrowid + 2
-        sql = f'SELECT name FROM sqlite_master WHERE rowid = {rowid}'
-        res = self.cursor.execute(sql)
-        row = res.fetchone()
-        module_logger.debug('added table: ' + str(row))
-        self.db.commit()
-
-    def create_places_table(self):
-        global module_logger
-
-        sql_stmt = '''
-            CREATE TABLE IF NOT EXISTS places (
-                id INTEGER PRIMARY KEY,
-                parent_id INT DEFAULT 0,
-                place TEXT NOT NULL,
-                FOREIGN KEY (parent_id)
-                REFERENCES places (id)
-                    ON DELETE CASCADE
-                    ON UPDATE CASCADE
-            );
-        '''
-        self.cursor.execute(sql_stmt)
-        self.db.commit()
-        rowid = self.cursor.lastrowid + 2
-        sql = f'SELECT name FROM sqlite_master WHERE rowid = {rowid}'
-        res = self.cursor.execute(sql)
-        row = res.fetchone()
-        module_logger.debug('added table: ' + str(row))
-        self.db.commit()
-
-    def create_tags_table(self):
-        global module_logger
-
-        sql_stmt = '''
-            CREATE TABLE IF NOT EXISTS tags (
-                id INTEGER PRIMARY KEY,
-                parent_id INT DEFAULT 0,
-                tag TEXT NOT NULL,
-                FOREIGN KEY (parent_id)
-                REFERENCES tags (id)
                     ON DELETE CASCADE
                     ON UPDATE CASCADE
             );
@@ -421,10 +375,9 @@ class PlornDb:
         return p
 
     def remove_album_by_name(self, album_name):
-        sql = f'DELETE FROM albums WHERE name = \'{album_name}\''
-        res = self.cursor.execute(sql)
-        row = res.fetchone()
-        self.remove_album_by_id(row['id'])
+        album = self.get_album_by_name(album_name)
+        if album != None:
+            self.remove_album_by_id(album.get_id())
         module_logger.debug(f'removed album by name: {album_name}')
         return 
 
@@ -863,119 +816,190 @@ class PlornDb:
         module_logger.debug(msg)
         return row['id']
 
-    def add_tag(self, tag, parent_id=0):
-        sql = 'INSERT INTO tags (tag, parent_id) VALUES '
-        pid = parent_id
-        if parent_id == None:
+    def add_attr(self, attr):
+        table_name = attr.get_db_table_name()
+        sql = f'INSERT INTO {table_name} (value, parent_id) VALUES '
+        value = attr.get_value()
+        pid = attr.get_parent_id()
+        if pid == None:
             pid = 0
-        sql += f'(\'{tag}\', \'{pid}\')'
+        sql += f'(\'{value}\', \'{pid}\')'
         res = self.cursor.execute(sql)
         self.db.commit()
-        sql = f'SELECT * FROM tags WHERE tag = \'{tag}\''
+        sql = f'SELECT * FROM {table_name} WHERE value = \'{value}\''
         res = self.cursor.execute(sql)
         row = res.fetchone()
-        module_logger.debug(f'added tag {str(row)}')
-        return plorn_tag.PlornTag(row['tag'], id=row['id'],
-                                  parent_id=row['parent_id'])
+        module_logger.debug(f'added to {table_name}: {str(row)}')
+        return plorn_attr.PlornAttr(row['value'], id=row['id'],
+                                   parent_id=row['parent_id'],
+                                   table_name=table_name)
 
-    def tag_exists(self, tag, parent_id=0):
-        sql = f'SELECT * FROM tags WHERE tag = \'{tag}\''
+    def add_name(self, name):
+        return self.add_attr(name)
+
+    def add_place(self, place):
+        return self.add_attr(place)
+
+    def add_tag(self, tag):
+        return self.add_attr(tag)
+
+    def attr_exists(self, attr):
+        table_name = attr.get_db_table_name()
+        value = attr.get_value()
+        sql = f'SELECT * FROM {table_name} WHERE value = \'{value}\''
         res = self.cursor.execute(sql)
         rows = res.fetchall()
-        for ii in rows:
-            if ii['parent_id'] == parent_id:
-                return True
-        return False
+        return len(rows) > 0
 
-    def get_tag(self, tag_id, parent_id=0):
-        sql = f'SELECT * FROM tags WHERE id = \'{tag_id}\''
+    def name_exists(self, name):
+        return self.attr_exists(name)
+
+    def place_exists(self, place):
+        return self.attr_exists(place)
+
+    def tag_exists(self, tag):
+        return self.attr_exists(tag)
+
+    def get_attr(self, attr_id, table_name):
+        sql = f'SELECT * FROM {table_name}  WHERE id = \'{attr_id}\''
         res = self.cursor.execute(sql)
         row = res.fetchone()
-        module_logger.debug(f'get_tag: {str(row)}')
-        return plorn_tag.PlornTag(row['tag'], id=row['id'],
-                                  parent_id=row['parent_id'])
+        module_logger.debug(f'get_attr: {str(row)}')
+        return plorn_attr.PlornAttr(row['value'], id=row['id'],
+                                    parent_id=row['parent_id'],
+                                    table_name=table_name)
 
-    def get_tag_children(self, tag_id):
-        sql  = f'SELECT * FROM tags WHERE parent_id = {tag_id}'
-        module_logger.debug(f'get_tag_children: sql {sql} for {tag_id}')
+    def get_name(self, name_id):
+        return self.get_attr(name_id, 'names')
+
+    def get_place(self, place_id):
+        return self.get_attr(place_id, 'tags')
+
+    def get_tag(self, tag_id):
+        return self.get_attr(tag_id, 'tags')
+
+    def get_attr_children(self, attr):
+        table_name = attr.get_db_table_name()
+        attr_id = attr.get_id()
+        sql  = f'SELECT * FROM {table_name} WHERE parent_id = {attr_id}'
         res = self.cursor.execute(sql)
         rows = res.fetchall()
-        module_logger.debug(f'get_tag_children: found {len(rows)} for {tag_id}')
         result = []
         for ii in rows:
-            p = plorn_tag.PlornTag(ii['tag'], id=ii['id'],
-                                   parent_id=ii['parent_id'])
+            p = plorn_attr.PlornAttr(ii['value'], id=ii['id'],
+                                     parent_id=ii['parent_id'],
+                                     table_name=table_name)
             result.append(p)
+        msg = f'get_attr_children: found {len(rows)} for {attr_id}'
+        module_logger.debug(msg)
         return result
 
-    def get_full_tag(self, tag_id, parent_id=0):
-        sql = f'SELECT * FROM tags WHERE id = \'{tag_id}\''
+    def get_name_children(self, name):
+        return self.get_attr_children(name)
+
+    def get_place_children(self, place):
+        return self.get_attr_children(place)
+
+    def get_tag_children(self, tag):
+        return self.get_attr_children(tag)
+
+    def get_full_attr(self, attr):
+        table_name = attr.get_db_table_name()
+        attr_id = attr.get_id()
+        sql = f'SELECT * FROM {table_name} WHERE id = \'{attr_id}\''
         res = self.cursor.execute(sql)
         row = res.fetchone()
-        fulltag = []
-        fulltag.append(row['tag'])
+        fullattr = []
+        fullattr.append(row['value'])
         while row and row['parent_id'] != 0:
             pid = row['parent_id']
-            sql = f'SELECT * FROM tags WHERE id = \'{pid}\''
+            sql = f'SELECT * FROM {table_name} WHERE id = \'{pid}\''
             res = self.cursor.execute(sql)
             row = res.fetchone()
             if row:
-                fulltag.append(row['tag'])
-        return fulltag[::-1]
+                fullattr.append(row['value'])
+        return fullattr
 
-    def get_tags(self):
-        sql = f'SELECT * FROM tags'
+    def get_full_name(self, name):
+        fullattr = self.get_full_attr(name)
+        return fullattr[::-1]
+
+    def get_full_place(self, place):
+        fullattr = self.get_full_attr(place)
+        return fullattr[::-1]
+
+    def get_full_tag(self, tag):
+        fullattr = self.get_full_attr(tag)
+        return fullattr[::-1]
+
+    def get_all_attrs(self, table_name=''):
+        sql = f'SELECT * FROM {table_name}'
         res = self.cursor.execute(sql)
         rows = res.fetchall()
-        rows.sort(key=lambda x: x['tag'])
-        module_logger.debug(f'get_tags: {rows}')
+        rows.sort(key=lambda x: x['value'])
+        module_logger.debug(f'get_all_attrs: {rows}')
         result = []
         for ii in rows:
-            p = plorn_tag.PlornTag(ii['tag'], id=ii['id'],
-                                   parent_id=ii['parent_id'])
+            p = plorn_attr.PlornAttr(ii['value'], id=ii['id'],
+                                     parent_id=ii['parent_id'],
+                                     table_name=table_name)
             result.append(p)
         return result
 
-    def get_tag_by_tag(self, tag, parent_id=0):
-        sql  = f'SELECT * FROM tags WHERE tag = \'{tag}\''
-        sql += f' AND parent_id = \'{parent_id}\''
-        res = self.cursor.execute(sql)
-        row = res.fetchone()
-        return row
+    def get_all_names(self):
+        return self.get_all_attrs('names')
 
-    def get_tag_object_by_tag(self, tag, parent_id=0):
-        sql  = f'SELECT * FROM tags WHERE tag = \'{tag}\''
-        res = self.cursor.execute(sql)
-        row = res.fetchone()
-        module_logger.debug(f'tag obj by tag \'{tag}\': {str(row)}')
-        return plorn_tag.PlornTag(row['tag'], id=row['id'],
-                                  parent_id=row['parent_id'])
+    def get_all_places(self):
+        return self.get_all_attrs('places')
 
-    def remove_tag(self, tag_id, parent_id):
-        sql  = f'DELETE FROM tags WHERE id = \'{tag_id}\''
-        sql += f' AND parent_id = \'{parent_id}\''
+    def get_all_tags(self):
+        return self.get_all_attrs('tags')
+
+    def remove_attr(self, attr):
+        table_name = attr.get_db_table_name()
+        attr_id = attr.get_id()
+        sql  = f'DELETE FROM {table_name} WHERE id = \'{attr_id}\''
         res = self.cursor.execute(sql)
-        row = res.fetchone()
         self.db.commit()
-        module_logger.debug(f'removed tag: {tag_id} of {parent_id}')
+        module_logger.debug(f'removed attr: {attr_id} from {table_name}')
         return 
 
-    def update_tag(self, tag, updated_tag):
-        sql  = f'UPDATE tags'
-        sql += f' SET tag = \'{updated_tag.get_tag()}\','
-        sql += f' parent_id = \'{updated_tag.get_parent_id()}\''
-        sql += f' WHERE id = \'{tag.get_id()}\''
+    def remove_name(self, name):
+        return self.remove_attr(name)
+
+    def remove_place(self, place):
+        return self.remove_attr(place)
+
+    def remove_tag(self, tag):
+        return self.remove_attr(tag)
+
+    def update_attr(self, attr, updated_attr):
+        table_name = attr.get_db_table_name()
+        attr_id = attr.get_id()
+        sql  = f'UPDATE {table_name}'
+        sql += f' SET value = \'{updated_attr.get_value()}\','
+        sql += f' parent_id = \'{updated_attr.get_parent_id()}\''
+        sql += f' WHERE id = \'{attr.get_id()}\''
         res = self.cursor.execute(sql)
         self.db.commit()
 
-        sql  = 'SELECT * FROM tags'
-        sql += f' WHERE id = \'{updated_tag.get_id()}\''
+        sql  = f'SELECT * FROM {table_name}'
+        sql += f' WHERE id = \'{updated_attr.get_id()}\''
         res = self.cursor.execute(sql)
         row = res.fetchone()
-        msg = f'updated tag: from {tag.get_tag()}'
-        msg += f' to {row['tag']}'
+        msg = f'updated attr from {attr.get_value()}'
+        msg += f' to {row['value']}'
         module_logger.debug(msg)
         return row['id']
+
+    def update_name(self, name, updated_name):
+        return self.update_attr(name, updated_name)
+
+    def update_place(self, place, updated_place):
+        return self.update_attr(place, updated_place)
+
+    def update_tag(self, tag, updated_tag):
+        return self.update_attr(tag, updated_tag)
 
     def get_name_ids_for_album(self, album):
         sql  = f'SELECT * FROM album_names'

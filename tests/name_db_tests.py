@@ -11,7 +11,7 @@ import plorn_place
 import plorn_tag
 
 
-class TestDbTagMethods(unittest.TestCase):
+class TestDbNameMethods(unittest.TestCase):
 
     def write_test_config(self, name):
         data = [
@@ -57,56 +57,56 @@ class TestDbTagMethods(unittest.TestCase):
         if os.path.exists(cfg):
             os.remove(cfg)
 
-    def make_tag(self, tag, parent_id=None):
-        return plorn_tag.PlornTag(tag, parent_id=parent_id)
+    def make_name(self, name, parent_id=None):
+        return plorn_name.PlornName(name, parent_id=parent_id)
 
-    def test_add_tag(self):
+    def test_add_name(self):
         db = plorn_db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
 
-        tmp = self.make_tag('fred')
-        tag = db.add_tag(tmp)
-        self.assertTrue(db.tag_exists(tag))
+        tmp = self.make_name('fred')
+        name = db.add_name(tmp)
+        self.assertTrue(db.name_exists(name))
 
         plorn_db.close()
         plorn_config.close()
 
-    def test_add_subtag(self):
+    def test_add_subname(self):
         db = plorn_db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
 
-        tmp = self.make_tag('Flintstone')
-        parent = db.add_tag(tmp)
-        self.assertTrue(db.tag_exists(parent))
+        tmp = self.make_name('Flintstone')
+        parent = db.add_name(tmp)
+        self.assertTrue(db.name_exists(parent))
 
-        p = db.get_tag(parent.get_id())
-        tmp = self.make_tag('Fred', parent_id=p.get_id())
-        child = db.add_tag(tmp)
-        self.assertTrue(db.tag_exists(child))
+        p = db.get_name(parent.get_id())
+        tmp = self.make_name('Fred', parent_id=p.get_id())
+        child = db.add_name(tmp)
+        self.assertTrue(db.name_exists(child))
 
-        c = db.get_tag(child.get_id())
+        c = db.get_name(child.get_id())
         self.assertTrue(c.get_parent_id(), p.get_id())
 
         plorn_db.close()
         plorn_config.close()
 
-    def test_get_tag_children(self):
+    def test_get_name_children(self):
         db = plorn_db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
 
-        tmp = self.make_tag('Flintstone')
-        parent = db.add_tag(tmp)
-        self.assertTrue(db.tag_exists(parent))
+        tmp = self.make_name('Flintstone')
+        parent = db.add_name(tmp)
+        self.assertTrue(db.name_exists(parent))
 
-        p = db.get_tag(parent.get_id())
-        tmp = self.make_tag('Fred', parent_id=p.get_id())
-        child = db.add_tag(tmp)
-        self.assertTrue(db.tag_exists(child))
+        p = db.get_name(parent.get_id())
+        tmp = self.make_name('Fred', parent_id=p.get_id())
+        child = db.add_name(tmp)
+        self.assertTrue(db.name_exists(child))
 
-        c = db.get_tag(child.get_id())
+        c = db.get_name(child.get_id())
         self.assertTrue(c.get_parent_id(), p.get_id())
 
-        kids = db.get_tag_children(p)
+        kids = db.get_name_children(p)
         found = False
         for ii in kids:
             if ii.get_value() == c.get_value():
@@ -117,52 +117,52 @@ class TestDbTagMethods(unittest.TestCase):
         plorn_db.close()
         plorn_config.close()
 
-    def test_get_full_tag(self):
+    def test_get_full_name(self):
         db = plorn_db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
 
-        tmp = self.make_tag('Flintstone')
-        parent = db.add_tag(tmp)
-        self.assertTrue(db.tag_exists(parent))
+        tmp = self.make_name('Flintstone')
+        parent = db.add_name(tmp)
+        self.assertTrue(db.name_exists(parent))
 
-        p = db.get_tag(parent.get_id())
-        tmp = self.make_tag('Fred', parent_id=p.get_id())
-        child = db.add_tag(tmp)
-        self.assertTrue(db.tag_exists(child))
+        p = db.get_name(parent.get_id())
+        tmp = self.make_name('Fred', parent_id=p.get_id())
+        child = db.add_name(tmp)
+        self.assertTrue(db.name_exists(child))
 
-        c = db.get_tag(child.get_id())
+        c = db.get_name(child.get_id())
         self.assertEqual(c.get_parent_id(), p.get_id())
-        fulltag = db.get_full_tag(c)
-        self.assertTrue(fulltag == ['Flintstone', 'Fred'])
-        self.assertTrue(', '.join(fulltag) == 'Flintstone, Fred')
+        fullname = db.get_full_name(c)
+        self.assertTrue(fullname == ['Flintstone', 'Fred'])
+        self.assertTrue(', '.join(fullname) == 'Flintstone, Fred')
 
         plorn_db.close()
         plorn_config.close()
 
-    def test_get_all_tags(self):
+    def test_get_all_names(self):
         db = plorn_db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
 
-        tmp = self.make_tag('Flintstone')
-        parent = db.add_tag(tmp)
-        self.assertTrue(db.tag_exists(parent))
+        tmp = self.make_name('Flintstone')
+        parent = db.add_name(tmp)
+        self.assertTrue(db.name_exists(parent))
 
-        p = db.get_tag(parent.get_id())
-        tmp = self.make_tag('Fred', parent_id=p.get_id())
-        child = db.add_tag(tmp)
-        self.assertTrue(db.tag_exists(child))
+        p = db.get_name(parent.get_id())
+        tmp = self.make_name('Fred', parent_id=p.get_id())
+        child = db.add_name(tmp)
+        self.assertTrue(db.name_exists(child))
 
-        c = db.get_tag(child.get_id())
+        c = db.get_name(child.get_id())
         self.assertEqual(c.get_parent_id(), p.get_id())
-        fulltag = db.get_full_tag(c)
-        self.assertTrue(fulltag == ['Flintstone', 'Fred'])
-        self.assertTrue(', '.join(fulltag) == 'Flintstone, Fred')
+        fullname = db.get_full_name(c)
+        self.assertTrue(fullname == ['Flintstone', 'Fred'])
+        self.assertTrue(', '.join(fullname) == 'Flintstone, Fred')
         self.assertEqual(c.get_parent_id(), p.get_id())
 
-        all_tags = db.get_all_tags()
-        self.assertTrue(len(all_tags) == 2)
+        all_names = db.get_all_names()
+        self.assertTrue(len(all_names) == 2)
         id_list = []
-        for ii in all_tags:
+        for ii in all_names:
             id_list.append(ii.get_id())
         self.assertTrue(p.get_id() in id_list)
         self.assertTrue(c.get_id() in id_list)
@@ -170,42 +170,42 @@ class TestDbTagMethods(unittest.TestCase):
         plorn_db.close()
         plorn_config.close()
 
-    def test_remove_tag(self):
+    def test_remove_name(self):
         db = plorn_db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
 
-        tmp = self.make_tag('fred')
-        tag = db.add_tag(tmp)
-        self.assertTrue(db.tag_exists(tag))
+        tmp = self.make_name('fred')
+        name = db.add_name(tmp)
+        self.assertTrue(db.name_exists(name))
 
-        db.remove_tag(tag)
-        self.assertFalse(db.tag_exists(tag))
+        db.remove_name(name)
+        self.assertFalse(db.name_exists(name))
 
-        tags = db.get_all_tags()
-        self.assertTrue(len(tags) == 0)
+        names = db.get_all_names()
+        self.assertTrue(len(names) == 0)
 
         plorn_db.close()
         plorn_config.close()
 
-    def test_update_tag(self):
+    def test_update_name(self):
         db = plorn_db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
 
-        tmp = self.make_tag('fred')
-        tag = db.add_tag(tmp)
-        self.assertTrue(db.tag_exists(tag))
+        tmp = self.make_name('fred')
+        name = db.add_name(tmp)
+        self.assertTrue(db.name_exists(name))
 
-        tag_copy = copy.deepcopy(tag)
-        self.assertTrue(tag.get_value() == tag_copy.get_value())
+        name_copy = copy.deepcopy(name)
+        self.assertTrue(name.get_value() == name_copy.get_value())
 
-        tag_copy.set_value('barney')
-        tid = db.update_tag(tag, tag_copy)
-        updated_tag = db.get_tag(tid)
-        self.assertTrue(updated_tag.get_value() == 'barney')
-        self.assertTrue(updated_tag.get_value() != 'fred')
+        name_copy.set_value('barney')
+        tid = db.update_name(name, name_copy)
+        updated_name = db.get_name(tid)
+        self.assertTrue(updated_name.get_value() == 'barney')
+        self.assertTrue(updated_name.get_value() != 'fred')
 
-        tags = db.get_all_tags()
-        self.assertTrue(len(tags) == 1)
+        names = db.get_all_names()
+        self.assertTrue(len(names) == 1)
 
         plorn_db.close()
         plorn_config.close()
