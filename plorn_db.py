@@ -830,18 +830,22 @@ class PlornDb:
         res = self.cursor.execute(sql)
         row = res.fetchone()
         module_logger.debug(f'added to {table_name}: {str(row)}')
-        return plorn_attr.PlornAttr(row['value'], id=row['id'],
-                                   parent_id=row['parent_id'],
-                                   table_name=table_name)
+        return row
 
     def add_name(self, name):
-        return self.add_attr(name)
+        row = self.add_attr(name)
+        return plorn_name.PlornName(row['value'], id=row['id'],
+                                    parent_id=row['parent_id'])
 
     def add_place(self, place):
-        return self.add_attr(place)
+        row = self.add_attr(place)
+        return plorn_place.PlornPlace(row['value'], id=row['id'],
+                                      parent_id=row['parent_id'])
 
     def add_tag(self, tag):
-        return self.add_attr(tag)
+        row = self.add_attr(tag)
+        return plorn_tag.PlornTag(row['value'], id=row['id'],
+                                  parent_id=row['parent_id'])
 
     def attr_exists(self, attr):
         table_name = attr.get_db_table_name()
@@ -865,18 +869,22 @@ class PlornDb:
         res = self.cursor.execute(sql)
         row = res.fetchone()
         module_logger.debug(f'get_attr: {str(row)}')
-        return plorn_attr.PlornAttr(row['value'], id=row['id'],
-                                    parent_id=row['parent_id'],
-                                    table_name=table_name)
+        return row
 
     def get_name(self, name_id):
-        return self.get_attr(name_id, 'names')
+        row = self.get_attr(name_id, 'names')
+        return plorn_name.PlornName(row['value'], id=row['id'],
+                                    parent_id=row['parent_id'])
 
     def get_place(self, place_id):
-        return self.get_attr(place_id, 'tags')
+        row = self.get_attr(place_id, 'tags')
+        return plorn_place.PlornPlace(row['value'], id=row['id'],
+                                      parent_id=row['parent_id'])
 
     def get_tag(self, tag_id):
-        return self.get_attr(tag_id, 'tags')
+        row = self.get_attr(tag_id, 'tags')
+        return plorn_tag.PlornTag(row['value'], id=row['id'],
+                                  parent_id=row['parent_id'])
 
     def get_attr_children(self, attr):
         table_name = attr.get_db_table_name()
@@ -884,24 +892,34 @@ class PlornDb:
         sql  = f'SELECT * FROM {table_name} WHERE parent_id = {attr_id}'
         res = self.cursor.execute(sql)
         rows = res.fetchall()
-        result = []
-        for ii in rows:
-            p = plorn_attr.PlornAttr(ii['value'], id=ii['id'],
-                                     parent_id=ii['parent_id'],
-                                     table_name=table_name)
-            result.append(p)
-        msg = f'get_attr_children: found {len(rows)} for {attr_id}'
-        module_logger.debug(msg)
-        return result
+        return rows
 
     def get_name_children(self, name):
-        return self.get_attr_children(name)
+        rows = self.get_attr_children(name)
+        result = []
+        for ii in rows:
+            p = plorn_name.PlornName(ii['value'], id=ii['id'],
+                                     parent_id=ii['parent_id'])
+            result.append(p)
+        return result
 
     def get_place_children(self, place):
-        return self.get_attr_children(place)
+        rows = self.get_attr_children(place)
+        result = []
+        for ii in rows:
+            p = plorn_place.PlornPlace(ii['value'], id=ii['id'],
+                                       parent_id=ii['parent_id'])
+            result.append(p)
+        return result
 
     def get_tag_children(self, tag):
-        return self.get_attr_children(tag)
+        rows = self.get_attr_children(tag)
+        result = []
+        for ii in rows:
+            p = plorn_tag.PlornTag(ii['value'], id=ii['id'],
+                                   parent_id=ii['parent_id'])
+            result.append(p)
+        return result
 
     def get_full_attr(self, attr):
         table_name = attr.get_db_table_name()
@@ -938,22 +956,34 @@ class PlornDb:
         rows = res.fetchall()
         rows.sort(key=lambda x: x['value'])
         module_logger.debug(f'get_all_attrs: {rows}')
+        return rows
+
+    def get_all_names(self):
+        rows = self.get_all_attrs('names')
         result = []
         for ii in rows:
-            p = plorn_attr.PlornAttr(ii['value'], id=ii['id'],
-                                     parent_id=ii['parent_id'],
-                                     table_name=table_name)
+            p = plorn_name.PlornName(ii['value'], id=ii['id'],
+                                     parent_id=ii['parent_id'])
             result.append(p)
         return result
 
-    def get_all_names(self):
-        return self.get_all_attrs('names')
-
     def get_all_places(self):
-        return self.get_all_attrs('places')
+        rows = self.get_all_attrs('places')
+        result = []
+        for ii in rows:
+            p = plorn_place.PlornPlace(ii['value'], id=ii['id'],
+                                       parent_id=ii['parent_id'])
+            result.append(p)
+        return result
 
     def get_all_tags(self):
-        return self.get_all_attrs('tags')
+        rows = self.get_all_attrs('tags')
+        result = []
+        for ii in rows:
+            p = plorn_tag.PlornTag(ii['value'], id=ii['id'],
+                                   parent_id=ii['parent_id'])
+            result.append(p)
+        return result
 
     def remove_attr(self, attr):
         table_name = attr.get_db_table_name()

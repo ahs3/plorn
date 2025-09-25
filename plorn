@@ -93,7 +93,7 @@ class Plorn(Tk):
         self.place_open = False
 
         self.tags_tab = 4
-        self.tview = None
+        self.tag_tree = None
         self.tag_list = []
         self.last_tag_id = None
         self.tag_open = False
@@ -741,7 +741,7 @@ class Plorn(Tk):
         for ii in self.nview.get_children():
             self.nview.delete(ii)
         self.name_list.clear()
-        self.name_list = self.db.get_names()
+        self.name_list = self.db.get_all_names()
         tree_ids = {}
         while len(tree_ids) < len(self.name_list):
             for ii in self.name_list:
@@ -991,7 +991,7 @@ class Plorn(Tk):
         for ii in self.lview.get_children():
             self.lview.delete(ii)
         self.place_list.clear()
-        self.place_list = self.db.get_places()
+        self.place_list = self.db.get_all_places()
         tree_ids = {}
         while len(tree_ids) < len(self.place_list):
             for ii in self.place_list:
@@ -1114,23 +1114,32 @@ class Plorn(Tk):
         self.tview.selection_set(child)
         self.last_tag_id = child
 
-    def build_tag_list(self, parent):
+    def build_treeview(self, parent):
+        treedict = {}
         tfont = font.nametofont('TkDefaultFont')
 
-        lframe = ttk.Frame(parent, padding=(5, 5, 5, 5))
+        tframe = ttk.Frame(parent, padding=(5,5,5,5))
+        tframe.columnconfigure(0, weight=1)
+        tframe.rowconfigure(0, weight=1)
+        treedict['frame'] = tframe
+
+        lframe = ttk.Frame(tframe, padding=(5, 5, 5, 5))
         lframe.columnconfigure(0, weight=1)
         lframe.rowconfigure(0, weight=1)
         lframe.grid(column=0, row=0, sticky=(N,W,E,S))
-        rframe = ttk.Frame(parent, padding=(5, 5, 5, 5))
+        treedict['lframe'] = lframe
+
+        rframe = ttk.Frame(tframe, padding=(5, 5, 5, 5))
         rframe.columnconfigure(0, weight=1)
         rframe.rowconfigure(0, weight=1)
         rframe.grid(column=1, row=0, sticky=(N,W,E,S))
+        treedict['rframe'] = rframe
 
         style = ttk.Style()
         style.layout('plorn.Treeview',
-            [('Treeview.field', {'sticky': 'NWES', 'border': 1, 'children': [
-                ('Treeview.padding', {'sticky': 'NWES', 'children': [
-                    ('Treeview.treearea', {'sticky': 'NWES'})
+            [('Treeview.field', {'sticky': 'nwes', 'border': 1, 'children': [
+                ('Treeview.padding', {'sticky': 'nwes', 'children': [
+                    ('Treeview.treearea', {'sticky': 'nwes'})
                     ]})
                 ]})
             ])
@@ -1152,34 +1161,52 @@ class Plorn(Tk):
         tview.heading('parent', text='Parent')
         tview['displaycolumns'] = ()
         tview.grid(column=0, row=0, sticky=(N,W,E,S))
+
         xscrollbar = ttk.Scrollbar(lframe, orient='vertical',
                                   command=tview.yview)
         xscrollbar.grid(column=1, row=0, sticky=(N,W,E,S))
         tview.configure(xscrollcommand=xscrollbar.set)
+        treedict['xscrollbar'] = xscrollbar
+
         yscrollbar = ttk.Scrollbar(lframe, orient='horizontal',
                                   command=tview.xview)
         yscrollbar.grid(column=0, row=1, sticky=(N,W,E,S))
         tview.configure(yscrollcommand=yscrollbar.set)
+        treedict['yscrollbar'] = xscrollbar
+
         tview.bind('<Up>', self.up_tag)
         tview.bind('<Down>', self.down_tag)
         tview.bind('<ButtonRelease-1>', self.select_tag)
         self.tview = tview
+        treedict['treeview'] = tview
 
+        return treedict
+
+    def build_tag_list(self, parent):
+        self.tag_tree = self.build_treeview(parent)
+        self.tag_tree['frame'].grid(column=0, row=0, sticky=(N,W,E,S))
+
+        bframe = ttk.Frame(parent, padding=(5,5,5,5))
+        bframe.columnconfigure(0, weight=1)
+        bframe.rowconfigure(0, weight=8)
         self.tag_buttons = [
-            ttk.Button(rframe, text='expand', command=self.toggle_tags),
-            ttk.Button(rframe, text='add', command=self.add_tag),
-            ttk.Button(rframe, text='remove', command=self.remove_tag),
-            ttk.Button(rframe, text='edit', command=self.edit_tag),
+            ttk.Button(bframe, text='expand', command=self.toggle_tags),
+            ttk.Button(bframe, text='add', command=self.add_tag),
+            ttk.Button(bframe, text='remove', command=self.remove_tag),
+            ttk.Button(bframe, text='edit', command=self.edit_tag),
         ]
         for n in range(0, len(self.tag_buttons)):
-            self.tag_buttons[n].grid(column=0, row=n+1)
+            bframe.rowconfigure(n, weight=1)
+            self.tag_buttons[n].grid(column=1, row=n+1, sticky=(S))
+        bframe.grid(column=1, row=0, sticky=(S))
+
         self.update_tagview()
 
     def update_tagview(self):
-        for ii in self.tview.get_children():
-            self.tview.delete(ii)
+        for ii in self.tag_tree['treeview'].get_children():
+            self.tag_tree['treeview'].delete(ii)
         self.tag_list.clear()
-        self.tag_list = self.db.get_tags()
+        self.tag_list = self.db.get_all_tags()
         tree_ids = {}
         while len(tree_ids) < len(self.tag_list):
             for ii in self.tag_list:
