@@ -1170,28 +1170,28 @@ class Plorn(Tk):
             self.update_tagview()
 
     def remove_tag(self):
-        entry_id = self.tview.focus()
+        entry_id = self.tag_tree.focus()
         if entry_id == '':
             messagebox.showerror(parent=self,
                                  title='Remove Tag',
                                  detail='Please select a tag to remove')
             return
-        entry = self.tview.item(entry_id)
+        entry = self.tag_tree.item(entry_id)
         logger.debug(f'entry: {str(entry)}')
-        e_id = entry['values'][0]
-        e_pid = entry['values'][1]
+        tag = plorn_tag.PlornTag(entry['text'],
+                                 id=entry['values'][0],
+                                 parent_id=entry['values'][1])
         
-        kids = self.db.get_tag_children(e_id)
+        kids = self.db.get_tag_children(tag)
         if len(kids) > 0:
             msg = 'Cannot remove a tag that still contains other tags'
             messagebox.showerror(parent=self, title='Remove Tag', detail=msg)
             return
 
-        tag = self.db.get_tag(e_id, parent_id=e_pid)
-        tag_id = tag.get_id()
+        tag = self.db.get_tag(entry['values'][0])
         parent_id = tag.get_parent_id()
         logger.debug(f'removing tag {tag.get_value()} from {parent_id}')
-        rmone = plorn_tag.PlornRemoveTag(self, tag_id, parent_id)
+        rmone = plorn_attr.PlornRemoveAttr(self, tag, attr_name='Tag')
         rmone.grab_set()
         self.wait_window(rmone)
         self.update_tagview()
