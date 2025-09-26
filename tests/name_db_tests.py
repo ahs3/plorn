@@ -3,12 +3,12 @@ import os
 import unittest
 
 import plorn_album
+import plorn_attr
 import plorn_config
 import plorn_db
 import plorn_name
 import plorn_photo
 import plorn_place
-import plorn_tag
 
 
 class TestDbNameMethods(unittest.TestCase):

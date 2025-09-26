@@ -22,7 +22,6 @@ import plorn_db
 import plorn_name
 import plorn_photo
 import plorn_place
-import plorn_tag
 
 #-- the application
 class Plorn(Tk):

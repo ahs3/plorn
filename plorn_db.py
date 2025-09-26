@@ -12,7 +12,6 @@ import plorn_config
 import plorn_name
 import plorn_photo
 import plorn_place
-import plorn_tag
 
 module_logger = logging.getLogger('plorn.db')
 module_logger.setLevel(logging.DEBUG)
@@ -844,8 +843,8 @@ class PlornDb:
 
     def add_tag(self, tag):
         row = self.add_attr(tag)
-        return plorn_tag.PlornTag(row['value'], id=row['id'],
-                                  parent_id=row['parent_id'])
+        return plorn_attr.PlornTag(row['value'], id=row['id'],
+                                   parent_id=row['parent_id'])
 
     def attr_exists(self, attr):
         table_name = attr.get_db_table_name()
@@ -883,8 +882,8 @@ class PlornDb:
 
     def get_tag(self, tag_id):
         row = self.get_attr(tag_id, 'tags')
-        return plorn_tag.PlornTag(row['value'], id=row['id'],
-                                  parent_id=row['parent_id'])
+        return plorn_attr.PlornTag(row['value'], id=row['id'],
+                                   parent_id=row['parent_id'])
 
     def get_attr_children(self, attr):
         table_name = attr.get_db_table_name()
@@ -916,8 +915,8 @@ class PlornDb:
         rows = self.get_attr_children(tag)
         result = []
         for ii in rows:
-            p = plorn_tag.PlornTag(ii['value'], id=ii['id'],
-                                   parent_id=ii['parent_id'])
+            p = plorn_attr.PlornTag(ii['value'], id=ii['id'],
+                                    parent_id=ii['parent_id'])
             result.append(p)
         return result
 
@@ -980,8 +979,8 @@ class PlornDb:
         rows = self.get_all_attrs('tags')
         result = []
         for ii in rows:
-            p = plorn_tag.PlornTag(ii['value'], id=ii['id'],
-                                   parent_id=ii['parent_id'])
+            p = plorn_attr.PlornTag(ii['value'], id=ii['id'],
+                                    parent_id=ii['parent_id'])
             result.append(p)
         return result
 

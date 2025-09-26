@@ -58,6 +58,11 @@ class PlornAttr:
         return val
 
 
+class PlornTag(PlornAttr):
+    def __init__(self, tag, id=None, parent_id=0):
+        super().__init__(tag, id=id, parent_id=parent_id, table_name='tags')
+
+
 class PlornAttrTreeview:
     '''
     Build a treeview within a frame that can be used by any of the

@@ -3,12 +3,12 @@ import os
 import unittest
 
 import plorn_album
+import plorn_attr
 import plorn_config
 import plorn_db
 import plorn_name
 import plorn_photo
 import plorn_place
-import plorn_tag
 
 
 class TestDbTagMethods(unittest.TestCase):
@@ -58,7 +58,7 @@ class TestDbTagMethods(unittest.TestCase):
             os.remove(cfg)
 
     def make_tag(self, tag, parent_id=None):
-        return plorn_tag.PlornTag(tag, parent_id=parent_id)
+        return plorn_attr.PlornTag(tag, parent_id=parent_id)
 
     def test_add_tag(self):
         db = plorn_db.open(self.get_test_dbname(),
