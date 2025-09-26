@@ -13,6 +13,7 @@ from tkinter import filedialog
 from tkinter import messagebox
 
 import plorn_db
+import plorn_common
 import plorn_config
 from plorn_config import FONTSIZE
 import plorn_photo
@@ -32,7 +33,7 @@ class PlornAlbum:
         self.place_list = places
         self.tag_list = tags
 
-        module_logger.debug('adding ' + str(self))
+        module_logger.debug('initializing album object: ' + str(self))
 
     def __copy__(self):
         album = PlornAlbum(self.name, id=self.id,
@@ -232,46 +233,6 @@ class PlornAddAlbum(Toplevel):
             messagebox.showinfo(message=msg, parent=self)
 
 
-
-def build_listbox(parent, title):
-    boxdict = {}
-    lsframe = ttk.Frame(parent, padding='5 5 5 5')
-    lsframe.columnconfigure(0, weight=9)
-    lsframe.columnconfigure(1, weight=1)
-    lsframe.rowconfigure(0, weight=1)
-    lsframe.rowconfigure(1, weight=8)
-    boxdict['frame'] = lsframe
-
-    lab1 = ttk.Label(lsframe, text=f'Associated {title}:')
-    lab1.grid(column=0, row=0, sticky=(W))
-    boxdict['label'] = lab1
-
-    lvar = tk.Variable(value=[])
-    boxdict['listvar'] = lvar
-    lbox = tk.Listbox(lsframe,
-                      listvariable=lvar,
-                      height=2,
-                      selectmode=tk.BROWSE,
-                     )
-    lbox.grid(column=0, row=1, sticky=(N,W,E,S))
-    boxdict['listbox'] = lbox
-
-    #-- leaving this code here, just in case, though it seemed too busy
-    #   visually right now
-    #
-    #vscrollbar = ttk.Scrollbar(lsframe, orient='vertical',
-    #                           command=lbox.yview)
-    #vscrollbar.grid(column=1, row=1, sticky=(N,W,E,S))
-    #boxdict['vscrollbar'] = vscrollbar
-
-    #hscrollbar = ttk.Scrollbar(lsframe, orient='horizontal',
-    #                           command=lbox.xview)
-    #hscrollbar.grid(column=0, row=2, sticky=(N,W,E,S))
-    #boxdict['hscrollbar'] = hscrollbar
-    #-- end
-
-    return boxdict
-
 def build_left_frame(db, parent, album, default_state='normal'):
     tfont=font.nametofont('TkDefaultFont')
     lframedict = {}
@@ -466,8 +427,13 @@ class PlornShowAlbum(Toplevel):
         self.name_frame = None
         self.place_tree = None
         self.tag_tree = None
-        self.rframe = build_right_frame(self.db, self, self.album)
-        self.rframe['frame'].grid(column=1, row=0, sticky=(N,W,E,S))
+        self.rframe = plorn_common.PlornAttrFrame(self.db, self,
+                base_obj=self.album,
+                get_name_list=self.db.get_names_for_album,
+                get_place_list=self.db.get_places_for_album,
+                get_tag_list=self.db.get_tags_for_album,
+        )
+        self.rframe.get_frame().grid(column=1, row=0, sticky=(N,W,E,S))
 
         sep1 = ttk.Separator(self, orient=HORIZONTAL)
         sep1.grid(column=0, row=1, columnspan=2, sticky=(W+E))
