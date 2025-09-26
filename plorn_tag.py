@@ -18,64 +18,6 @@ class PlornTag(plorn_attr.PlornAttr):
         super().__init__(tag, id=id, parent_id=parent_id, table_name='tags')
 
 
-class PlornRemoveTag(Toplevel):
-    def __init__(self, parent, tag_id, parent_id=0):
-        super().__init__(parent)
-        module_logger.debug("started PlornRemoveTag")
-        self.tag_id = tag_id
-        self.parent_id = parent_id
-        self.db = plorn_db.open()
-        tfont = font.nametofont("TkDefaultFont")
-        style = ttk.Style()
-        style.configure("TCombobox", font=tfont)
-
-        self.geometry("600x200")
-        self.title("Remove Tag")
-        self.columnconfigure(0, weight=1)
-        self.columnconfigure(1, weight=1)
-        self.rowconfigure(0, weight=1)
-        self.rowconfigure(1, weight=2)
-        self.rowconfigure(2, weight=2)
-        self.frame = ttk.Frame(self, padding="10 10 10 10")
-        self.frame.grid(column=0, row=0, sticky=(N, W, E, S))
-
-        lab1 = ttk.Label(self.frame, text="Remove: ")
-        lab1.grid(column=0, row=0, sticky=W)
-
-        entry_frame = ttk.Frame(self.frame, padding="10 10 10 10")
-        entry_frame.grid(column=0, row=1, sticky=(N, W, E, S))
-        lab2 = ttk.Label(entry_frame, text="Tag: ")
-        lab2.grid(column=0, row=0, sticky=W)
-        self.tag_entered = StringVar(self.frame)
-        fulltag = ", ".join(self.db.get_full_tag(tag_id))
-        self.tag_entered.set(fulltag)
-        self.tag_entry = ttk.Entry(entry_frame, width=40,
-                                    textvariable=self.tag_entered,
-                                    font=tfont, state="readonly")
-        self.tag_entry.grid(column=1, row=0, sticky=W)
-
-        bframe = ttk.Frame(self.frame, padding="10 10 10 10")
-        bframe.grid(column=0, row=2, sticky=(W+E))
-        self.buttons = [
-            ttk.Button(bframe, text="remove", command=self.remove_tag),
-            ttk.Button(bframe, text="cancel", command=self.destroy),
-        ]
-        for n in range(0, len(self.buttons)):
-            self.buttons[n].grid(column=n, row=0, padx=10, pady=10)
-
-    def remove_tag(self):
-        res = None
-        kids = self.db.get_tag_children(self.tag_id)
-        if len(kids) > 0:
-            msg = "Cannot remove a tag that still contains other tags"
-            messagebox.showerror(parent=self, title="Remove Tag", detail=msg)
-        else:
-            self.db.remove_tag(self.tag_id, self.parent_id)
-            msg = f"removed: {self.tag_id} from {self.parent_id}"
-            module_logger.debug(msg)
-        self.destroy()
-
-
 class PlornEditTag(Toplevel):
     def __init__(self, parent, tag, tag_id, parent_id=0):
         super().__init__(parent)

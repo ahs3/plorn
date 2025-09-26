@@ -358,20 +358,22 @@ class PlornRemoveAttr(Toplevel):
 
 
 class PlornEditAttr(Toplevel):
-    def __init__(self, parent, tag, tag_id, parent_id=0):
+    def __init__(self, parent, attr, attr_name='Attribute', table_name=''):
         super().__init__(parent)
         module_logger.debug('started PlornEditAttr')
-        tfont = font.nametofont('TkDefaultFont')
-        style = ttk.Style()
-        style.configure('TCombobox', font=tfont)
-        self.tag = tag
-        self.tag_id = tag_id
-        self.parent_id = parent_id
+        self.attr = attr
+        self.attr_name = attr_name
+        self.table_name = table_name
+        self.tfont = font.nametofont('TkDefaultFont')
+        self.style = ttk.Style()
+        self.style.configure('TCombobox', font=self.tfont)
+        self.attr_id = attr.get_id()
+        self.parent_id = attr.get_parent_id()
+        self.parent_row = {}
         self.db = plorn_db.open()
-        self.tag_obj = self.db.get_attr(tag_id, parent_id)
 
         self.geometry('600x200')
-        self.title('Edit Attr')
+        self.title(f'Edit {self.attr_name}')
         self.columnconfigure(0, weight=1)
         self.columnconfigure(1, weight=1)
         self.rowconfigure(0, weight=1)
@@ -382,45 +384,49 @@ class PlornEditAttr(Toplevel):
 
         container_frame = ttk.Frame(self.frame, padding='10 10 10 10')
         container_frame.grid(column=0, row=0, sticky=(N, W, E, S))
-        container_frame.option_add('*TCombobox*Listbox.font', tfont)
+        container_frame.option_add('*TCombobox*Listbox.font', self.tfont)
 
         self.container_list = {}
         self.container_list[''] = 0
         self.container_selector = None
         self.container_selected = StringVar(self.frame)
         lab1 = ttk.Label(container_frame)
-        lab1.configure(text='Attr:')
+        lab1.configure(text=f'{self.attr_name}: ')
         lab1.grid(column=0, row=0, sticky=W)
 
-        locs = {}
-        locs = self.db.get_attrs()
-        for ii in locs:
-            self.container_list[ii.get_attr()] = ii.get_id()
-        module_logger.debug(f'locs: {str(self.container_list)}')
-        self.container_selector = ttk.Combobox(container_frame, font=tfont,
+        entries = {}
+        entries = self.db.get_all_attrs(table_name=self.table_name)
+        for ii in entries:
+            self.container_list[ii['value']] = ii['id']
+        module_logger.debug(f'entries: {str(self.container_list)}')
+        self.container_selector = ttk.Combobox(container_frame, font=self.tfont,
                                         textvariable=self.container_selected)
-        loc_keys = list(self.container_list.keys())
-        loc_keys.sort()
-        self.container_selector.config(values=loc_keys)
+        entry_keys = list(self.container_list.keys())
+        entry_keys.sort()
+        self.container_selector.config(values=entry_keys)
         self.container_selector.config(state='readonly')
         self.container_selector.grid(column=1, row=0, sticky=(W+E))
         if self.parent_id == 0:
-            pl = ''
+            value = ''
         else:
-            pl = self.get_parent_attr().get_attr()
-        self.container_selected.set(pl)
+            module_logger.debug(f'parent_row pre: {self.parent_id}, {self.table_name}')
+            self.parent_row = self.db.get_attr(self.parent_id,
+                                               table_name=self.table_name)
+            module_logger.debug(f'parent_row: {str(self.parent_row)}')
+            value = self.parent_row['value']
+        self.container_selected.set(value)
 
         entry_frame = ttk.Frame(self.frame, padding='10 10 10 10')
         entry_frame.grid(column=0, row=1, sticky=(N, W, E, S))
-        lab2 = ttk.Label(entry_frame, text='Attr: ')
+        lab2 = ttk.Label(entry_frame, text=f'{self.attr_name}: ')
         lab2.grid(column=0, row=0, sticky=W)
-        self.tag_entered = StringVar(self.frame)
-        self.tag_entry = ttk.Entry(entry_frame, width=40,
-                                    textvariable=self.tag_entered,
-                                    font=tfont)
-        self.tag_entry.grid(column=1, row=0, sticky=W)
-        self.tag_entered.set(self.tag_obj.get_attr())
-        self.tag_entry.focus_set()
+        self.attr_entered = StringVar(self.frame)
+        self.attr_entry = ttk.Entry(entry_frame, width=40,
+                                    textvariable=self.attr_entered,
+                                    font=self.tfont)
+        self.attr_entry.grid(column=1, row=0, sticky=W)
+        self.attr_entered.set(self.attr.get_value())
+        self.attr_entry.focus_set()
 
         bframe = ttk.Frame(self.frame, padding='10 10 10 10')
         bframe.grid(column=0, row=2, sticky=(W+E))
@@ -437,35 +443,31 @@ class PlornEditAttr(Toplevel):
             if self.container_list[ii] == self.parent_id:
                 container = self.container_list[ii]
                 break
-        return self.db.get_attr(container)
+        return self.db.get_attr(container, table_name=self.table_name)
 
     def update_attr(self):
-        new_attr = self.tag_entered.get()
-        container_attr = self.container_selector.get()
-        if new_attr == '':
+        new_value = self.attr_entered.get()
+        container_value = self.container_selector.get()
+        if new_value == '':
             messagebox.showerror(parent=self,
-                                 title='Edit Attr',
-                                 detail='Attr cannot be blank')
+                                 title=f'Edit {self.attr_name}',
+                                 detail=f'{self.attr_name} cannot be blank')
             return
 
-        if container_attr == '':
+        if container_value == '':
+            pid = 0
+        else:
+            pid = self.container_list[container_value]
+
+        attr_copy = copy.deepcopy(self.attr)
+        attr_copy.set_value(new_value)
+        attr_copy.set_parent_id(pid)
+        if self.db.attr_exists(attr_copy):
             messagebox.showerror(parent=self,
-                                 title='Edit Attr',
-                                 detail='Attr cannot be blank')
+                     title=f'Edit {self.attr_name}',
+                     detail=f'{self.attr_name} already exists with same parent')
             return
 
-        tag_copy = self.tag_obj
-        module_logger.debug(f'updating(0) {str(self.tag_obj)} to {str(tag_copy)}')
-        pid = self.container_list[container_attr]
-        if self.db.tag_exists(new_attr, parent_id=pid):
-            messagebox.showerror(parent=self,
-                                 title='Edit Attr',
-                                 detail='Attr already exists with same parent')
-            return
-
-        tag_copy.set_attr(new_attr)
-        tag_copy.set_parent_id(self.container_list[container_attr])
-        module_logger.debug(f'updating(1) {str(self.tag_obj)} to {str(tag_copy)}')
-        id = self.db.update_attr(self.tag_obj, tag_copy)
+        id = self.db.update_attr(self.attr, attr_copy)
         self.destroy()
 

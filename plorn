@@ -1197,15 +1197,15 @@ class Plorn(Tk):
         self.update_tagview()
 
     def edit_tag(self):
-        entry = self.tview.focus()
+        entry = self.tag_tree.focus()
         if entry != '':
-            tag_entry = self.tview.item(entry)
-            tag = tag_entry['text']
-            tag_id = tag_entry['values'][0]
-            parent_id = tag_entry['values'][1]
-            logger.debug(f'edit tag {str(entry)}')
-            showone = plorn_tag.PlornEditTag(self, tag, tag_id,
-                                                 parent_id=parent_id)
+            tag_entry = self.tag_tree.item(entry)
+            tag = plorn_tag.PlornTag(tag_entry['text'],
+                                     id=tag_entry['values'][0],
+                                     parent_id=tag_entry['values'][1])
+            showone = plorn_attr.PlornEditAttr(self, tag,
+                                               attr_name='Tag',
+                                               table_name='tags')
             showone.grab_set()
             self.wait_window(showone)
             self.update_tagview()
