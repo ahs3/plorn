@@ -474,13 +474,18 @@ class PlornRemoveAlbum(Toplevel):
         self.name_frame = None
         self.place_tree = None
         self.tag_tree = None
-        self.rframe = build_right_frame(self.db, self, self.album)
-        self.rframe['frame'].grid(column=1, row=0, sticky=(N,W,E,S))
+        self.rframe = plorn_common.PlornAttrFrame(self.db, self,
+                base_obj=self.album,
+                get_name_list=self.db.get_names_for_album,
+                get_place_list=self.db.get_places_for_album,
+                get_tag_list=self.db.get_tags_for_album,
+        )
+        self.rframe.get_frame().grid(column=1, row=0, sticky=(N,W,E,S))
 
         sep1 = ttk.Separator(self, orient=HORIZONTAL)
-        sep1.grid(column=0, row=1, columnspan=3, sticky=(W+E))
+        sep1.grid(column=0, row=1, columnspan=2, sticky=(W+E))
         sep2 = ttk.Separator(self, orient=HORIZONTAL)
-        sep2.grid(column=0, row=2, columnspan=3, sticky=(W+E))
+        sep2.grid(column=0, row=2, columnspan=2, sticky=(W+E))
 
         self.do_remove = ttk.Button(self, text='Remove',
                                     command=self.confirm_remove)
@@ -500,6 +505,7 @@ class PlornRemoveAlbum(Toplevel):
             idx = 0
             self.db.remove_album(self.album)
             self.destroy()
+
 
 class PlornEditAlbum(Toplevel):
     def __init__(self, parent, album_id):
