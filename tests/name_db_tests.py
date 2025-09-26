@@ -6,7 +6,6 @@ import plorn_album
 import plorn_attr
 import plorn_config
 import plorn_db
-import plorn_name
 import plorn_photo
 
 
@@ -57,7 +56,7 @@ class TestDbNameMethods(unittest.TestCase):
             os.remove(cfg)
 
     def make_name(self, name, parent_id=None):
-        return plorn_name.PlornName(name, parent_id=parent_id)
+        return plorn_attr.PlornName(name, parent_id=parent_id)
 
     def test_add_name(self):
         db = plorn_db.open(self.get_test_dbname(),

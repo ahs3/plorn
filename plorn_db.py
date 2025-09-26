@@ -9,7 +9,6 @@ from PIL import ImageTk
 import plorn_album
 import plorn_attr
 import plorn_config
-import plorn_name
 import plorn_photo
 
 module_logger = logging.getLogger('plorn.db')
@@ -596,7 +595,7 @@ class PlornDb:
         res = self.cursor.execute(sql)
         row = res.fetchone()
         module_logger.debug(f'added name {str(row)}')
-        return plorn_name.PlornName(row['name'], id=row['id'],
+        return plorn_attr.PlornName(row['name'], id=row['id'],
                                     parent_id=row['parent_id'])
 
     def name_exists(self, name, parent_id=0):
@@ -616,7 +615,7 @@ class PlornDb:
         res = self.cursor.execute(sql)
         row = res.fetchone()
         module_logger.debug(f'get_name: {str(row)}')
-        return plorn_name.PlornName(row['name'], id=row['id'],
+        return plorn_attr.PlornName(row['name'], id=row['id'],
                                     parent_id=row['parent_id'])
 
     def get_name_by_name(self, name, parent_id=0):
@@ -624,7 +623,7 @@ class PlornDb:
         sql += f' AND parent_id = \'{parent_id}\''
         res = self.cursor.execute(sql)
         row = res.fetchone()
-        return plorn_name.PlornName(row['name'], id=row['id'],
+        return plorn_attr.PlornName(row['name'], id=row['id'],
                                     parent_id=row['parent_id'])
 
     def get_name_children(self, name_id):
@@ -633,7 +632,7 @@ class PlornDb:
         rows = res.fetchall()
         result = []
         for ii in rows:
-            p = plorn_name.PlornName(ii['name'], id=ii['id'],
+            p = plorn_attr.PlornName(ii['name'], id=ii['id'],
                                      parent_id=ii['parent_id'])
             result.append(p)
         return result
@@ -643,7 +642,7 @@ class PlornDb:
         sql += ' AND parent_id = {parent_id}'
         res = self.cursor.execute(sql)
         row = res.fetchone()
-        return plorn_name.PlornName(row['name'], id=row['id'],
+        return plorn_attr.PlornName(row['name'], id=row['id'],
                                     parent_id=row['parent_id'])
 
     def get_full_name(self, name_id):
@@ -677,7 +676,7 @@ class PlornDb:
         rows.sort(key=lambda x: x['name'])
         result = []
         for ii in rows:
-            p = plorn_name.PlornName(ii['name'], id=ii['id'],
+            p = plorn_attr.PlornName(ii['name'], id=ii['id'],
                                      parent_id=ii['parent_id'])
             result.append(p)
         return result
@@ -697,7 +696,7 @@ class PlornDb:
         msg = f'updated name: from {name.get_name()}'
         msg += f' to {row['name']}'
         module_logger.debug(msg)
-        return plorn_name.PlornName(row['name'], id=row['id'],
+        return plorn_attr.PlornName(row['name'], id=row['id'],
                                     parent_id=row['parent_id'])
 
     def add_place(self, place, parent_id=0):
@@ -832,7 +831,7 @@ class PlornDb:
 
     def add_name(self, name):
         row = self.add_attr(name)
-        return plorn_name.PlornName(row['value'], id=row['id'],
+        return plorn_attr.PlornName(row['value'], id=row['id'],
                                     parent_id=row['parent_id'])
 
     def add_place(self, place):
@@ -871,7 +870,7 @@ class PlornDb:
 
     def get_name(self, name_id):
         row = self.get_attr(name_id, 'names')
-        return plorn_name.PlornName(row['value'], id=row['id'],
+        return plorn_attr.PlornName(row['value'], id=row['id'],
                                     parent_id=row['parent_id'])
 
     def get_place(self, place_id):
@@ -896,7 +895,7 @@ class PlornDb:
         rows = self.get_attr_children(name)
         result = []
         for ii in rows:
-            p = plorn_name.PlornName(ii['value'], id=ii['id'],
+            p = plorn_attr.PlornName(ii['value'], id=ii['id'],
                                      parent_id=ii['parent_id'])
             result.append(p)
         return result
@@ -960,7 +959,7 @@ class PlornDb:
         rows = self.get_all_attrs('names')
         result = []
         for ii in rows:
-            p = plorn_name.PlornName(ii['value'], id=ii['id'],
+            p = plorn_attr.PlornName(ii['value'], id=ii['id'],
                                      parent_id=ii['parent_id'])
             result.append(p)
         return result

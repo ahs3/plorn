@@ -19,7 +19,6 @@ import plorn_attr
 import plorn_config
 from plorn_config import FONTSIZE
 import plorn_db
-import plorn_name
 import plorn_photo
 
 #-- the application
@@ -706,129 +705,97 @@ class Plorn(Tk):
             self.update_photoview(album_id)
             self.update_albumview()
 
-    def up_name(self, event):
-        cur = self.last_name_id
-        child = self.nview.prev(cur)
-        if not child:
-            child = cur
-        logger.debug(f'up_name selection: {str(cur)} -> {str(child)}')
-        self.nview.selection_set(child)
-        self.last_name_id = child
+    def build_name_list(self, parent):
+        self.name_tree = plorn_attr.PlornAttrTreeview(parent, heading='Name')
+        self.name_tree.get_frame().grid(column=0, row=0, sticky=(N,W,E,S))
 
-    def down_name(self, event):
-        cur = self.last_name_id
-        child = self.nview.next(cur)
-        if not child:
-            child = cur
-        logger.debug(f'down_name selection: {str(cur)} -> {str(child)}')
-        self.nview.selection_set(child)
-        self.last_name_id = child
+        bframe = ttk.Frame(parent, padding=(5,5,5,5))
+        bframe.columnconfigure(0, weight=1)
+        bframe.rowconfigure(0, weight=8)
+        self.name_buttons = [
+            ttk.Button(bframe, text='expand', command=self.toggle_names),
+            ttk.Button(bframe, text='add', command=self.add_name),
+            ttk.Button(bframe, text='remove', command=self.remove_name),
+            ttk.Button(bframe, text='edit', command=self.edit_name),
+        ]
+        for n in range(0, len(self.name_buttons)):
+            bframe.rowconfigure(n, weight=1)
+            self.name_buttons[n].grid(column=1, row=n+1, sticky=(S))
+        bframe.grid(column=1, row=0, sticky=(S))
 
-    def select_name(self, event):
-        child = self.nview.identify_row(event.y)
-        if not child:
-            child = self.last_name_id
-        logger.debug(f'select_name selection: {str(child)}')
-        self.nview.selection_set(child)
-        self.last_name_id = child
-
-    def deselect_name(self, event):
-        self.nview.selection_clear()
-        self.last_name_id = None
+        self.update_nameview()
 
     def update_nameview(self):
-        for ii in self.nview.get_children():
-            self.nview.delete(ii)
         self.name_list.clear()
         self.name_list = self.db.get_all_names()
-        tree_ids = {}
-        while len(tree_ids) < len(self.name_list):
-            for ii in self.name_list:
-                id = ii.get_id()
-                pid = ii.get_parent_id()
-                name = ii.get_name()
-                under_id = ''
-                if pid == 0 and id not in tree_ids:
-                    curid = self.nview.insert(under_id, END,
-                                              text=name,
-                                              values=(id, pid)
-                                              )
-                    tree_ids[id] = curid
-                elif pid != 0 and id not in tree_ids:
-                    if pid in tree_ids:
-                        under_id = tree_ids[pid]
-                        curid = self.nview.insert(under_id, END,
-                                                  text=name,
-                                                  values=(id, pid)
-                                                  )
-                        tree_ids[id] = curid
-
-            #logger.debug(f'tree {len(tree_ids)}, names {len(self.name_list)}')
+        self.name_tree.update_treeview(self.name_list)
 
     def toggle_names(self):
-        self.name_open = not self.name_open
+        self.name_open = not self.name_tree.get_toggle()
         if self.name_open:
             self.name_buttons[0].configure(text="collapse")
         else:
             self.name_buttons[0].configure(text="expand")
-        for ii in self.nview.get_children():
-            self.nview.item(ii, open=self.name_open)
+        self.name_tree.toggle_treeview(self.name_open)
 
     def add_name(self):
-        parent = self.nview.focus()
-        entry = self.nview.item(parent)
+        logger.debug(f'adding name')
+        parent = self.name_tree.focus()
         if parent == '':
-            parent_id = 1           # default to <unknown>
+            pid = 0
         else:
-            parent_id = entry['values'][1]
-        logger.debug(f'adding person under {str(entry)}')
-        addone = plorn_name.PlornAddName(self, parent_id=parent_id)
+            entry = self.name_tree.item(parent)
+            pid = entry['values'][0]
+        addone = plorn_attr.PlornAddAttr(self, parent_id=pid,
+                                         attr_name='Name',
+                                         table_name='names')
         addone.grab_set()
         self.wait_window(addone)
-        name = addone.get_new_name()
+        attr = addone.get_new_attr()
         
-        if name and name.get_id() != None:
-            logger.debug(f'added person {name.get_name()}')
+        if attr and attr['id'] != None:
+            name = plorn_attr.PlornName(attr['value'], id=attr['id'],
+                                          parent_id=attr['parent_id'])
+            logger.debug(f'add name {name.get_value()}')
             self.update_nameview()
 
     def remove_name(self):
-        entry_id = self.nview.focus()
+        entry_id = self.name_tree.focus()
         if entry_id == '':
             messagebox.showerror(parent=self,
                                  title='Remove Name',
                                  detail='Please select a name to remove')
             return
-        entry = self.nview.item(entry_id)
-        logger.debug(f'remove entry: {str(entry)}')
-        e_id = entry['values'][0]
-        e_pid = entry['values'][1]
-
-        kids = self.db.get_name_children(e_id)
-        logger.debug(f'remove entry: with {len(kids)} kids')
+        entry = self.name_tree.item(entry_id)
+        logger.debug(f'entry: {str(entry)}')
+        name = plorn_attr.PlornName(entry['text'],
+                                      id=entry['values'][0],
+                                      parent_id=entry['values'][1])
+        
+        kids = self.db.get_name_children(name)
         if len(kids) > 0:
             msg = 'Cannot remove a name that still contains other names'
             messagebox.showerror(parent=self, title='Remove Name', detail=msg)
             return
 
-        name = self.db.get_name(e_id, parent_id=e_pid)
-        name_id = name.get_id()
+        name = self.db.get_name(entry['values'][0])
         parent_id = name.get_parent_id()
-        logger.debug(f'removing name {name.get_name()} from {parent_id}')
-        rmone = plorn_name.PlornRemoveName(self, name_id, parent_id)
+        logger.debug(f'removing name {name.get_value()} from {parent_id}')
+        rmone = plorn_attr.PlornRemoveAttr(self, name, attr_name='Name')
         rmone.grab_set()
         self.wait_window(rmone)
         self.update_nameview()
 
     def edit_name(self):
-        entry = self.nview.focus()
+        entry = self.name_tree.focus()
         if entry != '':
-            name_entry = self.nview.item(entry)
-            name = name_entry['text']
-            name_id = name_entry['values'][0]
-            parent_id = name_entry['values'][1]
-            logger.debug(f'edit name {str(entry)}')
-            showone = plorn_name.PlornEditName(self, name, name_id,
-                                               parent_id=parent_id)
+            name_entry = self.name_tree.item(entry)
+            name = plorn_attr.PlornName(name_entry['text'],
+                                           id=name_entry['values'][0],
+                                           parent_id=name_entry['values'][1])
+            showone = plorn_attr.PlornEditAttr(self, name,
+                                               attr_name='Name',
+                                               table_name='names')
             showone.grab_set()
             self.wait_window(showone)
             self.update_nameview()
@@ -836,68 +803,6 @@ class Plorn(Tk):
             messagebox.showerror(parent=self,
                                  title='Select a Name',
                                  detail='Please select a name to edit')
-
-    def build_name_list(self, parent):
-        tfont = font.nametofont('TkDefaultFont')
-
-        lframe = ttk.Frame(parent, padding=(5, 5, 5, 5))
-        lframe.columnconfigure(0, weight=1)
-        lframe.rowconfigure(0, weight=1)
-        lframe.grid(column=0, row=0, sticky=(N,W,E,S))
-        rframe = ttk.Frame(parent, padding=(5, 5, 5, 5))
-        rframe.columnconfigure(0, weight=1)
-        rframe.rowconfigure(0, weight=1)
-        rframe.grid(column=1, row=0, sticky=(N,W,E,S))
-
-        style = ttk.Style()
-        style.layout('plorn.Treeview',
-            [('Treeview.field', {'sticky': 'nwes', 'border': 1, 'children': [
-                ('Treeview.padding', {'sticky': 'nwes', 'children': [
-                    ('Treeview.treearea', {'sticky': 'nwes'})
-                    ]})
-                ]})
-            ])
-        style.configure('plorn.Treeview',
-                        font=('TkDefaultFont', FONTSIZE),
-                        rowheight=30,
-                       )
-        style.configure('plorn.Treeview.Heading',
-                        font=('TkDefaultFont', FONTSIZE))
-        nview = ttk.Treeview(lframe,
-                             columns=('id', 'parent'),
-                             selectmode='browse',
-                             style='plorn.Treeview')
-        nview.column('#0', anchor='w', minwidth=0, width=500)
-        nview.heading('#0', text='Name')
-        nview.column('id', anchor='w', minwidth=0, width=100)
-        nview.heading('id', text='ID')
-        nview.column('parent', anchor='w', minwidth=0, width=100)
-        nview.heading('parent', text='Parent')
-        nview['displaycolumns'] = ()
-        nview.grid(column=0, row=0, sticky=(N,W,E,S))
-        xscrollbar = ttk.Scrollbar(lframe, orient='vertical',
-                                  command=nview.yview)
-        xscrollbar.grid(column=1, row=0, sticky=(N,W,E,S))
-        nview.configure(xscrollcommand=xscrollbar.set)
-        yscrollbar = ttk.Scrollbar(lframe, orient='horizontal',
-                                  command=nview.xview)
-        yscrollbar.grid(column=0, row=1, sticky=(N,W,E,S))
-        nview.configure(yscrollcommand=yscrollbar.set)
-        nview.bind('<Up>', self.up_name)
-        nview.bind('<Down>', self.down_name)
-        nview.bind('<ButtonRelease-1>', self.select_name)
-        nview.bind('<Double-Button-1>', self.deselect_name)
-        self.nview = nview
-
-        self.name_buttons = [
-            ttk.Button(rframe, text='expand', command=self.toggle_names),
-            ttk.Button(rframe, text='add', command=self.add_name),
-            ttk.Button(rframe, text='remove', command=self.remove_name),
-            ttk.Button(rframe, text='edit', command=self.edit_name),
-        ]
-        for n in range(0, len(self.name_buttons)):
-            self.name_buttons[n].grid(column=0, row=n+1)
-        self.update_nameview()
 
     def build_place_list(self, parent):
         self.place_tree = plorn_attr.PlornAttrTreeview(parent, heading='Place')

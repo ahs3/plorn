@@ -58,6 +58,11 @@ class PlornAttr:
         return val
 
 
+class PlornName(PlornAttr):
+    def __init__(self, name, id=None, parent_id=0):
+        super().__init__(name, id=id, parent_id=parent_id, table_name='names')
+
+
 class PlornPlace(PlornAttr):
     def __init__(self, place, id=None, parent_id=0):
         super().__init__(place, id=id, parent_id=parent_id, table_name='places')

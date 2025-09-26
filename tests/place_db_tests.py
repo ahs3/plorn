@@ -6,7 +6,6 @@ import plorn_album
 import plorn_attr
 import plorn_config
 import plorn_db
-import plorn_name
 import plorn_photo
 
 
