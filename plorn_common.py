@@ -85,15 +85,16 @@ class PlornAttrFrame:
 
         self.name_listbox = PlornAttrListbox(self.rframe, title='Names')
         self.name_listbox.get_frame().grid(column=0, row=0, sticky=(N,W,E,S))
-        self.names = self.get_name_list(self.base_obj)
+        self.names = []
         self.names_dict = {}
-        if len(self.names) > 0:
-            for ii in self.names:
-                fullname = ', '.join(self.db.get_full_name(ii))
-                self.names_dict[fullname] = ii
-            self.name_listbox.set_listvar(list(self.names_dict.keys()))
-        else:
-            self.name_listbox.set_listvar([])
+        self.name_listbox.set_listvar([])
+        if self.base_obj != None:
+            self.names = self.get_name_list(self.base_obj)
+            if len(self.names) > 0:
+                for ii in self.names:
+                    fullname = ', '.join(self.db.get_full_name(ii))
+                    self.names_dict[fullname] = ii
+                self.name_listbox.set_listvar(list(self.names_dict.keys()))
 
         self.name_add_cmd = None
         self.name_remove_cmd = None
@@ -104,16 +105,17 @@ class PlornAttrFrame:
 
         self.place_listbox = PlornAttrListbox(self.rframe, title='Places')
         self.place_listbox.get_frame().grid(column=0, row=1, sticky=(N,W,E,S))
-        self.places = self.get_place_list(base_obj)
-        module_logger.debug(f'place list: {str(self.places)}')
+        self.places = []
         self.places_dict = {}
-        if len(self.places) > 0:
-            for ii in self.places:
-                fullplace = ', '.join(self.db.get_full_place(ii))
-                self.places_dict[fullplace] = ii
-            self.place_listbox.set_listvar(list(self.places_dict.keys()))
-        else:
-            self.place_listbox.set_listvar([])
+        self.place_listbox.set_listvar([])
+        if self.base_obj != None:
+            self.places = self.get_place_list(base_obj)
+            module_logger.debug(f'place list: {str(self.places)}')
+            if len(self.places) > 0:
+                for ii in self.places:
+                    fullplace = ', '.join(self.db.get_full_place(ii))
+                    self.places_dict[fullplace] = ii
+                self.place_listbox.set_listvar(list(self.places_dict.keys()))
 
         self.place_add_cmd = None
         self.place_remove_cmd = None
@@ -124,16 +126,17 @@ class PlornAttrFrame:
 
         self.tag_listbox = PlornAttrListbox(self.rframe, title='Tags')
         self.tag_listbox.get_frame().grid(column=0, row=2, sticky=(N,W,E,S))
-        self.tags = self.get_tag_list(base_obj)
-        module_logger.debug(f'tag list: {str(self.tags)}')
+        self.tags = []
         self.tags_dict = {}
-        if len(self.tags) > 0:
-            for ii in self.tags:
-                fulltag = '/'.join(self.db.get_full_tag(ii))
-                self.tags_dict[fulltag] = ii
-            self.tag_listbox.set_listvar(list(self.tags_dict.keys()))
-        else:
-            self.tag_listbox.set_listvar([])
+        self.tag_listbox.set_listvar([])
+        if self.base_obj != None:
+            self.tags = self.get_tag_list(base_obj)
+            module_logger.debug(f'tag list: {str(self.tags)}')
+            if len(self.tags) > 0:
+                for ii in self.tags:
+                    fulltag = '/'.join(self.db.get_full_tag(ii))
+                    self.tags_dict[fulltag] = ii
+                self.tag_listbox.set_listvar(list(self.tags_dict.keys()))
 
         self.tag_add_cmd = None
         self.tag_remove_cmd = None
@@ -158,9 +161,10 @@ class PlornAttrFrame:
         bframe.rowconfigure(0, weight=8)
         bframe.rowconfigure(1, weight=1)
         bframe.rowconfigure(2, weight=1)
-        add_button = ttk.Button(bframe, image=add_icon, command=add_cmd)
+        add_button = ttk.Button(bframe, image=self.add_icon, command=add_cmd)
         add_button.grid(column=0, row=1)
-        remove_button = ttk.Button(bframe, image=rm_icon, command=remove_cmd)
+        remove_button = ttk.Button(bframe, image=self.rm_icon,
+                                   command=remove_cmd)
         remove_button.grid(column=0, row=2)
         return (bframe, add_button, remove_button)
 

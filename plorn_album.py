@@ -125,6 +125,72 @@ class PlornAlbum:
         return val
 
 
+class PlornAlbumLeftFrame:
+    '''
+    Factor out common code for building the left frame for building
+    responses to commands on the album notebook tab
+    '''
+    def __init__(self, db, parent, album=None, default_state='normal'):
+        self.db = db
+        self.parent = parent
+        self.album = album
+        self.default_state = default_state
+        self.tfont=font.nametofont('TkDefaultFont')
+        self.lframe = ttk.Frame(self.parent, padding='10 10 10 10')
+        self.lframe.columnconfigure(0, weight=1)
+        self.lframe.columnconfigure(1, weight=2)
+        for ii in range(0,7):
+            self.lframe.rowconfigure(ii, weight=1)
+
+        self.lab1 = ttk.Label(self.lframe, width=10, text='Name:')
+        self.lab1.grid(column=0, row=0, sticky=(W))
+        self.album_name = StringVar(self.lframe, value='')
+        if self.album != None:
+            self.album_name.set(self.album.get_name())
+        self.album_entry = ttk.Entry(self.lframe, width=40,
+                                     textvariable=self.album_name,
+                                     font=self.tfont, state=self.default_state)
+        self.album_entry.grid(column=1, row=0, sticky=(W))
+        self.album_entry.focus_set()
+
+        self.lab2 = ttk.Label(self.lframe, width=10, text='Dated:')
+        self.lab2.grid(column=0, row=1, sticky=(W))
+        self.dated = StringVar(self.lframe, value='')
+        if self.album != None:
+            self.dated.set(self.album.get_dated())
+        self.date_entry = ttk.Entry(self.lframe, width=40,
+                                    textvariable=self.dated,
+                                    font=self.tfont, state=self.default_state)
+        self.date_entry.grid(column=1, row=1, sticky=(W))
+
+        self.lab3 = ttk.Label(self.lframe, width=10, text='Notes:')
+        self.lab3.grid(column=0, row=2, sticky=(N, W))
+        self.notes = Text(self.lframe, height=10, width=40, font=self.tfont)
+        if self.album != None:
+            self.notes.insert('1.0', self.album.get_notes())
+        self.note_state = 'normal'
+        if self.default_state == 'readonly':
+            self.note_state = 'disabled'
+        self.notes.configure(state=self.note_state)
+        self.notes.grid(column=1, row=2, sticky=(N, W, E, S))
+
+        self.lab4 = ttk.Label(self.lframe, width=10, text='Photos:')
+        self.lab4.grid(column=0, row=3, sticky=(N, W))
+        self.photo_count = StringVar(self.lframe, value='0')
+        if self.album != None:
+            self.photo_count.set(self.album.get_photo_count())
+        self.photos = ttk.Entry(self.lframe, width=40,
+                                textvariable=self.photo_count,
+                                font=self.tfont, state='readonly')
+        self.photos.grid(column=1, row=3, sticky=(W))
+
+    def get_frame(self):
+        return self.lframe
+
+    def get_photos_field(self):
+        return self.photos
+
+
 class PlornAddAlbum(Toplevel):
     def __init__(self, parent):
         super().__init__(parent)
@@ -132,62 +198,53 @@ class PlornAddAlbum(Toplevel):
         tfont = font.nametofont('TkDefaultFont')
         self.name = ''
         self.new_album = None
-        self.photo_list = {}
         self.db = plorn_db.open()
         self.cfg = plorn_config.get_config()
+        self.photo_count = 0
 
-        self.geometry('800x600')
+        self.geometry('950x650')
         self.title('Add an Album')
         self.columnconfigure(0, weight=1)
-        self.rowconfigure(0, weight=1)
-        self.frame = ttk.Frame(self, padding='10 10 10 10')
-        self.frame.grid(column=0, row=0, sticky=(N, W, E, S))
-        for ii in range(0,6):
-            self.frame.rowconfigure(ii, weight=1)
+        self.columnconfigure(1, weight=3)
+        self.rowconfigure(0, weight=10)
+        self.rowconfigure(1, weight=1)
+        self.rowconfigure(2, weight=1)
+        self.rowconfigure(3, weight=2)
 
-        lab1 = ttk.Label(self.frame, width=10, text='Name:')
-        lab1.grid(column=0, row=0, sticky=(W))
-        self.album_name = StringVar(self.frame)
-        self.album_entry = ttk.Entry(self.frame, width=40,
-                                     textvariable=self.album_name,
-                                     font=tfont)
-        self.album_entry.grid(column=1, row=0, sticky=(W))
-        self.album_entry.focus_set()
+        self.lframe = PlornAlbumLeftFrame(self.db, self, album=None)
+        self.lframe.get_frame().grid(column=0, row=0, sticky=(N,W,E,S))
 
-        lab2 = ttk.Label(self.frame, width=10, text='Dated:')
-        lab2.grid(column=0, row=1, sticky=(W))
-        self.dated = StringVar(self.frame)
-        self.date_entry = ttk.Entry(self.frame, width=40,
-                                    textvariable=self.dated,
-                                    font=tfont)
-        self.date_entry.grid(column=1, row=1, sticky=(W))
+        self.name_tree = None
+        self.name_frame = None
+        self.place_tree = None
+        self.tag_tree = None
+        self.rframe = plorn_common.PlornAttrFrame(self.db, self,
+                base_obj=None,
+                get_name_list=self.db.get_names_for_album,
+                get_place_list=self.db.get_places_for_album,
+                get_tag_list=self.db.get_tags_for_album,
+                edit_lists=True,
+        )
+        self.rframe.get_frame().grid(column=1, row=0, sticky=(N,W,E,S))
 
-        lab3 = ttk.Label(self.frame, width=10, text='Notes:')
-        lab3.grid(column=0, row=2, sticky=(N, W))
-        self.notes = Text(self.frame, height=10, width=40, font=tfont)
-        self.notes.grid(column=1, row=2, sticky=(N, W, E, S))
+        self.sep1 = ttk.Separator(self, orient=HORIZONTAL)
+        self.sep1.grid(column=0, row=1, columnspan=2, sticky=(W+E))
+        self.sep2 = ttk.Separator(self, orient=HORIZONTAL)
+        self.sep2.grid(column=0, row=2, columnspan=2, sticky=(W+E))
 
-        sep1 = ttk.Separator(self.frame, orient=HORIZONTAL)
-        sep1.grid(column=0, row=3, columnspan=3, sticky=(W+E))
-        sep2 = ttk.Separator(self.frame, orient=HORIZONTAL)
-        sep2.grid(column=0, row=4, columnspan=3, sticky=(W+E))
-
-        self.photo_count = 0
-        self.badd = ttk.Button(self.frame, text='Add',
-                               command=self.add_album)
-        self.badd.grid(column=0, row=6)
-
-        bframe = ttk.Frame(self.frame, padding='10 10 10 10')
-        bframe.grid(column=1, row=6, sticky=(NS))
-        self.bclear = ttk.Button(bframe, text='Clear',
-                               command=self.clear_entries)
-        self.bclear.grid(column=0, row=0)
-        self.bcancel = ttk.Button(bframe, text='Cancel',
-                                  command=self.destroy)
-        self.bcancel.grid(column=1, row=0)
-        self.bdone = ttk.Button(self.frame, text='Done',
-                               command=self.destroy)
-        self.bdone.grid(column=2, row=6)
+        self.bframe = ttk.Frame(self, padding='10 10 10 10')
+        self.bframe.grid(column=0, row=3, columnspan=2, sticky=(W+E))
+        self.add_buttons = [
+            ttk.Button(self.bframe, text='Add', command=self.add_album),
+            ttk.Button(self.bframe, text='Clear', command=self.clear_entries),
+            ttk.Button(self.bframe, text='Cancel', command=self.destroy),
+            ttk.Button(self.bframe, text='Done', command=self.destroy),
+        ]
+        self.bframe.rowconfigure(0, weight=1)
+        self.bframe.columnconfigure(0, weight=50)
+        for n in range(0, len(self.add_buttons)):
+            self.bframe.columnconfigure(n+1, weight=1)
+            self.add_buttons[n].grid(column=n, row=0, sticky=(E))
 
     def get_dirname(self):
         self.path = filedialog.askdirectory(parent=self,
@@ -233,174 +290,6 @@ class PlornAddAlbum(Toplevel):
             messagebox.showinfo(message=msg, parent=self)
 
 
-def build_left_frame(db, parent, album, default_state='normal'):
-    tfont=font.nametofont('TkDefaultFont')
-    lframedict = {}
-    lframe = ttk.Frame(parent, padding='10 10 10 10')
-    lframe.columnconfigure(0, weight=1)
-    for ii in range(0,7):
-        lframe.rowconfigure(ii, weight=1)
-    lframedict['frame'] = lframe
-
-    lab1 = ttk.Label(lframe, width=10, text='Name:')
-    lab1.grid(column=0, row=0, sticky=(W))
-    lframedict['lab1'] = lab1
-    album_name = StringVar(lframe)
-    album_name.set(album.get_name())
-    lframedict['album_name'] = album_name
-    album_entry = ttk.Entry(lframe, width=40,
-                            textvariable=album_name,
-                            font=tfont, state=default_state)
-    album_entry.grid(column=1, row=0, sticky=(W))
-    album_entry.focus_set()
-    lframedict['album_entry'] = album_entry
-
-    lab2 = ttk.Label(lframe, width=10, text='Dated:')
-    lab2.grid(column=0, row=1, sticky=(W))
-    lframedict['lab2'] = lab2
-    dated = StringVar(lframe)
-    dated.set(album.get_dated())
-    lframedict['dated'] = dated
-    date_entry = ttk.Entry(lframe, width=40,
-                           textvariable=dated,
-                           font=tfont, state=default_state)
-    date_entry.grid(column=1, row=1, sticky=(W))
-    lframedict['date_entry'] = date_entry
-
-    lab3 = ttk.Label(lframe, width=10, text='Notes:')
-    lab3.grid(column=0, row=2, sticky=(N, W))
-    lframedict['lab3'] = lab3
-    notes = Text(lframe, height=10, width=40, font=tfont)
-    notes.insert('1.0', album.get_notes())
-    note_state = 'normal'
-    if default_state == 'readonly':
-        note_state = 'disabled'
-    notes.configure(state=note_state)
-    notes.grid(column=1, row=2, sticky=(N, W, E, S))
-    lframedict['notes'] = notes
-
-    lab4 = ttk.Label(lframe, width=10, text='Photos:')
-    lab4.grid(column=0, row=3, sticky=(N, W))
-    lframedict['lab3'] = lab3
-    photo_count = StringVar(lframe)
-    photo_count.set(album.get_photo_count())
-    lframedict['photo_count'] = photo_count
-    photos = ttk.Entry(lframe, width=40,
-                            textvariable=photo_count,
-                            font=tfont, state=default_state)
-    photos.grid(column=1, row=3, sticky=(W))
-    lframedict['photos'] = photos
-
-    return lframedict
-
-def build_right_frame(db, parent, album, edit_lists=False,
-                      name_cmds=(), place_cmds=(), tag_cmds=()):
-    rframedict = {}
-    rframe = ttk.Frame(parent, padding='10 10 10 10')
-    rframe.columnconfigure(0, weight=20)
-    rframe.columnconfigure(1, weight=1)
-    for ii in range(0,3):
-        rframe.rowconfigure(ii, weight=1)
-    rframedict['frame'] = rframe
-
-    add_icon = tk.PhotoImage(file='list-add.png')
-    rframedict['add_icon'] = add_icon
-    rm_icon = tk.PhotoImage(file='list-remove.png')
-    rframedict['rm_icon'] = rm_icon
-
-    name_listbox = build_listbox(rframe, "Names")
-    name_listbox['frame'].grid(column=0, row=0, sticky=(N,W,E,S))
-    names = album.get_name_list()
-    name_listbox['listvar'].set([])
-    name_list = []
-    namedict = {}
-    for ii in names:
-        fullname = db.get_full_name(ii.get_id())
-        namedict[ii.get_id()] = fullname
-        name_list.append(fullname)
-    name_listbox['listvar'].set(name_list)
-    rframedict['names'] = names
-    rframedict['namedict'] = namedict
-    rframedict['name_listbox'] = name_listbox
-    if edit_lists:
-        add_cmd = None
-        remove_cmd = None
-        if name_cmds != None:
-            add_cmd, remove_cmd = name_cmds
-        nbframe = ttk.Frame(rframe, padding=(5,5,5,5))
-        nbframe.columnconfigure(0, weight=1)
-        nbframe.rowconfigure(0, weight=8)
-        nbframe.rowconfigure(1, weight=1)
-        nbframe.rowconfigure(2, weight=1)
-        name_add = ttk.Button(nbframe, image=add_icon, command=add_cmd)
-        name_add.grid(column=0, row=1)
-        rframedict['name_add'] = name_add
-        name_remove = ttk.Button(nbframe, image=rm_icon, command=remove_cmd)
-        name_remove.grid(column=0, row=2)
-        rframedict['name_remove'] = name_remove
-        nbframe.grid(column=1, row=0, sticky=(N,W,E,S))
-
-    place_listbox = build_listbox(rframe, "Places")
-    place_listbox['frame'].grid(column=0, row=1, sticky=(N,W,E,S))
-    places = album.get_place_list()
-    place_listbox['listvar'].set([])
-    place_list = []
-    for ii in places:
-        p = ', '.join(db.get_full_place(ii.get_id()))
-        place_list.append(p)
-    place_listbox['listvar'].set(place_list)
-    rframedict['places'] = places
-    rframedict['place_listbox'] = place_listbox
-    if edit_lists:
-        add_cmd = None
-        remove_cmd = None
-        if place_cmds != None:
-            add_cmd, remove_cmd = place_cmds
-        pbframe = ttk.Frame(rframe, padding=(5,5,5,5))
-        pbframe.columnconfigure(0, weight=1)
-        pbframe.rowconfigure(0, weight=8)
-        pbframe.rowconfigure(1, weight=1)
-        pbframe.rowconfigure(2, weight=1)
-        place_add = ttk.Button(pbframe, image=add_icon, command=add_cmd)
-        place_add.grid(column=0, row=1)
-        rframedict['name_add'] = place_add
-        place_remove = ttk.Button(pbframe, image=rm_icon, command=remove_cmd)
-        place_remove.grid(column=0, row=2)
-        rframedict['name_remove'] = place_remove
-        pbframe.grid(column=1, row=1, sticky=(N,W,E,S))
-
-    tag_listbox = build_listbox(rframe, "Tags")
-    tag_listbox['frame'].grid(column=0, row=2, sticky=(N,W,E,S))
-    tags = album.get_tag_list()
-    tag_listbox['listvar'].set([])
-    tag_list = []
-    for ii in tags:
-        p = '-'.join(db.get_full_tag(ii.get_id()))
-        tag_list.append(p)
-    tag_listbox['listvar'].set(tag_list)
-    rframedict['tags'] = tags
-    rframedict['tag_listbox'] = tag_listbox
-    if edit_lists:
-        add_cmd = None
-        remove_cmd = None
-        if tag_cmds != None:
-            add_cmd, remove_cmd = tag_cmds
-        tbframe = ttk.Frame(rframe, padding=(5,5,5,5))
-        tbframe.columnconfigure(0, weight=1)
-        tbframe.rowconfigure(0, weight=8)
-        tbframe.rowconfigure(1, weight=1)
-        tbframe.rowconfigure(2, weight=1)
-        tag_add = ttk.Button(tbframe, image=add_icon, command=add_cmd)
-        tag_add.grid(column=0, row=1)
-        rframedict['tag_add'] = tag_add
-        tag_remove = ttk.Button(tbframe, image=rm_icon, command=remove_cmd)
-        tag_remove.grid(column=0, row=2)
-        rframedict['tag_remove'] = tag_remove
-        tbframe.grid(column=1, row=2, sticky=(N,W,E,S))
-
-    return rframedict
-
-
 class PlornShowAlbum(Toplevel):
     def __init__(self, parent, album_id):
         super().__init__(parent)
@@ -419,9 +308,9 @@ class PlornShowAlbum(Toplevel):
         self.rowconfigure(3, weight=1)
         self.rowconfigure(4, weight=1)
 
-        self.lframe = build_left_frame(self.db, self, self.album,
-                                       default_state='readonly')
-        self.lframe['frame'].grid(column=0, row=0, sticky=(N,W,E,S))
+        self.lframe = PlornAlbumLeftFrame(self.db, self, album=self.album,
+                                          default_state='readonly')
+        self.lframe.get_frame().grid(column=0, row=0, sticky=(N,W,E,S))
 
         self.name_tree = None
         self.name_frame = None
@@ -466,9 +355,9 @@ class PlornRemoveAlbum(Toplevel):
         self.rowconfigure(2, weight=1)
         self.rowconfigure(3, weight=1)
 
-        self.lframe = build_left_frame(self.db, self, self.album,
-                                       default_state='readonly')
-        self.lframe['frame'].grid(column=0, row=0, sticky=(N,W,E,S))
+        self.lframe = PlornAlbumLeftFrame(self.db, self, album=self.album,
+                                          default_state='readonly')
+        self.lframe.get_frame().grid(column=0, row=0, sticky=(N,W,E,S))
 
         self.name_tree = None
         self.name_frame = None
@@ -527,22 +416,23 @@ class PlornEditAlbum(Toplevel):
         self.rowconfigure(2, weight=1)
         self.rowconfigure(3, weight=1)
 
-        self.lframe = build_left_frame(self.db, self, self.album,
-                                       default_state='normal')
-        self.lframe['photos'].configure(state='readonly')
-        self.lframe['frame'].grid(column=0, row=0, sticky=(N,W,E,S))
+        self.lframe = PlornAlbumLeftFrame(self.db, self, album=self.album,
+                                          default_state='normal')
+        self.lframe.get_photos_field().configure(state='readonly')
+        self.lframe.get_frame().grid(column=0, row=0, sticky=(N,W,E,S))
 
         self.name_tree = None
         self.name_frame = None
         self.place_tree = None
         self.tag_tree = None
-        self.rframe = build_right_frame(self.db, self, self.album,
-                                edit_lists=True,
-                                name_cmds=(self.add_name, self.remove_name),
-                                place_cmds=(self.add_place, self.remove_place),
-                                tag_cmds=(self.add_tag, self.remove_tag),
-                               )
-        self.rframe['frame'].grid(column=1, row=0, sticky=(N,W,E,S))
+        self.rframe = plorn_common.PlornAttrFrame(self.db, self,
+                base_obj=self.album,
+                get_name_list=self.db.get_names_for_album,
+                get_place_list=self.db.get_places_for_album,
+                get_tag_list=self.db.get_tags_for_album,
+                edit_lists=True,
+        )
+        self.rframe.get_frame().grid(column=1, row=0, sticky=(N,W,E,S))
 
         sep1 = ttk.Separator(self, orient=HORIZONTAL)
         sep1.grid(column=0, row=1, columnspan=3, sticky=(W+E))
