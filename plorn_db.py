@@ -11,7 +11,6 @@ import plorn_attr
 import plorn_config
 import plorn_name
 import plorn_photo
-import plorn_place
 
 module_logger = logging.getLogger('plorn.db')
 module_logger.setLevel(logging.DEBUG)
@@ -713,8 +712,8 @@ class PlornDb:
         res = self.cursor.execute(sql)
         row = res.fetchone()
         module_logger.debug(f'added place {str(row)}')
-        return plorn_place.PlornPlace(row['place'], id=row['id'],
-                                      parent_id=row['parent_id'])
+        return plorn_attr.PlornPlace(row['place'], id=row['id'],
+                                     parent_id=row['parent_id'])
 
     def place_exists(self, place, parent_id=0):
         sql = f'SELECT * FROM places WHERE place = \'{place}\''
@@ -730,8 +729,8 @@ class PlornDb:
         res = self.cursor.execute(sql)
         row = res.fetchone()
         module_logger.debug(f'get_place: {str(row)}')
-        return plorn_place.PlornPlace(row['place'], id=row['id'],
-                                      parent_id=row['parent_id'])
+        return plorn_attr.PlornPlace(row['place'], id=row['id'],
+                                     parent_id=row['parent_id'])
 
     def get_place_children(self, place_id):
         sql  = f'SELECT * FROM places WHERE parent_id = {place_id}'
@@ -741,8 +740,8 @@ class PlornDb:
         module_logger.debug(f'get_place_children: found {len(rows)} for {place_id}')
         result = []
         for ii in rows:
-            p = plorn_place.PlornPlace(ii['place'], id=ii['id'],
-                                       parent_id=ii['parent_id'])
+            p = plorn_attr.PlornPlace(ii['place'], id=ii['id'],
+                                      parent_id=ii['parent_id'])
             result.append(p)
         return result
 
@@ -769,7 +768,7 @@ class PlornDb:
         module_logger.debug(f'get_places: {rows}')
         result = []
         for ii in rows:
-            p = plorn_place.PlornPlace(ii['place'], id=ii['id'],
+            p = plorn_attr.PlornPlace(ii['place'], id=ii['id'],
                                        parent_id=ii['parent_id'])
             result.append(p)
         return result
@@ -786,8 +785,8 @@ class PlornDb:
         res = self.cursor.execute(sql)
         row = res.fetchone()
         module_logger.debug(f'place obj by place \'{place}\': {str(row)}')
-        return plorn_place.PlornPlace(row['place'], id=row['id'],
-                                      parent_id=row['parent_id'])
+        return plorn_attr.PlornPlace(row['place'], id=row['id'],
+                                     parent_id=row['parent_id'])
 
     def remove_place(self, place_id, parent_id):
         sql  = f'DELETE FROM places WHERE id = \'{place_id}\''
@@ -838,8 +837,8 @@ class PlornDb:
 
     def add_place(self, place):
         row = self.add_attr(place)
-        return plorn_place.PlornPlace(row['value'], id=row['id'],
-                                      parent_id=row['parent_id'])
+        return plorn_attr.PlornPlace(row['value'], id=row['id'],
+                                     parent_id=row['parent_id'])
 
     def add_tag(self, tag):
         row = self.add_attr(tag)
@@ -877,8 +876,8 @@ class PlornDb:
 
     def get_place(self, place_id):
         row = self.get_attr(place_id, 'tags')
-        return plorn_place.PlornPlace(row['value'], id=row['id'],
-                                      parent_id=row['parent_id'])
+        return plorn_attr.PlornPlace(row['value'], id=row['id'],
+                                     parent_id=row['parent_id'])
 
     def get_tag(self, tag_id):
         row = self.get_attr(tag_id, 'tags')
@@ -906,8 +905,8 @@ class PlornDb:
         rows = self.get_attr_children(place)
         result = []
         for ii in rows:
-            p = plorn_place.PlornPlace(ii['value'], id=ii['id'],
-                                       parent_id=ii['parent_id'])
+            p = plorn_attr.PlornPlace(ii['value'], id=ii['id'],
+                                      parent_id=ii['parent_id'])
             result.append(p)
         return result
 
@@ -970,8 +969,8 @@ class PlornDb:
         rows = self.get_all_attrs('places')
         result = []
         for ii in rows:
-            p = plorn_place.PlornPlace(ii['value'], id=ii['id'],
-                                       parent_id=ii['parent_id'])
+            p = plorn_attr.PlornPlace(ii['value'], id=ii['id'],
+                                      parent_id=ii['parent_id'])
             result.append(p)
         return result
 

@@ -8,7 +8,6 @@ import plorn_config
 import plorn_db
 import plorn_name
 import plorn_photo
-import plorn_place
 
 
 class TestDbTagMethods(unittest.TestCase):
