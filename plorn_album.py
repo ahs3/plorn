@@ -12,6 +12,8 @@ from tkinter import font
 from tkinter import filedialog
 from tkinter import messagebox
 
+import plorn_attr
+import plorn_base_obj
 import plorn_db
 import plorn_common
 import plorn_config
@@ -21,97 +23,18 @@ import plorn_photo
 module_logger = logging.getLogger('plorn.album')
 module_logger.setLevel(logging.DEBUG)
 
-class PlornAlbum:
+class PlornAlbum(plorn_base_obj.PlornBaseObj):
     def __init__(self, name, id=None, dated='', notes='', photo_count=0,
                  names=[], places=[], tags=[]):
-        self.id = id
-        self.name = name
-        self.dated = dated
-        self.notes = notes
         self.photo_count = photo_count
-        self.name_list = names
-        self.place_list = places
-        self.tag_list = tags
-
+        super().__init__(name, id, dated, notes, names, places, tags)
         module_logger.debug('initializing album object: ' + str(self))
-
-    def __copy__(self):
-        album = PlornAlbum(self.name, id=self.id,
-                           dated=self.dated, notes=self.notes,
-                           photo_count=self.photo_count)
-        album.set_name_list(self.get_names_for_album(album))
-        album.set_place_list(self.get_places_for_album(album))
-        album.set_tag_list(self.get_tags_for_album(album))
-        return album
-
-    def set_id(self, id):
-        self.id = id
-
-    def get_id(self):
-        return self.id
-
-    def set_name(self, name):
-        self.name = name
-
-    def get_name(self):
-        return self.name
-
-    def set_dated(self, dated):
-        self.dated = dated
-
-    def get_dated(self):
-        return self.dated
-
-    def set_notes(self, notes):
-        self.notes = notes
-
-    def get_notes(self):
-        return self.notes
 
     def set_photo_count(self, photo_count):
         self.photo_count = photo_count
 
     def get_photo_count(self):
         return self.photo_count
-
-    def set_name_list(self, name_list):
-        self.name_list.clear()
-        self.name_list = name_list
-
-    def get_name_list(self):
-        return self.name_list
-
-    def add_name_to_list(self, name):
-        self.name_list.append(name)
-
-    def remove_name_from_list(self, name):
-        self.name_list.remove(name)
-
-    def set_place_list(self, place_list):
-        self.place_list.clear()
-        self.place_list = place_list
-
-    def get_place_list(self):
-        return self.place_list
-
-    def add_place_to_list(self, place):
-        self.place_list.append(place)
-
-    def remove_place_from_list(self, place):
-        self.place_list.remove(place)
-
-    def set_tag_list(self, tag_list):
-        self.tag_list.clear()
-        self.tag_list = tag_list
-
-    def get_tag_list(self):
-        return self.tag_list
-
-    def add_tag_to_list(self, tag):
-        self.tag_list.append(tag)
-
-    def remove_tag_from_list(self, tag):
-        self.tag_list.remove(tag)
 
     def __str__(self):
         val  = f'id: \'{self.id}\''
@@ -190,6 +113,18 @@ class PlornAlbumLeftFrame:
     def get_photos_field(self):
         return self.photos
 
+    def get_album_name(self):
+        return self.album_name.get()
+
+    def get_dated(self):
+        return self.dated.get()
+
+    def get_notes(self):
+        return self.notes.get('1.0', END)
+
+    def get_photo_count(self):
+        return self.photo_count.get()
+
 
 class PlornAddAlbum(Toplevel):
     def __init__(self, parent):
@@ -197,7 +132,7 @@ class PlornAddAlbum(Toplevel):
         module_logger.debug('started PlornAddAlbum')
         tfont = font.nametofont('TkDefaultFont')
         self.name = ''
-        self.new_album = None
+        self.new_album = PlornAlbum('')
         self.db = plorn_db.open()
         self.cfg = plorn_config.get_config()
         self.photo_count = 0
@@ -226,6 +161,9 @@ class PlornAddAlbum(Toplevel):
                 edit_lists=True,
         )
         self.rframe.get_frame().grid(column=1, row=0, sticky=(N,W,E,S))
+        self.rframe.set_name_commands(self.add_name, self.remove_name)
+        self.rframe.set_place_commands(self.add_place, self.remove_place)
+        self.rframe.set_tag_commands(self.add_tag, self.remove_tag)
 
         self.sep1 = ttk.Separator(self, orient=HORIZONTAL)
         self.sep1.grid(column=0, row=1, columnspan=2, sticky=(W+E))
@@ -246,18 +184,124 @@ class PlornAddAlbum(Toplevel):
             self.bframe.columnconfigure(n+1, weight=1)
             self.add_buttons[n].grid(column=n, row=0, sticky=(E))
 
-    def get_dirname(self):
-        self.path = filedialog.askdirectory(parent=self,
-                                            title='Select a Directory',
-                                            mustexist=True)
-        if self.path:
-            self.path_entry.insert(0, self.path)
+    def add_name(self):
+        global module_logger
 
-    def get_new_album(self):
-        return self.new_album
+        name_list = self.db.get_all_names()
+        selectone = plorn_attr.PlornSelectAttr('Name', table_name='names',
+                                               attr_list=name_list)
+        selectone.grab_set()
+        self.wait_window(selectone)
+        entry = selectone.get_attr()
+        name = self.db.get_name(entry['id'])
+        self.new_album.add_name_to_list(name)
+        self.rframe.set_name_listbox_values(self.new_album.get_name_list())
+        module_logger.debug('add name, selected: ' + str(name))
 
-    def get_photo_list(self):
-        return self.photo_list
+    def remove_name(self):
+        global module_logger
+
+        name = self.rframe.get_name_listbox_value()
+        module_logger.debug(f'remove_name: {str(name)}')
+        if name == None:
+            messagebox.showinfo(parent=self,
+                                title='Remove Name from Album',
+                                message='No name selected',
+                                detail='Please select a name to remove',
+                               )
+        else:
+            self.new_album.remove_name_from_list(name)
+            self.rframe.set_name_listbox_values(self.new_album.get_name_list())
+
+    def add_place(self):
+        global module_logger
+
+        place_list = self.db.get_all_places()
+        selectone = plorn_attr.PlornSelectAttr('Place', table_name='places',
+                                               attr_list=place_list)
+        selectone.grab_set()
+        self.wait_window(selectone)
+        entry = selectone.get_attr()
+        place = self.db.get_place(entry['id'])
+        self.new_album.add_place_to_list(place)
+        self.rframe.set_place_listbox_values(self.new_album.get_place_list())
+        module_logger.debug('add place, selected: ' + str(place))
+
+    def remove_place(self):
+        global module_logger
+
+        place = self.rframe.get_place_listbox_value()
+        module_logger.debug(f'remove_place: {str(place)}')
+        if place == None:
+            messagebox.showinfo(parent=self,
+                                title='Remove Place from Album',
+                                message='No place selected',
+                                detail='Please select a place to remove',
+                               )
+        else:
+            self.new_album.remove_place_from_list(place)
+            self.rframe.set_place_listbox_values(self.new_album.get_place_list())
+
+    def add_tag(self):
+        global module_logger
+
+        tag_list = self.db.get_all_tags()
+        selectone = plorn_attr.PlornSelectAttr('Tag', table_name='tags',
+                                               attr_list=tag_list)
+        selectone.grab_set()
+        self.wait_window(selectone)
+        entry = selectone.get_attr()
+        tag = self.db.get_tag(entry['id'])
+        self.new_album.add_tag_to_list(tag)
+        self.rframe.set_tag_listbox_values(self.new_album.get_tag_list())
+        module_logger.debug('add tag, selected: ' + str(tag))
+
+    def remove_tag(self):
+        global module_logger
+
+        tag = self.rframe.get_tag_listbox_value()
+        module_logger.debug(f'remove_tag: {str(tag)}')
+        if tag == None:
+            messagebox.showinfo(parent=self,
+                                title='Remove Tag from Album',
+                                message='No tag selected',
+                                detail='Please select a tag to remove',
+                               )
+        else:
+            self.new_album.remove_tag_from_list(place)
+            self.rframe.set_tag_listbox_values(self.new_album.get_tag_list())
+
+    def add_album(self):
+        module_logger.debug('entered add_album')
+        self.name = self.lframe.get_album_name()
+        if self.name == '':
+            messagebox.showerror(parent=self,
+                                 title='Adding an Album',
+                                 message='Album must have non-blank name',
+                                 detail='Please provide a name',
+                                )
+            return
+
+        module_logger.debug(f'add album name: {self.name}')
+        self.new_album.set_name(self.name)
+        self.new_album.set_dated(self.lframe.get_dated())
+        self.new_album.set_notes(self.lframe.get_notes())
+        self.new_album.set_photo_count(self.lframe.get_photo_count())
+        self.new_album.set_name_list(self.rframe.get_listbox_names())
+        self.new_album.set_place_list(self.rframe.get_listbox_places())
+        self.new_album.set_tag_list(self.rframe.get_listbox_tags())
+
+        if self.db.album_exists(self.new_album):
+            messagebox.showerror(parent=self,
+                                 title='Adding an Album',
+                                 message='Album already exists',
+                                 detail='Please use another name',
+                                )
+        else:
+            # now it's reasonable to add the album ....
+            self.new_album = self.db.add_album(self.new_album)
+            msg = f'Added Album \'{self.new_album.get_name()}\''
+            messagebox.showinfo(message=msg, parent=self)
 
     def clear_entries(self):
         self.name = ''
@@ -267,27 +311,8 @@ class PlornAddAlbum(Toplevel):
         self.photo_count = 0
         self.photo_list.clear()
 
-    def add_album(self):
-        module_logger.debug('entered add_album')
-        self.name = self.album_name.get()
-        module_logger.debug(f'add album name: {self.name}')
-        album = PlornAlbum(self.album_name.get(),
-                           id=None,
-                           dated=self.dated.get(),
-                           notes=self.notes.get('1.0', END),
-                           photo_count=self.photo_count,
-                          )
-
-        if self.db.album_exists(album):
-            messagebox.showerror(parent=self,
-                                 title='Adding an Album',
-                                 message='Album already exists',
-                                 detail='Please use another name',
-                                )
-        else:
-            self.new_album = self.db.add_album(album)
-            msg = f'Adding Album \'{album.get_name()}\''
-            messagebox.showinfo(message=msg, parent=self)
+    def get_new_album(self):
+        return self.new_album
 
 
 class PlornShowAlbum(Toplevel):
@@ -384,7 +409,7 @@ class PlornRemoveAlbum(Toplevel):
         self.cancel.grid(column=1, row=3, sticky=(W))
 
     def confirm_remove(self):
-        album_name = self.lframe['album_name'].get()
+        album_name = self.lframe.get_album_name()
         result = messagebox.askyesnocancel('Confirm Removal',
                     message=f'Remove album {album_name}?',
                     detail='Removes only the catalog entries, not the files.',

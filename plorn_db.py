@@ -1,3 +1,4 @@
+import copy
 import logging
 import os
 import sqlite3
@@ -342,9 +343,47 @@ class PlornDb:
         res = self.cursor.execute(sql)
         row = res.fetchone()
         module_logger.debug(f'added album {str(row)}')
-        return plorn_album.PlornAlbum(row['name'], id=row['id'],
-                                      dated=row['dated'], notes=row['notes'],
-                                      photo_count=row['photo_count'])
+        result = plorn_album.PlornAlbum(row['name'], id=row['id'],
+                                        dated=row['dated'], notes=row['notes'],
+                                        photo_count=row['photo_count'])
+
+        album_id = result.get_id()
+        result.set_name_list(album.get_name_list())
+        result.set_place_list(album.get_place_list())
+        result.set_tag_list(album.get_tag_list())
+        #print(f'-- db: add_album')
+        #print(f'-- db: insert album_names')
+        if len(album.get_name_list()) > 0:
+            sql  = 'INSERT INTO album_names (name_id, album_id) VALUES '
+            for ii in album.get_name_list():
+                #print(f'   {ii.get_value()}: {ii.get_id()}, {album_id}')
+                sql += f'({ii.get_id()}, {album_id}), '
+            idx = sql.rfind(',')
+            sql = sql[0:idx]
+            res = self.cursor.execute(sql)
+
+        #print(f'-- db: insert album_places')
+        if len(album.get_place_list()) > 0:
+            sql  = 'INSERT INTO album_places (place_id, album_id) VALUES '
+            for ii in album.get_place_list():
+                #print(f'   {ii.get_value()}: {ii.get_id()}, {album_id}')
+                sql += f'({ii.get_id()}, {album_id}), '
+            idx = sql.rfind(',')
+            sql = sql[0:idx]
+            res = self.cursor.execute(sql)
+
+        #print(f'-- db: insert album_tags')
+        if len(album.get_tag_list()) > 0:
+            sql  = 'INSERT INTO album_tags (tag_id, album_id) VALUES '
+            for ii in album.get_tag_list():
+                #print(f'   {ii.get_value()}: {ii.get_id()}, {album_id}')
+                sql += f'({ii.get_id()}, {album_id}), '
+            idx = sql.rfind(',')
+            sql = sql[0:idx]
+            res = self.cursor.execute(sql)
+
+        self.db.commit()
+        return result
 
     def get_album(self, album_id):
         return self.get_album_by_id(album_id)
@@ -365,9 +404,20 @@ class PlornDb:
             return None
         p = plorn_album.PlornAlbum(row['name'], id=row['id'],
                                    dated=row['dated'], notes=row['notes'],
-                                   photo_count=row['photo_count'])
+                                   photo_count=row['photo_count'],
+                                  )
+
         p.set_name_list(self.get_names_for_album(p))
+        #print(f'-- db: p pre place list')
+        #print(f'   len {len(p.get_place_list())}')
+        #print(f'-- db: p pre get place list')
+        #for ii in self.get_places_for_album(p):
+        #    print(f'   {str(ii)}')
         p.set_place_list(self.get_places_for_album(p))
+        #print(f'-- db: p post place list')
+        #print(f'   len {len(p.get_place_list())}')
+        #for ii in p.get_place_list():
+        #    print(f'   {str(ii)}')
         p.set_tag_list(self.get_tags_for_album(p))
         return p
 
@@ -583,21 +633,6 @@ class PlornDb:
                                       id=row['id'], album_id=row['album_id'],
                                       dated=row['dated'], notes=row['notes'])
 
-    def add_name(self, name, parent_id=0):
-        sql  = 'INSERT INTO names (name, parent_id) VALUES '
-        pid = parent_id
-        if parent_id == None:
-            pid = 0
-        sql += f'(\'{name}\', \'{pid}\')'
-        res = self.cursor.execute(sql)
-        self.db.commit()
-        sql = f'SELECT * FROM names WHERE name = \'{name}\''
-        res = self.cursor.execute(sql)
-        row = res.fetchone()
-        module_logger.debug(f'added name {str(row)}')
-        return plorn_attr.PlornName(row['name'], id=row['id'],
-                                    parent_id=row['parent_id'])
-
     def name_exists(self, name, parent_id=0):
         sql = f'SELECT * FROM names WHERE name = \'{name}\''
         res = self.cursor.execute(sql)
@@ -699,21 +734,6 @@ class PlornDb:
         return plorn_attr.PlornName(row['name'], id=row['id'],
                                     parent_id=row['parent_id'])
 
-    def add_place(self, place, parent_id=0):
-        sql = 'INSERT INTO places (place, parent_id) VALUES '
-        pid = parent_id
-        if parent_id == None:
-            pid = 0
-        sql += f'(\'{place}\', \'{pid}\')'
-        res = self.cursor.execute(sql)
-        self.db.commit()
-        sql = f'SELECT * FROM places WHERE place = \'{place}\''
-        res = self.cursor.execute(sql)
-        row = res.fetchone()
-        module_logger.debug(f'added place {str(row)}')
-        return plorn_attr.PlornPlace(row['place'], id=row['id'],
-                                     parent_id=row['parent_id'])
-
     def place_exists(self, place, parent_id=0):
         sql = f'SELECT * FROM places WHERE place = \'{place}\''
         res = self.cursor.execute(sql)
@@ -722,14 +742,6 @@ class PlornDb:
             if ii['parent_id'] == parent_id:
                 return True
         return False
-
-    def get_place(self, place_id, parent_id=0):
-        sql = f'SELECT * FROM places WHERE id = \'{place_id}\''
-        res = self.cursor.execute(sql)
-        row = res.fetchone()
-        module_logger.debug(f'get_place: {str(row)}')
-        return plorn_attr.PlornPlace(row['place'], id=row['id'],
-                                     parent_id=row['parent_id'])
 
     def get_place_children(self, place_id):
         sql  = f'SELECT * FROM places WHERE parent_id = {place_id}'
@@ -874,7 +886,7 @@ class PlornDb:
                                     parent_id=row['parent_id'])
 
     def get_place(self, place_id):
-        row = self.get_attr(place_id, 'tags')
+        row = self.get_attr(place_id, 'places')
         return plorn_attr.PlornPlace(row['value'], id=row['id'],
                                      parent_id=row['parent_id'])
 
@@ -1053,6 +1065,9 @@ class PlornDb:
         sql += f' WHERE album_id = {album.get_id()}'
         res = self.cursor.execute(sql)
         rows = res.fetchall()
+        #print(f'-- db: get_places_for_album')
+        #for ii in rows:
+        #    print(f'   {str(ii)}')
         result = []
         for ii in rows:
             result.append(self.get_place(ii['place_id']))
@@ -1067,6 +1082,24 @@ class PlornDb:
         for ii in rows:
             result.append(self.get_tag(ii['tag_id']))
         return result
+
+    def get_raw_names_table(self):
+        sql  = f'SELECT * FROM names'
+        res = self.cursor.execute(sql)
+        rows = res.fetchall()
+        return rows
+
+    def get_raw_places_table(self):
+        sql  = f'SELECT * FROM places'
+        res = self.cursor.execute(sql)
+        rows = res.fetchall()
+        return rows
+
+    def get_raw_tags_table(self):
+        sql  = f'SELECT * FROM tags'
+        res = self.cursor.execute(sql)
+        rows = res.fetchall()
+        return rows
 
 
 def get_dbname(config):

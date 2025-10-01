@@ -161,6 +161,9 @@ class PlornAttrTreeview:
         return self.tview.item(idx)
 
     def update_treeview(self, attr_list):
+        global module_logger
+
+        module_logger.debug(f'update_treeview: {str(attr_list)}')
         for ii in self.tview.get_children():
             self.tview.delete(ii)
         tree_ids = {}
@@ -486,3 +489,50 @@ class PlornEditAttr(Toplevel):
         id = self.db.update_attr(self.attr, attr_copy)
         self.destroy()
 
+
+class PlornSelectAttr(Toplevel):
+    def __init__(self, attr_name='Attribute', table_name='',
+                 attr_list=[]):
+        super().__init__()
+        module_logger.debug('started PlornSelectAttr')
+        self.attr_name = attr_name
+        self.table_name = table_name
+        self.attr = None
+        self.attr_list = attr_list
+        module_logger.debug(f'PlornSelectAttr attr_list: {str(attr_list)}')
+        self.db = plorn_db.open()
+        self.tfont = font.nametofont('TkDefaultFont')
+
+        self.geometry('600x450')
+        self.title(f'Select {self.attr_name}')
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(0, weight=1)
+        self.rowconfigure(1, weight=1)
+        self.frame = ttk.Frame(self, padding='10 10 10 10')
+        self.frame.grid(column=0, row=0, sticky=(N, W, E, S))
+
+        self.tview = PlornAttrTreeview(self.frame, heading=attr_name,
+                                       table_name=table_name,
+                                       selectmode='browse')
+        self.tview.get_frame().grid(column=0, row=0, sticky=(N,W,E,S))
+        self.tview.update_treeview(self.attr_list)
+
+        self.bframe = ttk.Frame(self, padding='10 10 10 10')
+        self.bframe.grid(column=0, row=1, sticky=(W+E))
+        self.buttons = [
+            ttk.Button(self.bframe, text='add', command=self.select_attr),
+            ttk.Button(self.bframe, text='done', command=self.destroy),
+        ]
+        for n in range(0, len(self.buttons)):
+            self.buttons[n].grid(column=n, row=0, padx=10, pady=10)
+
+    def select_attr(self):
+        idx = self.tview.focus()
+        if idx != '':
+            entry = self.tview.item(idx)
+            self.attr = self.db.get_attr(entry['values'][0],
+                                         table_name=self.table_name)
+        self.destroy()
+
+    def get_attr(self):
+        return copy.deepcopy(self.attr)

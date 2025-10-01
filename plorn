@@ -279,9 +279,6 @@ class Plorn(Tk):
         
         if album != None and album.get_id() != None:
             self.current_album = album
-            self.photo_list = addone.get_photo_list()
-            logger.debug(f'photo_list {str(self.photo_list)}')
-            self.update_photoview(album.get_id())
             self.update_albumview()
 
     def remove_album(self):

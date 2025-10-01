@@ -53,6 +53,12 @@ class PlornAttrListbox:
     def set_listvar(self, value_list):
         self.listvar.set(value_list)
 
+    def curselection(self):
+        return self.listbox.curselection()
+
+    def get(self, idx):
+        return self.listbox.get(idx)
+
 
 class PlornAttrFrame:
     '''
@@ -87,14 +93,10 @@ class PlornAttrFrame:
         self.name_listbox.get_frame().grid(column=0, row=0, sticky=(N,W,E,S))
         self.names = []
         self.names_dict = {}
-        self.name_listbox.set_listvar([])
+        names = []
         if self.base_obj != None:
-            self.names = self.get_name_list(self.base_obj)
-            if len(self.names) > 0:
-                for ii in self.names:
-                    fullname = ', '.join(self.db.get_full_name(ii))
-                    self.names_dict[fullname] = ii
-                self.name_listbox.set_listvar(list(self.names_dict.keys()))
+            names = self.get_name_list(self.base_obj)
+        self.set_name_listbox_values(names)
 
         self.name_add_cmd = None
         self.name_remove_cmd = None
@@ -107,15 +109,10 @@ class PlornAttrFrame:
         self.place_listbox.get_frame().grid(column=0, row=1, sticky=(N,W,E,S))
         self.places = []
         self.places_dict = {}
-        self.place_listbox.set_listvar([])
+        places = []
         if self.base_obj != None:
-            self.places = self.get_place_list(base_obj)
-            module_logger.debug(f'place list: {str(self.places)}')
-            if len(self.places) > 0:
-                for ii in self.places:
-                    fullplace = ', '.join(self.db.get_full_place(ii))
-                    self.places_dict[fullplace] = ii
-                self.place_listbox.set_listvar(list(self.places_dict.keys()))
+            places = self.get_place_list(base_obj)
+        self.set_place_listbox_values(places)
 
         self.place_add_cmd = None
         self.place_remove_cmd = None
@@ -128,15 +125,10 @@ class PlornAttrFrame:
         self.tag_listbox.get_frame().grid(column=0, row=2, sticky=(N,W,E,S))
         self.tags = []
         self.tags_dict = {}
-        self.tag_listbox.set_listvar([])
+        tags = []
         if self.base_obj != None:
-            self.tags = self.get_tag_list(base_obj)
-            module_logger.debug(f'tag list: {str(self.tags)}')
-            if len(self.tags) > 0:
-                for ii in self.tags:
-                    fulltag = '/'.join(self.db.get_full_tag(ii))
-                    self.tags_dict[fulltag] = ii
-                self.tag_listbox.set_listvar(list(self.tags_dict.keys()))
+            tags = self.get_tag_list(base_obj)
+        self.set_tag_listbox_values(tags)
 
         self.tag_add_cmd = None
         self.tag_remove_cmd = None
@@ -147,6 +139,95 @@ class PlornAttrFrame:
 
     def get_frame(self):
         return self.rframe
+
+    def set_name_listbox_values(self, name_list):
+        self.names.clear()
+        self.names_dict.clear()
+        if len(name_list) > 0:
+            self.names = copy.deepcopy(name_list)
+            for ii in name_list:
+                fullname = ', '.join(self.db.get_full_name(ii))
+                self.names_dict[fullname] = ii
+            self.name_listbox.set_listvar(list(self.names_dict.keys()))
+        else:
+            self.name_listbox.set_listvar([])
+
+    def get_name_listbox_value(self):
+        global module_logger
+
+        idx = self.name_listbox.curselection()
+        value = self.name_listbox.get(idx)
+        module_logger.debug(f'get_name_listbox_value: {str(value)}')
+        if value in self.names_dict:
+            return self.names_dict[value]
+        else:
+            return None
+
+    def get_listbox_names(self):
+        result = []
+        nlist = self.name_listbox.get_listvar()
+        module_logger.debug(f'get_listbox_names: {str(nlist)}')
+        for ii in nlist:
+            result.append(self.names_dict[ii])
+        return result
+
+    def set_place_listbox_values(self, place_list):
+        self.places.clear()
+        self.places_dict.clear()
+        if len(place_list) > 0:
+            self.places = copy.deepcopy(place_list)
+            for ii in place_list:
+                fullplace = ', '.join(self.db.get_full_place(ii))
+                self.places_dict[fullplace] = ii
+            self.place_listbox.set_listvar(list(self.places_dict.keys()))
+        else:
+            self.place_listbox.set_listvar([])
+
+    def get_place_listbox_value(self):
+        global module_logger
+
+        idx = self.place_listbox.curselection()
+        value = self.place_listbox.get(idx)
+        module_logger.debug(f'get_place_listbox_value: {str(value)}')
+        if value in self.places_dict:
+            return self.places_dict[value]
+        else:
+            return None
+
+    def get_listbox_places(self):
+        result = []
+        for ii in self.places_dict.keys():
+            result.append(self.places_dict[ii])
+        return result
+
+    def set_tag_listbox_values(self, tag_list):
+        self.tags.clear()
+        self.tags_dict.clear()
+        if len(tag_list) > 0:
+            self.tags = copy.deepcopy(tag_list)
+            for ii in tag_list:
+                fulltag = '/'.join(self.db.get_full_tag(ii))
+                self.tags_dict[fulltag] = ii
+            self.tag_listbox.set_listvar(list(self.tags_dict.keys()))
+        else:
+            self.tag_listbox.set_listvar([])
+
+    def get_place_listbox_value(self):
+        global module_logger
+
+        idx = self.place_listbox.curselection()
+        value = self.place_listbox.get(idx)
+        module_logger.debug(f'get_place_listbox_value: {str(value)}')
+        if value in self.places_dict:
+            return self.places_dict[value]
+        else:
+            return None
+
+    def get_listbox_tags(self):
+        result = []
+        for ii in self.tags_dict.keys():
+            result.append(self.tags_dict[ii])
+        return result
 
     def add_edit_frame(self, add_cmd, remove_cmd):
         bframe = None
@@ -167,4 +248,16 @@ class PlornAttrFrame:
                                    command=remove_cmd)
         remove_button.grid(column=0, row=2)
         return (bframe, add_button, remove_button)
+
+    def set_name_commands(self, add_cmd, remove_cmd):
+        self.name_add.configure(command=add_cmd)
+        self.name_remove.configure(command=remove_cmd)
+
+    def set_place_commands(self, add_cmd, remove_cmd):
+        self.place_add.configure(command=add_cmd)
+        self.place_remove.configure(command=remove_cmd)
+
+    def set_tag_commands(self, add_cmd, remove_cmd):
+        self.tag_add.configure(command=add_cmd)
+        self.tag_remove.configure(command=remove_cmd)
 
