@@ -1,12 +1,31 @@
 TODO
 ====
--- When asking for directories, can we make the font bigger?  Using the
-   stock filedialog.messagebox may not be sufficient.
+-- Finish editing of an album, including attributes.
+
+-- Add in attributes to photos when adding, editing and so on.
+
+-- Add in search tab to look for names or attributes.  If a search
+   finds something, have a button to create a new album from the
+   results (i.e., a way to organize different perspectives)
+
+-- Add an album "Export" that creates a tarball containing an ASCII
+   version of the database info (e.g., in debian/control-like file
+   format?  or yaml?  and including photo info, not just album), plus
+   copies of all the photos in the album.  Probably would need an
+   equivalent "Import" function for symmetry (need to distinguish this
+   from photo import into an album).
+
+   -- Is there then a "backup" that does the above for all albums?
+   
+-- When asking for directories or files, can we make the font bigger?
+   Using the stock filedialog.messagebox may not be sufficient.
 
 -- Add a "Rescan/Refresh/Update" button to albums and/or photos; i.e.,
-   check the directory for any new images and add them, with option to
-   delete items that are no longer present.  But, don't modify anything
-   else.
+   check that images are still there, with option to delete items that
+   are no longer present.  But, don't modify anything else.
+
+-- Post source to github/gitlab?  Need clear licensing first in all the
+   source files.
 
 
 DONE
