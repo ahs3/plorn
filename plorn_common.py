@@ -212,14 +212,14 @@ class PlornAttrFrame:
         else:
             self.tag_listbox.set_listvar([])
 
-    def get_place_listbox_value(self):
+    def get_tag_listbox_value(self):
         global module_logger
 
-        idx = self.place_listbox.curselection()
-        value = self.place_listbox.get(idx)
-        module_logger.debug(f'get_place_listbox_value: {str(value)}')
-        if value in self.places_dict:
-            return self.places_dict[value]
+        idx = self.tag_listbox.curselection()
+        value = self.tag_listbox.get(idx)
+        module_logger.debug(f'get_tag_listbox_value: {str(value)}')
+        if value in self.tags_dict:
+            return self.tags_dict[value]
         else:
             return None
 

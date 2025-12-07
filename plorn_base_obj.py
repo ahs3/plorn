@@ -79,10 +79,6 @@ class PlornBaseObj:
                 break
 
     def set_place_list(self, place_list):
-        #print(f'-- base: set_place_list')
-        #print(f'-- base: input place_list')
-        #for ii in place_list:
-        #    print(f'   {str(ii)}')
         self.place_list.clear()
         self.place_list = copy.deepcopy(place_list)
 
@@ -93,7 +89,10 @@ class PlornBaseObj:
         self.place_list.append(place)
 
     def remove_place_from_list(self, place):
-        self.place_list.remove(place)
+        for ii in range(0, len(self.place_list)):
+            if self.place_list[ii].get_id() == place.get_id():
+                del self.place_list[ii]
+                break
 
     def set_tag_list(self, tag_list):
         self.tag_list.clear()
@@ -106,7 +105,10 @@ class PlornBaseObj:
         self.tag_list.append(tag)
 
     def remove_tag_from_list(self, tag):
-        self.tag_list.remove(tag)
+        for ii in range(0, len(self.tag_list)):
+            if self.tag_list[ii].get_id() == tag.get_id():
+                del self.tag_list[ii]
+                break
 
     def __str__(self):
         val  = f'id: \'{self.id}\''

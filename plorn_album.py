@@ -462,6 +462,9 @@ class PlornEditAlbum(Toplevel):
                 edit_lists=True,
         )
         self.rframe.get_frame().grid(column=1, row=0, sticky=(N,W,E,S))
+        self.rframe.set_name_commands(self.add_name, self.remove_name)
+        self.rframe.set_place_commands(self.add_place, self.remove_place)
+        self.rframe.set_tag_commands(self.add_tag, self.remove_tag)
 
         sep1 = ttk.Separator(self, orient=HORIZONTAL)
         sep1.grid(column=0, row=1, columnspan=3, sticky=(W+E))
@@ -476,59 +479,91 @@ class PlornEditAlbum(Toplevel):
         self.bcancel.grid(column=1, row=3, sticky=(W))
 
     def add_name(self):
-        messagebox.showinfo(parent=self,
-                            title='Add Name to Album',
-                            message='add_name called',
-                            detail='do something here',
-                           )
+        global module_logger
+
+        name_list = self.db.get_all_names()
+        selectone = plorn_attr.PlornSelectAttr('Name', table_name='names',
+                                               attr_list=name_list)
+        selectone.grab_set()
+        self.wait_window(selectone)
+        entry = selectone.get_attr()
+        name = self.db.get_name(entry['id'])
+        self.album.add_name_to_list(name)
+        self.rframe.set_name_listbox_values(self.album.get_name_list())
+        module_logger.debug('add name, selected: ' + str(name))
 
     def remove_name(self):
         global module_logger
 
-        sel = self.rframe['name_listbox']['listbox'].curselection()
-        if sel == ():
-            messagebox.showerror(parent=self,
+        name = self.rframe.get_name_listbox_value()
+        module_logger.debug(f'remove_name: {str(name)}')
+        if name == None:
+            messagebox.showinfo(parent=self,
                                 title='Remove Name from Album',
                                 message='No name selected',
-                                detail='Please select a name to be removed',
-                           )
+                                detail='Please select a name to remove',
+                               )
         else:
-            idx = sel[0]
-            nlist = list(self.rframe['name_listbox']['listvar'].get())
-            lval = list(nlist.pop(idx))
-            for ii in self.rframe['namedict'].keys():
-                if self.rframe['namedict'][ii] == lval:
-                    del self.rframe['namedict'][ii]
-                    break
-            self.rframe['name_listbox']['listvar'].set(nlist)
+            self.album.remove_name_from_list(name)
+            self.rframe.set_name_listbox_values(self.album.get_name_list())
 
     def add_place(self):
-        messagebox.showinfo(parent=self,
-                            title='Add Place to Album',
-                            message='add_place called',
-                            detail='do something here',
-                           )
+        global module_logger
+
+        place_list = self.db.get_all_places()
+        selectone = plorn_attr.PlornSelectAttr('Place', table_name='places',
+                                               attr_list=place_list)
+        selectone.grab_set()
+        self.wait_window(selectone)
+        entry = selectone.get_attr()
+        place = self.db.get_place(entry['id'])
+        self.album.add_place_to_list(place)
+        self.rframe.set_place_listbox_values(self.album.get_place_list())
+        module_logger.debug('add place, selected: ' + str(place))
 
     def remove_place(self):
-        messagebox.showinfo(parent=self,
-                            title='Remove Place from Album',
-                            message='remove_place called',
-                            detail='do something here',
-                           )
+        global module_logger
+
+        place = self.rframe.get_place_listbox_value()
+        module_logger.debug(f'remove_place: {str(place)}')
+        if place == None:
+            messagebox.showinfo(parent=self,
+                                title='Remove Place from Album',
+                                message='No place selected',
+                                detail='Please select a place to remove',
+                               )
+        else:
+            self.album.remove_place_from_list(place)
+            self.rframe.set_place_listbox_values(self.album.get_place_list())
 
     def add_tag(self):
-        messagebox.showinfo(parent=self,
-                            title='Add Tag to Album',
-                            message='add_tag called',
-                            detail='do something here',
-                           )
+        global module_logger
+
+        tag_list = self.db.get_all_tags()
+        selectone = plorn_attr.PlornSelectAttr('Tag', table_name='tags',
+                                               attr_list=tag_list)
+        selectone.grab_set()
+        self.wait_window(selectone)
+        entry = selectone.get_attr()
+        tag = self.db.get_tag(entry['id'])
+        self.album.add_tag_to_list(tag)
+        self.rframe.set_tag_listbox_values(self.album.get_tag_list())
+        module_logger.debug('add tag, selected: ' + str(tag))
 
     def remove_tag(self):
-        messagebox.showinfo(parent=self,
-                            title='Remove Tag from Album',
-                            message='remove_tag called',
-                            detail='do something here',
-                           )
+        global module_logger
+
+        tag = self.rframe.get_tag_listbox_value()
+        module_logger.debug(f'remove_tag: {str(tag)}')
+        if tag == None:
+            messagebox.showinfo(parent=self,
+                                title='Remove Tag from Album',
+                                message='No tag selected',
+                                detail='Please select a tag to remove',
+                               )
+        else:
+            self.album.remove_tag_from_list(tag)
+            self.rframe.set_tag_listbox_values(self.album.get_tag_list())
 
     def get_name_id_list(self, album):
         nlist = album.get_name_list()
