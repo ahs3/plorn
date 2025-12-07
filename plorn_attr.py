@@ -13,7 +13,7 @@ from plorn_config import FONTSIZE
 import plorn_db
 
 module_logger = logging.getLogger('plorn.attr')
-module_logger.setLevel(logging.DEBUG)
+module_logger.setLevel(logging.INFO)
 
 class PlornAttr:
     '''

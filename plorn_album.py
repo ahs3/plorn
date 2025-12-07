@@ -586,8 +586,8 @@ class PlornEditAlbum(Toplevel):
         module_logger.debug(f'update album pre: {str(prelist)}')
 
         album_copy = copy.deepcopy(self.album)
-        if self.lframe['album_name'].get() != self.album.get_name():
-            if self.db.album_exists(self.lframe['album_name'].get()):
+        if self.lframe.get_album_name() != self.album.get_name():
+            if self.db.album_exists(self.lframe.get_album_name()):
                 messagebox.showerror(parent=self,
                                      title='Updating an Album',
                                      message='Album already exists',
@@ -595,28 +595,17 @@ class PlornEditAlbum(Toplevel):
                                     )
                 return
 
-        album_copy.set_name(self.lframe['album_name'].get())
-        album_copy.set_dated(self.lframe['dated'].get())
-        album_copy.set_notes(self.lframe['notes'].get('1.0', END))
-        album_copy.set_photo_count(self.lframe['photo_count'].get())
-
-        klist = list(self.rframe['namedict'].keys())
-        module_logger.debug(f'update album to: {str(klist)}')
-        nlist = self.rm_names(self.album.get_name_list(), klist)
-        album_copy.set_name_list(nlist)
-
-        plist = []
-        for ii in self.rframe['places']:
-            plist.append(ii.get_id())
-        album_copy.set_place_list(plist)
-        tlist = []
-        for ii in self.rframe['tags']:
-            tlist.append(ii.get_id())
-        album_copy.set_tag_list(tlist)
+        album_copy.set_name(self.lframe.get_album_name())
+        album_copy.set_dated(self.lframe.get_dated())
+        album_copy.set_notes(self.lframe.get_notes())
+        album_copy.set_photo_count(self.lframe.get_photo_count())
+        album_copy.set_name_list(self.rframe.get_listbox_names())
+        album_copy.set_place_list(self.rframe.get_listbox_places())
+        album_copy.set_tag_list(self.rframe.get_listbox_tags())
 
         self.album = self.db.update_album(self.album, album_copy)
 
-        aname = self.lframe['album_name'].get()
+        aname = self.lframe.get_album_name()
         msg = f'Updated Album \'{aname}\''
         messagebox.showinfo(message=msg, parent=self)
         self.destroy()

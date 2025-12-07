@@ -330,6 +330,57 @@ class PlornDb:
         rows = res.fetchone()
         return rows != None
 
+    def add_album_name_list(self, album):
+        res = None
+        if len(album.get_name_list()) > 0:
+            album_id = album.get_id()
+            sql  = 'INSERT INTO album_names (name_id, album_id) VALUES '
+            for ii in album.get_name_list():
+                #print(f'   {ii.get_value()}: {ii.get_id()}, {album_id}')
+                sql += f'({ii.get_id()}, {album_id}), '
+            idx = sql.rfind(',')
+            sql = sql[0:idx]
+            res = self.cursor.execute(sql)
+        return res
+
+    def remove_album_name_list(self, album):
+        sql = f'DELETE FROM album_names WHERE album_id = \'{album.get_id()}\''
+        return self.cursor.execute(sql)
+
+    def add_album_place_list(self, album):
+        res = None
+        if len(album.get_place_list()) > 0:
+            album_id = album.get_id()
+            sql  = 'INSERT INTO album_places (place_id, album_id) VALUES '
+            for ii in album.get_place_list():
+                #print(f'   {ii.get_value()}: {ii.get_id()}, {album_id}')
+                sql += f'({ii.get_id()}, {album_id}), '
+            idx = sql.rfind(',')
+            sql = sql[0:idx]
+            res = self.cursor.execute(sql)
+        return res
+
+    def remove_album_place_list(self, album):
+        sql = f'DELETE FROM album_places WHERE album_id = \'{album.get_id()}\''
+        return self.cursor.execute(sql)
+
+    def add_album_tag_list(self, album):
+        res = None
+        if len(album.get_tag_list()) > 0:
+            album_id = album.get_id()
+            sql  = 'INSERT INTO album_tags (tag_id, album_id) VALUES '
+            for ii in album.get_tag_list():
+                #print(f'   {ii.get_value()}: {ii.get_id()}, {album_id}')
+                sql += f'({ii.get_id()}, {album_id}), '
+            idx = sql.rfind(',')
+            sql = sql[0:idx]
+            res = self.cursor.execute(sql)
+        return res
+
+    def remove_album_tag_list(self, album):
+        sql = f'DELETE FROM album_tags WHERE album_id = \'{album.get_id()}\''
+        return self.cursor.execute(sql)
+
     def add_album(self, album):
         sql = 'INSERT INTO albums (name,dated,notes,photo_count) VALUES '
         sql += f'("{album.get_name()}", '
@@ -351,36 +402,10 @@ class PlornDb:
         result.set_name_list(album.get_name_list())
         result.set_place_list(album.get_place_list())
         result.set_tag_list(album.get_tag_list())
-        #print(f'-- db: add_album')
-        #print(f'-- db: insert album_names')
-        if len(album.get_name_list()) > 0:
-            sql  = 'INSERT INTO album_names (name_id, album_id) VALUES '
-            for ii in album.get_name_list():
-                #print(f'   {ii.get_value()}: {ii.get_id()}, {album_id}')
-                sql += f'({ii.get_id()}, {album_id}), '
-            idx = sql.rfind(',')
-            sql = sql[0:idx]
-            res = self.cursor.execute(sql)
 
-        #print(f'-- db: insert album_places')
-        if len(album.get_place_list()) > 0:
-            sql  = 'INSERT INTO album_places (place_id, album_id) VALUES '
-            for ii in album.get_place_list():
-                #print(f'   {ii.get_value()}: {ii.get_id()}, {album_id}')
-                sql += f'({ii.get_id()}, {album_id}), '
-            idx = sql.rfind(',')
-            sql = sql[0:idx]
-            res = self.cursor.execute(sql)
-
-        #print(f'-- db: insert album_tags')
-        if len(album.get_tag_list()) > 0:
-            sql  = 'INSERT INTO album_tags (tag_id, album_id) VALUES '
-            for ii in album.get_tag_list():
-                #print(f'   {ii.get_value()}: {ii.get_id()}, {album_id}')
-                sql += f'({ii.get_id()}, {album_id}), '
-            idx = sql.rfind(',')
-            sql = sql[0:idx]
-            res = self.cursor.execute(sql)
+        res = self.add_album_name_list(result)
+        res = self.add_album_place_list(result)
+        res = self.add_album_tag_list(result)
 
         self.db.commit()
         return result
@@ -486,37 +511,64 @@ class PlornDb:
     def add_name_to_album_by_id(self, name_id, album_id):
         global module_logger
 
+        module_logger.debug(f'adding name to album: {name_id}, {album_id}')
         sql  = 'INSERT INTO album_names '
         sql += '(name_id, album_id) '
         sql += f'VALUES ({name_id}, {album_id})'
         res = self.cursor.execute(sql)
-        module_logger.debug(f'adding name to album: {name_id}, {album_id}')
-        self.db.commit()
 
     def remove_name_from_album_by_id(self, name_id, album_id):
         global module_logger
 
+        module_logger.debug(f'removing name from album: {name_id}, {album_id}')
         sql  = 'DELETE FROM album_names'
         sql += f' WHERE name_id = {name_id} AND album_id = {album_id}'
         res = self.cursor.execute(sql)
-        module_logger.debug(f'removing name from album: {name_id}, {album_id}')
-        self.db.commit()
+
+    def add_place_to_album_by_id(self, place_id, album_id):
+        global module_logger
+
+        module_logger.debug(f'adding place to album: {place_id}, {album_id}')
+        sql  = 'INSERT INTO album_places '
+        sql += '(place_id, album_id) '
+        sql += f'VALUES ({place_id}, {album_id})'
+        res = self.cursor.execute(sql)
+
+    def remove_place_from_album_by_id(self, place_id, album_id):
+        global module_logger
+
+        module_logger.debug(f'removing place from album: {place_id}, {album_id}')
+        sql  = 'DELETE FROM album_places'
+        sql += f' WHERE place_id = {place_id} AND album_id = {album_id}'
+        res = self.cursor.execute(sql)
+
+    def add_tag_to_album_by_id(self, tag_id, album_id):
+        global module_logger
+
+        module_logger.debug(f'adding tag to album: {tag_id}, {album_id}')
+        sql  = 'INSERT INTO album_tags '
+        sql += '(tag_id, album_id) '
+        sql += f'VALUES ({tag_id}, {album_id})'
+        res = self.cursor.execute(sql)
+
+    def remove_tag_from_album_by_id(self, tag_id, album_id):
+        global module_logger
+
+        module_logger.debug(f'removing tag from album: {tag_id}, {album_id}')
+        sql  = 'DELETE FROM album_tags'
+        sql += f' WHERE tag_id = {tag_id} AND album_id = {album_id}'
+        res = self.cursor.execute(sql)
 
     def update_album(self, album, updated_album):
         global module_logger
 
-        old_names = set(album.get_name_list())
-        new_names = set(updated_album.get_name_list())
-        module_logger.debug(f'old_names: {str(old_names)}')
-        module_logger.debug(f'new_names: {str(new_names)}')
-        to_remove = old_names.difference(new_names)
-        to_add    = new_names.difference(old_names)
-        module_logger.debug(f'to_remove: {str(to_remove)}')
-        module_logger.debug(f'to_add: {str(to_add)}')
-        for ii in to_remove:
-            self.remove_name_from_album_by_id(ii.get_id(), album.get_id())
-        for ii in to_add:
-            self.add_name_to_album_by_id(ii, album.get_id())
+        module_logger.debug(f'db update for {album.get_name()}')
+        self.remove_album_name_list(album)
+        self.add_album_name_list(updated_album)
+        self.remove_album_place_list(album)
+        self.add_album_place_list(updated_album)
+        self.remove_album_tag_list(album)
+        self.add_album_tag_list(updated_album)
 
         sql  = f'UPDATE albums'
         sql += f' SET name = "{updated_album.get_name()}",'
