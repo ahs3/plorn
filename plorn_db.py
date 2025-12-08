@@ -492,7 +492,9 @@ class PlornDb:
         rows.sort(key=lambda x: int(x['id']))
         result = []
         for ii in rows:
-            p = plorn_photo.PlornPhoto(ii['name'], ii['path'], id=ii['id'],
+            p = plorn_photo.PlornPhoto(ii['name'], id=ii['id'],
+                                       album_id=album_id,
+                                       path=ii['path'],
                                        dated=ii['dated'], notes=ii['notes'],
                                        thumbnail=ii['thumbnail'])
             result.append(p)
@@ -593,9 +595,10 @@ class PlornDb:
         res = self.cursor.execute(sql)
         row = res.fetchone()
         module_logger.debug(f'got photo by id: {str(row)}')
-        return plorn_photo.PlornPhoto(row['name'], row['path'],
-                                      id=row['id'], album_id=row['album_id'],
-                                      dated=row['dated'], notes=row['notes'])
+        return plorn_photo.PlornPhoto(row['name'], id=row['id'],
+                                      album_id=row['album_id'],
+                                      path=row['path'], dated=row['dated'],
+                                      notes=row['notes'])
 
     def get_photo(self, photo_id):
         return self.get_photo_by_id(photo_id)

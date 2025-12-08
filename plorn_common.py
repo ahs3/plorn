@@ -250,14 +250,17 @@ class PlornAttrFrame:
         return (bframe, add_button, remove_button)
 
     def set_name_commands(self, add_cmd, remove_cmd):
-        self.name_add.configure(command=add_cmd)
-        self.name_remove.configure(command=remove_cmd)
+        if self.edit_lists:
+            self.name_add.configure(command=add_cmd)
+            self.name_remove.configure(command=remove_cmd)
 
     def set_place_commands(self, add_cmd, remove_cmd):
-        self.place_add.configure(command=add_cmd)
-        self.place_remove.configure(command=remove_cmd)
+        if self.edit_lists:
+            self.place_add.configure(command=add_cmd)
+            self.place_remove.configure(command=remove_cmd)
 
     def set_tag_commands(self, add_cmd, remove_cmd):
-        self.tag_add.configure(command=add_cmd)
-        self.tag_remove.configure(command=remove_cmd)
+        if self.edit_lists:
+            self.tag_add.configure(command=add_cmd)
+            self.tag_remove.configure(command=remove_cmd)
 

@@ -153,10 +153,6 @@ class PlornAddAlbum(Toplevel):
         self.lframe = PlornAlbumLeftFrame(self.db, self, album=None)
         self.lframe.get_frame().grid(column=0, row=0, sticky=(N,W,E,S))
 
-        self.name_tree = None
-        self.name_frame = None
-        self.place_tree = None
-        self.tag_tree = None
         self.rframe = plorn_common.PlornAttrFrame(self.db, self,
                 base_obj=None,
                 get_name_list=self.db.get_names_for_album,
@@ -341,10 +337,6 @@ class PlornShowAlbum(Toplevel):
                                           default_state='readonly')
         self.lframe.get_frame().grid(column=0, row=0, sticky=(N,W,E,S))
 
-        self.name_tree = None
-        self.name_frame = None
-        self.place_tree = None
-        self.tag_tree = None
         self.rframe = plorn_common.PlornAttrFrame(self.db, self,
                 base_obj=self.album,
                 get_name_list=self.db.get_names_for_album,
@@ -388,10 +380,6 @@ class PlornRemoveAlbum(Toplevel):
                                           default_state='readonly')
         self.lframe.get_frame().grid(column=0, row=0, sticky=(N,W,E,S))
 
-        self.name_tree = None
-        self.name_frame = None
-        self.place_tree = None
-        self.tag_tree = None
         self.rframe = plorn_common.PlornAttrFrame(self.db, self,
                 base_obj=self.album,
                 get_name_list=self.db.get_names_for_album,
@@ -450,10 +438,6 @@ class PlornEditAlbum(Toplevel):
         self.lframe.get_photos_field().configure(state='readonly')
         self.lframe.get_frame().grid(column=0, row=0, sticky=(N,W,E,S))
 
-        self.name_tree = None
-        self.name_frame = None
-        self.place_tree = None
-        self.tag_tree = None
         self.rframe = plorn_common.PlornAttrFrame(self.db, self,
                 base_obj=self.album,
                 get_name_list=self.db.get_names_for_album,

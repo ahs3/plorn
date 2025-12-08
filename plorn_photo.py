@@ -10,45 +10,25 @@ from tkinter import font
 from tkinter import filedialog
 from tkinter import messagebox
 
+import plorn_attr
+import plorn_base_obj
+import plorn_common
+import plorn_config
+from plorn_config import FONTSIZE
 import plorn_db
 
 module_logger = logging.getLogger('plorn.photo')
 module_logger.setLevel(logging.DEBUG)
 
-class PlornPhoto:
-    def __init__(self, name, path, id=None, album_id=None,
-                 dated='', notes='', thumbnail=''):
-        self.id = id
+class PlornPhoto(plorn_base_obj.PlornBaseObj):
+    def __init__(self, name, id=None, album_id=None,
+                 path='', dated='', notes='', thumbnail='',
+                 names=[], places=[], tags=[]):
         self.album_id = album_id
-        self.name = name
         self.path = path
-        self.dated = dated
-        self.notes = notes
-        self.thumbnail = thumbnail          # path to an image
-
-    def __copy__(self):
-        return PlornPhoto(self.name, self.path, id=self.id,
-                          album_id=self.album_id,
-                          dated=self.dated, notes=self.notes,
-                          thumbnail=self.thumbnail)
-
-    def set_id(self, id):
-        self.id = id
-
-    def get_id(self):
-        return self.id
-
-    def set_album_id(self, album_id):
-        self.album_id = album_id
-
-    def get_album_id(self):
-        return self.album_id
-
-    def set_name(self, name):
-        self.name = name
-
-    def get_name(self):
-        return self.name
+        self.thumbnail = thumbnail
+        super().__init__(name, id, dated, notes, names, places, tags)
+        module_logger.debug('initializing photo object: ' + str(self))
 
     def set_path(self, path):
         self.path = path
@@ -56,17 +36,11 @@ class PlornPhoto:
     def get_path(self):
         return self.path
 
-    def set_dated(self, dated):
-        self.dated = dated
+    def set_album_id(self, album_id):
+        self.album_id = album_id
 
-    def get_dated(self):
-        return self.dated
-
-    def set_notes(self, notes):
-        self.notes = notes
-
-    def get_notes(self):
-        return self.notes
+    def get_album_id(self):
+        return self.album_id
 
     def set_thumbnail(self, thumbnail):
         self.thumbnail = thumbnail
@@ -76,13 +50,88 @@ class PlornPhoto:
 
     def __str__(self):
         val  = f'id: \'{self.id}\''
-        val += f', album_id: \'{self.album_id}\''
         val += f', name: \'{self.name}\''
         val += f', path: \'{self.path}\''
         val += f', dated: \'{self.dated}\''
         val += f', notes: \'{self.notes}\''
         val += f', thumbnail: \'{self.thumbnail}\''
         return val
+
+class PlornPhotoLeftFrame:
+    '''
+    Factor out common code for building the left frame for building
+    responses to commands on the photo notebook tab
+    '''
+    def __init__(self, db, parent, album=None, photo=None,
+                 default_state='normal'):
+        self.db = db
+        self.parent = parent
+        self.album = album
+        self.photo = photo
+        self.default_state = default_state
+        self.tfont=font.nametofont('TkDefaultFont')
+        self.lframe = ttk.Frame(self.parent, padding='10 10 10 10')
+        self.lframe.columnconfigure(0, weight=1)
+        self.lframe.columnconfigure(1, weight=2)
+        for ii in range(0,7):
+            self.lframe.rowconfigure(ii, weight=1)
+
+        self.lab1 = ttk.Label(self.lframe, width=10, text='Album:')
+        self.lab1.grid(column=0, row=0, sticky=(W))
+        self.album_name = StringVar(self.lframe, value='')
+        if self.album != None:
+            self.album_name.set(self.album.get_name())
+        self.album_entry = ttk.Entry(self.lframe, width=40,
+                                     textvariable=self.album_name,
+                                     font=self.tfont, state='readonly')
+        self.album_entry.grid(column=1, row=0, sticky=(W))
+        self.album_entry.focus_set()
+
+        self.lab2 = ttk.Label(self.lframe, width=10, text='Name:')
+        self.lab2.grid(column=0, row=1, sticky=(W))
+        self.photo_name = StringVar(self.lframe, value='')
+        if self.photo != None:
+            self.photo_name.set(self.photo.get_name())
+        self.name_entry = ttk.Entry(self.lframe, width=40,
+                                    textvariable=self.photo_name,
+                                    font=self.tfont, state=self.default_state)
+        self.name_entry.grid(column=1, row=1, sticky=(W))
+
+        self.lab3 = ttk.Label(self.lframe, width=10, text='Dated:')
+        self.lab3.grid(column=0, row=2, sticky=(W))
+        self.dated = StringVar(self.lframe, value='')
+        if self.photo != None:
+            self.dated.set(self.photo.get_dated())
+        self.date_entry = ttk.Entry(self.lframe, width=40,
+                                    textvariable=self.dated,
+                                    font=self.tfont, state=self.default_state)
+        self.date_entry.grid(column=1, row=2, sticky=(W))
+
+        self.lab4 = ttk.Label(self.lframe, width=10, text='Notes:')
+        self.lab4.grid(column=0, row=3, sticky=(N, W))
+        self.notes = Text(self.lframe, height=10, width=40, font=self.tfont)
+        if self.photo != None:
+            self.notes.insert('1.0', self.photo.get_notes())
+        self.note_state = 'normal'
+        if self.default_state == 'readonly':
+            self.note_state = 'disabled'
+        self.notes.configure(state=self.note_state)
+        self.notes.grid(column=1, row=3, sticky=(N, W, E, S))
+
+    def get_frame(self):
+        return self.lframe
+
+    def get_album_name(self):
+        return self.album_name.get()
+
+    def get_photo_name(self):
+        return self.photo_name.get()
+
+    def get_dated(self):
+        return self.dated.get()
+
+    def get_notes(self):
+        return self.notes.get('1.0', END)
 
 
 class PlornShowPhoto(Toplevel):
@@ -92,70 +141,154 @@ class PlornShowPhoto(Toplevel):
         tfont = font.nametofont('TkDefaultFont')
         self.db = plorn_db.open()
         self.photo = self.db.get_photo(photo_id)
+        self.album = self.db.get_album(self.photo.get_album_id())
 
-        self.geometry('1250x600')
+        self.geometry('1600x600')
         self.title('Photo Info')
         self.columnconfigure(0, weight=1)
-        self.columnconfigure(1, weight=5)
-        self.columnconfigure(2, weight=5)
-        self.rowconfigure(0, weight=1)
-        self.frame = ttk.Frame(self, padding='10 10 10 10')
-        self.frame.grid(column=0, row=0, sticky=(N, W, E, S))
-        for ii in range(0,8):
-            self.frame.rowconfigure(ii, weight=1)
+        self.columnconfigure(1, weight=1)
+        self.columnconfigure(2, weight=1)
+        self.rowconfigure(0, weight=5)
+        self.rowconfigure(1, weight=1)
+        self.rowconfigure(2, weight=1)
+        self.rowconfigure(4, weight=1)
 
-        lab1 = ttk.Label(self.frame, width=10, text='Name:')
-        lab1.grid(column=0, row=0, sticky=(W))
-        self.photo_name = StringVar(self.frame)
-        self.photo_name.set(self.photo.get_name())
-        self.photo_entry = ttk.Entry(self.frame, width=40,
-                                     textvariable=self.photo_name,
-                                     font=tfont, state='readonly')
-        self.photo_entry.grid(column=1, row=0, sticky=(W))
-        self.photo_entry.focus_set()
+        self.lframe = PlornPhotoLeftFrame(self.db, self, album=self.album,
+                                          photo=self.photo,
+                                          default_state='readonly')
+        self.lframe.get_frame().grid(column=0, row=0, sticky=(N,W,E,S))
 
-        lab2 = ttk.Label(self.frame, width=10, text='Path:')
-        lab2.grid(column=0, row=1, sticky=(W))
-        self.photo_path = StringVar(self.frame)
-        self.photo_path.set(self.photo.get_path())
-        self.path_entry = ttk.Entry(self.frame, width=40,
-                                    textvariable=self.photo_path,
-                                    font=tfont, state='readonly')
-        self.path_entry.grid(column=1, row=1, sticky=(W))
+        self.rframe = plorn_common.PlornAttrFrame(self.db, self,
+                base_obj=None,
+                get_name_list=self.db.get_names_for_album,
+                get_place_list=self.db.get_places_for_album,
+                get_tag_list=self.db.get_tags_for_album,
+                edit_lists=False,
+        )
+        self.rframe.get_frame().grid(column=1, row=0, sticky=(N,W,E,S))
+        self.rframe.set_name_commands(self.add_name, self.remove_name)
+        self.rframe.set_place_commands(self.add_place, self.remove_place)
+        self.rframe.set_tag_commands(self.add_tag, self.remove_tag)
 
-        lab3 = ttk.Label(self.frame, width=10, text='Dated:')
-        lab3.grid(column=0, row=2, sticky=(W))
-        self.dated = StringVar(self.frame)
-        self.dated.set(self.photo.get_dated())
-        self.date_entry = ttk.Entry(self.frame, width=40,
-                                    textvariable=self.dated,
-                                    font=tfont, state='readonly')
-        self.date_entry.grid(column=1, row=2, sticky=(W))
-
-        lab4 = ttk.Label(self.frame, width=10, text='Notes:')
-        lab4.grid(column=0, row=3, sticky=(N, W))
-        self.notes = Text(self.frame, height=10, width=40, font=tfont)
-        self.notes.insert('1.0', self.photo.get_notes())
-        self.notes.configure(state='disabled')
-        module_logger.debug(f'notes: {self.photo.get_notes()}')
-        self.notes.grid(column=1, row=3, sticky=(N, W, E, S))
-
-        sep1 = ttk.Separator(self.frame, orient=HORIZONTAL)
-        sep1.grid(column=0, row=4, columnspan=3, sticky=(W+E))
-        sep2 = ttk.Separator(self.frame, orient=HORIZONTAL)
-        sep2.grid(column=0, row=5, columnspan=3, sticky=(W+E))
-
-        self.bdone = ttk.Button(self.frame, text='Done',
-                               command=self.destroy)
-        self.bdone.grid(column=1, row=6)
-
-        self.canvas = Canvas(self.frame, width=600, height=450)
-        self.canvas.grid(column=2, row=1, rowspan=3, sticky=NE,
-                         padx=(20,20))
+        self.canvas = Canvas(self, width=600, height=450)
+        self.canvas.grid(column=2, row=0, sticky=NE, padx=(20,20))
         self.img = pilImage.open(self.photo.get_path())
         self.resize_img = self.img.resize((600, 450))
         self.canvas_img = ImageTk.PhotoImage(image=self.resize_img)
         self.canvas.create_image(10, 10, anchor=NW, image=self.canvas_img)
+
+        sep1 = ttk.Separator(self, orient=HORIZONTAL)
+        sep1.grid(column=0, row=1, columnspan=3, sticky=(W+E))
+        sep2 = ttk.Separator(self, orient=HORIZONTAL)
+        sep2.grid(column=0, row=2, columnspan=3, sticky=(W+E))
+
+        self.bdone = ttk.Button(self, text='Done', command=self.destroy)
+        self.bdone.grid(column=2, row=3)
+
+    def add_name(self):
+        return
+
+    def remove_name(self):
+        return
+
+    def add_place(self):
+        return
+
+    def remove_place(self):
+        return
+
+    def add_tag(self):
+        return
+
+    def remove_tag(self):
+        return
+
+    def add_name(self):
+        global module_logger
+
+        name_list = self.db.get_all_names()
+        selectone = plorn_attr.PlornSelectAttr('Name', table_name='names',
+                                               attr_list=name_list)
+        selectone.grab_set()
+        self.wait_window(selectone)
+        entry = selectone.get_attr()
+        name = self.db.get_name(entry['id'])
+        self.photo.add_name_to_list(name)
+        self.rframe.set_name_listbox_values(self.photo.get_name_list())
+        module_logger.debug('add name, selected: ' + str(name))
+
+    def remove_name(self):
+        global module_logger
+
+        name = self.rframe.get_name_listbox_value()
+        module_logger.debug(f'remove_name: {str(name)}')
+        if name == None:
+            messagebox.showinfo(parent=self,
+                                title='Remove Name from Photo',
+                                message='No name selected',
+                                detail='Please select a name to remove',
+                               )
+        else:
+            self.photo.remove_name_from_list(name)
+            self.rframe.set_name_listbox_values(self.photo.get_name_list())
+
+    def add_place(self):
+        global module_logger
+
+        place_list = self.db.get_all_places()
+        selectone = plorn_attr.PlornSelectAttr('Place', table_name='places',
+                                               attr_list=place_list)
+        selectone.grab_set()
+        self.wait_window(selectone)
+        entry = selectone.get_attr()
+        place = self.db.get_place(entry['id'])
+        self.photo.add_place_to_list(place)
+        self.rframe.set_place_listbox_values(self.photo.get_place_list())
+        module_logger.debug('add place, selected: ' + str(place))
+
+    def remove_place(self):
+        global module_logger
+
+        place = self.rframe.get_place_listbox_value()
+        module_logger.debug(f'remove_place: {str(place)}')
+        if place == None:
+            messagebox.showinfo(parent=self,
+                                title='Remove Place from Photo',
+                                message='No place selected',
+                                detail='Please select a place to remove',
+                               )
+        else:
+            self.photo.remove_place_from_list(place)
+            self.rframe.set_place_listbox_values(self.photo.get_place_list())
+
+    def add_tag(self):
+        global module_logger
+
+        tag_list = self.db.get_all_tags()
+        selectone = plorn_attr.PlornSelectAttr('Tag', table_name='tags',
+                                               attr_list=tag_list)
+        selectone.grab_set()
+        self.wait_window(selectone)
+        entry = selectone.get_attr()
+        tag = self.db.get_tag(entry['id'])
+        self.photo.add_tag_to_list(tag)
+        self.rframe.set_tag_listbox_values(self.photo.get_tag_list())
+        module_logger.debug('add tag, selected: ' + str(tag))
+
+    def remove_tag(self):
+        global module_logger
+
+        tag = self.rframe.get_tag_listbox_value()
+        module_logger.debug(f'remove_tag: {str(tag)}')
+        if tag == None:
+            messagebox.showinfo(parent=self,
+                                title='Remove Tag from Photo',
+                                message='No tag selected',
+                                detail='Please select a tag to remove',
+                               )
+        else:
+            self.photo.remove_tag_from_list(tag)
+            self.rframe.set_tag_listbox_values(self.photo.get_tag_list())
 
 
 class PlornRemovePhoto(Toplevel):

@@ -627,7 +627,7 @@ class Plorn(Tk):
         self.current_photo_button.grid(column=0, row=0)
 
         self.photo_buttons = [
-            ttk.Button(rframe, text='view', command=self.photo_info),
+            ttk.Button(rframe, text='info', command=self.photo_info),
             ttk.Button(rframe, text='add', command=self.add_photo),
             ttk.Button(rframe, text='remove', command=self.remove_photo),
             ttk.Button(rframe, text='edit', command=self.edit_photo),
