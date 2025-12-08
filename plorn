@@ -319,7 +319,7 @@ class Plorn(Tk):
             added = plorn_album.PlornImportToAlbum(self, album['text'])
             count = added.get_photo_count()
             suffix=''
-            if count > 1:
+            if count != 1:
                 suffix = 's'
             detail = f'Added {count} photo{suffix} to album \"{album_name}\"'
             messagebox.showinfo(parent=self,

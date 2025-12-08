@@ -173,8 +173,10 @@ class PlornShowPhoto(Toplevel):
         self.canvas = Canvas(self, width=600, height=450)
         self.canvas.grid(column=2, row=0, sticky=NE, padx=(20,20))
         self.img = pilImage.open(self.photo.get_path())
-        self.resize_img = self.img.resize((600, 450))
-        self.canvas_img = ImageTk.PhotoImage(image=self.resize_img)
+        self.img.thumbnail((600,450), pilImage.Resampling.LANCZOS)
+        #self.resize_img = self.img.resize((600, 450))
+        #self.canvas_img = ImageTk.PhotoImage(image=self.resize_img)
+        self.canvas_img = ImageTk.PhotoImage(image=self.img)
         self.canvas.create_image(10, 10, anchor=NW, image=self.canvas_img)
 
         sep1 = ttk.Separator(self, orient=HORIZONTAL)

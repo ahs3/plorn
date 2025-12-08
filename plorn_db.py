@@ -626,8 +626,10 @@ class PlornDb:
         fullpath = os.path.expandvars(os.path.expanduser(photo.get_path()))
         base = os.path.basename(fullpath)
         thumbpath = os.path.join(self.get_thumbnails_dir(album.get_id()), base)
-        raw_img = pilImage.open(fullpath)
-        small_img = raw_img.resize((100,100))
+        #raw_img = pilImage.open(fullpath)
+        #small_img = raw_img.resize((100,100))
+        small_img = pilImage.open(fullpath)
+        small_img.thumbnail((100,100), pilImage.Resampling.LANCZOS)
         small_img.save(thumbpath)
         small_img.close()
         return thumbpath
@@ -649,8 +651,9 @@ class PlornDb:
         res = self.cursor.execute(sql)
         row = res.fetchone()
         module_logger.debug(f'added photo {str(row)}')
-        return plorn_photo.PlornPhoto(row['name'], row['path'],
+        return plorn_photo.PlornPhoto(row['name'],
                                       id=row['id'], album_id=row['album_id'],
+                                      path=row['path'],
                                       dated=row['dated'], notes=row['notes'],
                                       thumbnail=row['thumbnail'])
 
@@ -684,8 +687,9 @@ class PlornDb:
         msg = f'updated photo: from {photo.get_name()}'
         msg += f' to {row['id']}'
         module_logger.debug(msg)
-        return plorn_photo.PlornPhoto(row['name'], row['path'],
+        return plorn_photo.PlornPhoto(row['name'],
                                       id=row['id'], album_id=row['album_id'],
+                                      path=row['path'],
                                       dated=row['dated'], notes=row['notes'])
 
     def name_exists(self, name, parent_id=0):

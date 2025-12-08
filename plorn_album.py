@@ -609,9 +609,8 @@ class PlornImportToAlbum:
         for path in image_list:
             name = os.path.basename(path)
             dated, notes = self.get_metadata(path)
-            tmp = plorn_photo.PlornPhoto(name, path, id=None,
-                                         album_id=album_id,
-                                         dated=dated, notes=notes,
+            tmp = plorn_photo.PlornPhoto(name, id=None, album_id=album_id,
+                                         path=path, dated=dated, notes=notes,
                                         )
             photo = self.db.add_photo(tmp)
             self.added_count += 1

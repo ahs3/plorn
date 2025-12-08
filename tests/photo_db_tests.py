@@ -69,8 +69,8 @@ class TestDbPhotoMethods(unittest.TestCase):
 
     def make_photo(self, name, path, photo_id, album_id,
                    dated, notes):
-        return plorn_photo.PlornPhoto(name, path, photo_id, album_id,
-                                      dated, notes)
+        return plorn_photo.PlornPhoto(name, photo_id, album_id,
+                                      path=path, dated=dated, notes=notes)
 
     def test_get_photos(self):
         db = plorn_db.open(self.get_test_dbname(),
