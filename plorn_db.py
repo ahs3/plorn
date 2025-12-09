@@ -381,6 +381,57 @@ class PlornDb:
         sql = f'DELETE FROM album_tags WHERE album_id = \'{album.get_id()}\''
         return self.cursor.execute(sql)
 
+    def add_photo_name_list(self, photo):
+        res = None
+        if len(photo.get_name_list()) > 0:
+            photo_id = photo.get_id()
+            sql  = 'INSERT INTO photo_names (name_id, photo_id) VALUES '
+            for ii in photo.get_name_list():
+                #print(f'   {ii.get_value()}: {ii.get_id()}, {photo_id}')
+                sql += f'({ii.get_id()}, {photo_id}), '
+            idx = sql.rfind(',')
+            sql = sql[0:idx]
+            res = self.cursor.execute(sql)
+        return res
+
+    def remove_photo_name_list(self, photo):
+        sql = f'DELETE FROM photo_names WHERE photo_id = \'{photo.get_id()}\''
+        return self.cursor.execute(sql)
+
+    def add_photo_place_list(self, photo):
+        res = None
+        if len(photo.get_place_list()) > 0:
+            photo_id = photo.get_id()
+            sql  = 'INSERT INTO photo_places (place_id, photo_id) VALUES '
+            for ii in photo.get_place_list():
+                #print(f'   {ii.get_value()}: {ii.get_id()}, {photo_id}')
+                sql += f'({ii.get_id()}, {photo_id}), '
+            idx = sql.rfind(',')
+            sql = sql[0:idx]
+            res = self.cursor.execute(sql)
+        return res
+
+    def remove_photo_place_list(self, photo):
+        sql = f'DELETE FROM photo_places WHERE photo_id = \'{photo.get_id()}\''
+        return self.cursor.execute(sql)
+
+    def add_photo_tag_list(self, photo):
+        res = None
+        if len(photo.get_tag_list()) > 0:
+            photo_id = photo.get_id()
+            sql  = 'INSERT INTO photo_tags (tag_id, photo_id) VALUES '
+            for ii in photo.get_tag_list():
+                #print(f'   {ii.get_value()}: {ii.get_id()}, {photo_id}')
+                sql += f'({ii.get_id()}, {photo_id}), '
+            idx = sql.rfind(',')
+            sql = sql[0:idx]
+            res = self.cursor.execute(sql)
+        return res
+
+    def remove_photo_tag_list(self, photo):
+        sql = f'DELETE FROM photo_tags WHERE photo_id = \'{photo.get_id()}\''
+        return self.cursor.execute(sql)
+
     def add_album(self, album):
         sql = 'INSERT INTO albums (name,dated,notes,photo_count) VALUES '
         sql += f'("{album.get_name()}", '
@@ -671,6 +722,14 @@ class PlornDb:
         return 
 
     def update_photo(self, photo, updated_photo):
+
+        self.remove_photo_name_list(photo)
+        self.add_photo_name_list(updated_photo)
+        self.remove_photo_place_list(photo)
+        self.add_photo_place_list(updated_photo)
+        self.remove_photo_tag_list(photo)
+        self.add_photo_tag_list(updated_photo)
+
         sql  = f'UPDATE photos'
         sql += f' SET name = \'{updated_photo.get_name()}\','
         sql += f' path = \'{updated_photo.get_path()}\','
@@ -687,10 +746,7 @@ class PlornDb:
         msg = f'updated photo: from {photo.get_name()}'
         msg += f' to {row['id']}'
         module_logger.debug(msg)
-        return plorn_photo.PlornPhoto(row['name'],
-                                      id=row['id'], album_id=row['album_id'],
-                                      path=row['path'],
-                                      dated=row['dated'], notes=row['notes'])
+        return self.get_photo_by_id(photo.get_id())
 
     def name_exists(self, name, parent_id=0):
         sql = f'SELECT * FROM names WHERE name = \'{name}\''
@@ -1135,6 +1191,36 @@ class PlornDb:
     def get_tags_for_album(self, album):
         sql  = f'SELECT * FROM album_tags'
         sql += f' WHERE album_id = {album.get_id()}'
+        res = self.cursor.execute(sql)
+        rows = res.fetchall()
+        result = []
+        for ii in rows:
+            result.append(self.get_tag(ii['tag_id']))
+        return result
+
+    def get_names_for_photo(self, photo):
+        sql  = f'SELECT * FROM photo_names'
+        sql += f' WHERE photo_id = {photo.get_id()}'
+        res = self.cursor.execute(sql)
+        rows = res.fetchall()
+        result = []
+        for ii in rows:
+            result.append(self.get_name(ii['name_id']))
+        return result
+
+    def get_places_for_photo(self, photo):
+        sql  = f'SELECT * FROM photo_places'
+        sql += f' WHERE photo_id = {photo.get_id()}'
+        res = self.cursor.execute(sql)
+        rows = res.fetchall()
+        result = []
+        for ii in rows:
+            result.append(self.get_place(ii['place_id']))
+        return result
+
+    def get_tags_for_photo(self, photo):
+        sql  = f'SELECT * FROM photo_tags'
+        sql += f' WHERE photo_id = {photo.get_id()}'
         res = self.cursor.execute(sql)
         rows = res.fetchall()
         result = []

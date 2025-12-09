@@ -1,3 +1,4 @@
+import copy
 import filetype
 import logging
 import os
@@ -97,18 +98,29 @@ class PlornPhotoLeftFrame:
                                     font=self.tfont, state=self.default_state)
         self.name_entry.grid(column=1, row=1, sticky=(W))
 
-        self.lab3 = ttk.Label(self.lframe, width=10, text='Dated:')
+        self.lab3 = ttk.Label(self.lframe, width=10, text='Path:')
         self.lab3.grid(column=0, row=2, sticky=(W))
+        self.photo_path = StringVar(self.lframe, value='')
+        if self.photo != None:
+            self.photo_path.set(self.photo.get_path())
+        self.path_entry = ttk.Entry(self.lframe, width=40,
+                                    textvariable=self.photo_path,
+                                    font=self.tfont,
+                                    state='readonly')
+        self.path_entry.grid(column=1, row=2, sticky=(W))
+
+        self.lab4 = ttk.Label(self.lframe, width=10, text='Dated:')
+        self.lab4.grid(column=0, row=3, sticky=(W))
         self.dated = StringVar(self.lframe, value='')
         if self.photo != None:
             self.dated.set(self.photo.get_dated())
         self.date_entry = ttk.Entry(self.lframe, width=40,
                                     textvariable=self.dated,
                                     font=self.tfont, state=self.default_state)
-        self.date_entry.grid(column=1, row=2, sticky=(W))
+        self.date_entry.grid(column=1, row=3, sticky=(W))
 
-        self.lab4 = ttk.Label(self.lframe, width=10, text='Notes:')
-        self.lab4.grid(column=0, row=3, sticky=(N, W))
+        self.lab5 = ttk.Label(self.lframe, width=10, text='Notes:')
+        self.lab5.grid(column=0, row=4, sticky=(N, W))
         self.notes = Text(self.lframe, height=10, width=40, font=self.tfont)
         if self.photo != None:
             self.notes.insert('1.0', self.photo.get_notes())
@@ -116,7 +128,7 @@ class PlornPhotoLeftFrame:
         if self.default_state == 'readonly':
             self.note_state = 'disabled'
         self.notes.configure(state=self.note_state)
-        self.notes.grid(column=1, row=3, sticky=(N, W, E, S))
+        self.notes.grid(column=1, row=4, sticky=(N, W, E, S))
 
     def get_frame(self):
         return self.lframe
@@ -127,11 +139,26 @@ class PlornPhotoLeftFrame:
     def get_photo_name(self):
         return self.photo_name.get()
 
+    def get_path(self):
+        return self.photo_path.get()
+
     def get_dated(self):
         return self.dated.get()
 
     def get_notes(self):
         return self.notes.get('1.0', END)
+
+
+class PhotoCanvas:
+    def __init__(self, parent, path, width=600, height=450):
+        self.canvas = Canvas(parent, width=width, height=height)
+        self.img = pilImage.open(path)
+        self.img.thumbnail((width,height), pilImage.Resampling.LANCZOS)
+        self.canvas_img = ImageTk.PhotoImage(image=self.img)
+        self.canvas.create_image(10, 10, anchor=NW, image=self.canvas_img)
+
+    def get_canvas(self):
+        return self.canvas
 
 
 class PlornShowPhoto(Toplevel):
@@ -159,10 +186,10 @@ class PlornShowPhoto(Toplevel):
         self.lframe.get_frame().grid(column=0, row=0, sticky=(N,W,E,S))
 
         self.rframe = plorn_common.PlornAttrFrame(self.db, self,
-                base_obj=None,
-                get_name_list=self.db.get_names_for_album,
-                get_place_list=self.db.get_places_for_album,
-                get_tag_list=self.db.get_tags_for_album,
+                base_obj=self.photo,
+                get_name_list=self.db.get_names_for_photo,
+                get_place_list=self.db.get_places_for_photo,
+                get_tag_list=self.db.get_tags_for_photo,
                 edit_lists=False,
         )
         self.rframe.get_frame().grid(column=1, row=0, sticky=(N,W,E,S))
@@ -170,14 +197,9 @@ class PlornShowPhoto(Toplevel):
         self.rframe.set_place_commands(self.add_place, self.remove_place)
         self.rframe.set_tag_commands(self.add_tag, self.remove_tag)
 
-        self.canvas = Canvas(self, width=600, height=450)
-        self.canvas.grid(column=2, row=0, sticky=NE, padx=(20,20))
-        self.img = pilImage.open(self.photo.get_path())
-        self.img.thumbnail((600,450), pilImage.Resampling.LANCZOS)
-        #self.resize_img = self.img.resize((600, 450))
-        #self.canvas_img = ImageTk.PhotoImage(image=self.resize_img)
-        self.canvas_img = ImageTk.PhotoImage(image=self.img)
-        self.canvas.create_image(10, 10, anchor=NW, image=self.canvas_img)
+        self.canvas = PhotoCanvas(self, self.photo.get_path(),
+                                  width=600, height=450)
+        self.canvas.get_canvas().grid(column=2, row=0, sticky=NE, padx=(20,20))
 
         sep1 = ttk.Separator(self, orient=HORIZONTAL)
         sep1.grid(column=0, row=1, columnspan=3, sticky=(W+E))
@@ -186,24 +208,6 @@ class PlornShowPhoto(Toplevel):
 
         self.bdone = ttk.Button(self, text='Done', command=self.destroy)
         self.bdone.grid(column=2, row=3)
-
-    def add_name(self):
-        return
-
-    def remove_name(self):
-        return
-
-    def add_place(self):
-        return
-
-    def remove_place(self):
-        return
-
-    def add_tag(self):
-        return
-
-    def remove_tag(self):
-        return
 
     def add_name(self):
         global module_logger
@@ -387,88 +391,74 @@ class PlornEditPhoto(Toplevel):
         module_logger.debug('started PlornEditPhoto')
         tfont = font.nametofont('TkDefaultFont')
         self.db = plorn_db.open()
-        self.photo = self.db.get_photo(photo_id)
         self.photo_id = photo_id
+        self.photo = self.db.get_photo(photo_id)
+        self.album = self.db.get_album(self.photo.get_album_id())
 
-        self.geometry('1250x600')
+        self.geometry('1600x600')
         self.title('Edit Photo')
         self.columnconfigure(0, weight=1)
-        self.columnconfigure(1, weight=5)
-        self.columnconfigure(2, weight=5)
-        self.rowconfigure(0, weight=1)
-        self.frame = ttk.Frame(self, padding='10 10 10 10')
-        self.frame.grid(column=0, row=0, sticky=(N, W, E, S))
-        for ii in range(0,8):
-            self.frame.rowconfigure(ii, weight=1)
+        self.columnconfigure(1, weight=1)
+        self.columnconfigure(2, weight=1)
+        self.rowconfigure(0, weight=5)
+        self.rowconfigure(1, weight=1)
+        self.rowconfigure(2, weight=1)
+        self.rowconfigure(4, weight=1)
 
-        lab1 = ttk.Label(self.frame, width=10, text='Name:')
-        lab1.grid(column=0, row=0, sticky=(W))
-        self.photo_name = StringVar(self.frame)
-        self.photo_name.set(self.photo.get_name())
-        self.photo_entry = ttk.Entry(self.frame, width=40,
-                                     textvariable=self.photo_name,
-                                     font=tfont)
-        self.photo_entry.grid(column=1, row=0, sticky=(W))
-        self.photo_entry.focus_set()
+        self.lframe = PlornPhotoLeftFrame(self.db, self, album=self.album,
+                                          photo=self.photo,
+                                          default_state='normal')
+        self.lframe.get_frame().grid(column=0, row=0, sticky=(N,W,E,S))
 
-        lab2 = ttk.Label(self.frame, width=10, text='Path:')
-        lab2.grid(column=0, row=1, sticky=(W))
-        self.photo_path = StringVar(self.frame)
-        self.photo_path.set(self.photo.get_path())
-        self.path_entry = ttk.Entry(self.frame, width=40,
-                                    textvariable=self.photo_path,
-                                    font=tfont)
-        self.path_entry.grid(column=1, row=1, sticky=(W))
+        self.rframe = plorn_common.PlornAttrFrame(self.db, self,
+                base_obj=self.photo,
+                get_name_list=self.db.get_names_for_photo,
+                get_place_list=self.db.get_places_for_photo,
+                get_tag_list=self.db.get_tags_for_photo,
+                edit_lists=True,
+        )
+        self.rframe.get_frame().grid(column=1, row=0, sticky=(N,W,E,S))
+        self.rframe.set_name_commands(self.add_name, self.remove_name)
+        self.rframe.set_place_commands(self.add_place, self.remove_place)
+        self.rframe.set_tag_commands(self.add_tag, self.remove_tag)
 
-        lab3 = ttk.Label(self.frame, width=10, text='Dated:')
-        lab3.grid(column=0, row=2, sticky=(W))
-        self.dated = StringVar(self.frame)
-        self.dated.set(self.photo.get_dated())
-        self.date_entry = ttk.Entry(self.frame, width=40,
-                                    textvariable=self.dated,
-                                    font=tfont)
-        self.date_entry.grid(column=1, row=2, sticky=(W))
+        self.canvas = PhotoCanvas(self, self.photo.get_path(),
+                                  width=600, height=450)
+        self.canvas.get_canvas().grid(column=2, row=0, sticky=NE, padx=(20,20))
 
-        lab4 = ttk.Label(self.frame, width=10, text='Notes:')
-        lab4.grid(column=0, row=3, sticky=(N, W))
-        self.notes = Text(self.frame, height=10, width=40, font=tfont)
-        self.notes.insert('1.0', self.photo.get_notes())
-        self.notes.grid(column=1, row=3, sticky=(N, W, E, S))
-
-        sep1 = ttk.Separator(self.frame, orient=HORIZONTAL)
-        sep1.grid(column=0, row=4, columnspan=3, sticky=(W+E))
-        sep2 = ttk.Separator(self.frame, orient=HORIZONTAL)
-        sep2.grid(column=0, row=5, columnspan=3, sticky=(W+E))
-
-        self.bupdate = ttk.Button(self.frame, text='Update',
+        self.bupdate = ttk.Button(self, text='Update',
                                   command=self.update_photo)
-        self.bupdate.grid(column=0, row=6)
-        self.bcancel = ttk.Button(self.frame, text='Cancel',
-                                  command=self.destroy)
-        self.bcancel.grid(column=1, row=6)
-        self.bdone = ttk.Button(self.frame, text='Done',
-                                command=self.destroy)
-        self.bdone.grid(column=2, row=6)
-
-        self.canvas = Canvas(self.frame, width=600, height=450)
-        self.canvas.grid(column=2, row=1, rowspan=3, sticky=NE,
-                         padx=(20,20))
-        self.img = pilImage.open(self.photo.get_path())
-        self.resize_img = self.img.resize((600, 450))
-        self.canvas_img = ImageTk.PhotoImage(image=self.resize_img)
-        self.canvas.create_image(10, 10, anchor=NW, image=self.canvas_img)
+        self.bupdate.grid(column=0, row=4)
+        self.bcancel = ttk.Button(self, text='Cancel', command=self.destroy)
+        self.bcancel.grid(column=1, row=4)
+        self.bdone = ttk.Button(self, text='Done', command=self.destroy)
+        self.bdone.grid(column=2, row=4)
 
     def update_photo(self):
-        fullpath = os.path.expandvars(os.path.expanduser(self.photo_path.get()))
+        fullpath = os.path.expandvars(os.path.expanduser(self.lframe.get_path()))
         if os.path.isfile(fullpath):
             if filetype.is_image(fullpath):
-                photo_copy = self.photo
-                photo_copy.set_name(self.photo_name.get())
-                photo_copy.set_path(self.photo_path.get())
-                photo_copy.set_dated(self.dated.get())
-                photo_copy.set_notes(self.notes.get('1.0', END))
+                if self.lframe.get_photo_name() != self.photo.get_name():
+                        if self.db.album_exists(self.lframe.get_album_name()):
+                            messagebox.showerror(parent=self,
+                                              title='Updating an Album',
+                                              message='Album already exists',
+                                              detail='Please use another name',
+                            )
+                            return
+
+                photo_copy = copy.deepcopy(self.photo)
+                photo_copy.set_name(self.lframe.get_photo_name())
+                photo_copy.set_path(self.lframe.get_path())
+                photo_copy.set_dated(self.lframe.get_dated())
+                photo_copy.set_notes(self.lframe.get_notes())
+                photo_copy.set_name_list(self.rframe.get_listbox_names())
+                photo_copy.set_place_list(self.rframe.get_listbox_places())
+                photo_copy.set_tag_list(self.rframe.get_listbox_tags())
+
                 self.photo = self.db.update_photo(self.photo, photo_copy)
-                msg = f'Updated Photo \'{self.photo_name.get()}\''
+
+                msg = f'Updated Photo \'{self.lframe.get_photo_name()}\''
                 messagebox.showinfo(parent=self, message=msg)
             else:
                 messagebox.showerror(parent=self,
@@ -482,6 +472,93 @@ class PlornEditPhoto(Toplevel):
                                  detail='Please choose another path.')
 
         return
+
+    def add_name(self):
+        global module_logger
+
+        name_list = self.db.get_all_names()
+        selectone = plorn_attr.PlornSelectAttr('Name', table_name='names',
+                                               attr_list=name_list)
+        selectone.grab_set()
+        self.wait_window(selectone)
+        entry = selectone.get_attr()
+        name = self.db.get_name(entry['id'])
+        self.photo.add_name_to_list(name)
+        self.rframe.set_name_listbox_values(self.photo.get_name_list())
+        module_logger.debug('add name, selected: ' + str(name))
+
+    def remove_name(self):
+        global module_logger
+
+        name = self.rframe.get_name_listbox_value()
+        module_logger.debug(f'remove_name: {str(name)}')
+        if name == None:
+            messagebox.showinfo(parent=self,
+                                title='Remove Name from Photo',
+                                message='No name selected',
+                                detail='Please select a name to remove',
+                               )
+        else:
+            self.photo.remove_name_from_list(name)
+            self.rframe.set_name_listbox_values(self.photo.get_name_list())
+
+    def add_place(self):
+        global module_logger
+
+        place_list = self.db.get_all_places()
+        selectone = plorn_attr.PlornSelectAttr('Place', table_name='places',
+                                               attr_list=place_list)
+        selectone.grab_set()
+        self.wait_window(selectone)
+        entry = selectone.get_attr()
+        place = self.db.get_place(entry['id'])
+        self.photo.add_place_to_list(place)
+        self.rframe.set_place_listbox_values(self.photo.get_place_list())
+        module_logger.debug('add place, selected: ' + str(place))
+
+    def remove_place(self):
+        global module_logger
+
+        place = self.rframe.get_place_listbox_value()
+        module_logger.debug(f'remove_place: {str(place)}')
+        if place == None:
+            messagebox.showinfo(parent=self,
+                                title='Remove Place from Photo',
+                                message='No place selected',
+                                detail='Please select a place to remove',
+                               )
+        else:
+            self.photo.remove_place_from_list(place)
+            self.rframe.set_place_listbox_values(self.photo.get_place_list())
+
+    def add_tag(self):
+        global module_logger
+
+        tag_list = self.db.get_all_tags()
+        selectone = plorn_attr.PlornSelectAttr('Tag', table_name='tags',
+                                               attr_list=tag_list)
+        selectone.grab_set()
+        self.wait_window(selectone)
+        entry = selectone.get_attr()
+        tag = self.db.get_tag(entry['id'])
+        self.photo.add_tag_to_list(tag)
+        self.rframe.set_tag_listbox_values(self.photo.get_tag_list())
+        module_logger.debug('add tag, selected: ' + str(tag))
+
+    def remove_tag(self):
+        global module_logger
+
+        tag = self.rframe.get_tag_listbox_value()
+        module_logger.debug(f'remove_tag: {str(tag)}')
+        if tag == None:
+            messagebox.showinfo(parent=self,
+                                title='Remove Tag from Photo',
+                                message='No tag selected',
+                                detail='Please select a tag to remove',
+                               )
+        else:
+            self.photo.remove_tag_from_list(tag)
+            self.rframe.set_tag_listbox_values(self.photo.get_tag_list())
 
 
 class PlornAddPhoto(Toplevel):
