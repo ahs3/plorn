@@ -712,17 +712,22 @@ class PlornDb:
         sql = f'SELECT * FROM photos WHERE id = \'{photo_id}\''
         res = self.cursor.execute(sql)
         row = res.fetchone()
-        album_id = row['album_id']
+        album = self.get_album(row['album_id'])
+
         sql = f'DELETE FROM photos WHERE id = \'{photo_id}\''
         res = self.cursor.execute(sql)
-        module_logger.debug(f'removed photo by id: {photo_id}')
-        album = self.get_album(album_id)
+        sql = f'DELETE FROM photo_names WHERE photo_id = \'{photo_id}\''
+        res = self.cursor.execute(sql)
+        sql = f'DELETE FROM photo_places WHERE photo_id = \'{photo_id}\''
+        res = self.cursor.execute(sql)
+        sql = f'DELETE FROM photo_tags WHERE photo_id = \'{photo_id}\''
+        res = self.cursor.execute(sql)
         self.decrement_photo_count(album)
+        module_logger.debug(f'removed photo by id: {photo_id}')
         self.db.commit()
         return 
 
     def update_photo(self, photo, updated_photo):
-
         self.remove_photo_name_list(photo)
         self.add_photo_name_list(updated_photo)
         self.remove_photo_place_list(photo)

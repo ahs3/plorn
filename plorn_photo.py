@@ -304,85 +304,57 @@ class PlornRemovePhoto(Toplevel):
         tfont = font.nametofont('TkDefaultFont')
         self.db = plorn_db.open()
         self.photo = self.db.get_photo(photo_id)
-        self.photo_id = photo_id
+        self.album = self.db.get_album(self.photo.get_album_id())
 
-        self.geometry('1250x600')
-        self.title('Photo to Remove')
+        self.geometry('1600x600')
+        self.title('Photo Info')
         self.columnconfigure(0, weight=1)
-        self.columnconfigure(1, weight=5)
-        self.columnconfigure(2, weight=5)
-        self.rowconfigure(0, weight=1)
-        self.frame = ttk.Frame(self, padding='10 10 10 10')
-        self.frame.grid(column=0, row=0, sticky=(N, W, E, S))
-        for ii in range(0,8):
-            self.frame.rowconfigure(ii, weight=1)
+        self.columnconfigure(1, weight=1)
+        self.columnconfigure(2, weight=1)
+        self.rowconfigure(0, weight=5)
+        self.rowconfigure(1, weight=1)
+        self.rowconfigure(2, weight=1)
+        self.rowconfigure(4, weight=1)
 
-        lab1 = ttk.Label(self.frame, width=10, text='Name:')
-        lab1.grid(column=0, row=0, sticky=(W))
-        self.photo_name = StringVar(self.frame)
-        self.photo_name.set(self.photo.get_name())
-        self.photo_entry = ttk.Entry(self.frame, width=40,
-                                     textvariable=self.photo_name,
-                                     font=tfont, state='readonly')
-        self.photo_entry.grid(column=1, row=0, sticky=(W))
-        self.photo_entry.focus_set()
+        self.lframe = PlornPhotoLeftFrame(self.db, self, album=self.album,
+                                          photo=self.photo,
+                                          default_state='readonly')
+        self.lframe.get_frame().grid(column=0, row=0, sticky=(N,W,E,S))
 
-        lab2 = ttk.Label(self.frame, width=10, text='Path:')
-        lab2.grid(column=0, row=1, sticky=(W))
-        self.photo_path = StringVar(self.frame)
-        self.photo_path.set(self.photo.get_path())
-        self.path_entry = ttk.Entry(self.frame, width=40,
-                                    textvariable=self.photo_path,
-                                    font=tfont, state='readonly')
-        self.path_entry.grid(column=1, row=1, sticky=(W))
+        self.rframe = plorn_common.PlornAttrFrame(self.db, self,
+                base_obj=self.photo,
+                get_name_list=self.db.get_names_for_photo,
+                get_place_list=self.db.get_places_for_photo,
+                get_tag_list=self.db.get_tags_for_photo,
+                edit_lists=False,
+        )
+        self.rframe.get_frame().grid(column=1, row=0, sticky=(N,W,E,S))
 
-        lab3 = ttk.Label(self.frame, width=10, text='Dated:')
-        lab3.grid(column=0, row=2, sticky=(W))
-        self.dated = StringVar(self.frame)
-        self.dated.set(self.photo.get_dated())
-        self.date_entry = ttk.Entry(self.frame, width=40,
-                                    textvariable=self.dated,
-                                    font=tfont, state='readonly')
-        self.date_entry.grid(column=1, row=2, sticky=(W))
+        self.canvas = PhotoCanvas(self, self.photo.get_path(),
+                                  width=600, height=450)
+        self.canvas.get_canvas().grid(column=2, row=0, sticky=NE, padx=(20,20))
 
-        lab4 = ttk.Label(self.frame, width=10, text='Notes:')
-        lab4.grid(column=0, row=3, sticky=(N, W))
-        self.notes = Text(self.frame, height=10, width=40, font=tfont)
-        self.notes.insert('1.0', self.photo.get_notes())
-        self.notes.configure(state='disabled')
-        module_logger.debug(f'notes: {self.photo.get_notes()}')
-        self.notes.grid(column=1, row=3, sticky=(N, W, E, S))
+        sep1 = ttk.Separator(self, orient=HORIZONTAL)
+        sep1.grid(column=0, row=1, columnspan=3, sticky=(W+E))
+        sep2 = ttk.Separator(self, orient=HORIZONTAL)
+        sep2.grid(column=0, row=2, columnspan=3, sticky=(W+E))
 
-        sep1 = ttk.Separator(self.frame, orient=HORIZONTAL)
-        sep1.grid(column=0, row=4, columnspan=3, sticky=(W+E))
-        sep2 = ttk.Separator(self.frame, orient=HORIZONTAL)
-        sep2.grid(column=0, row=5, columnspan=3, sticky=(W+E))
-
-        self.bcancel = ttk.Button(self.frame, text='Cancel',
-                                  command=self.destroy)
-        self.bcancel.grid(column=0, row=6)
-        self.bremove = ttk.Button(self.frame, text='Remove',
-                               command=self.confirm_remove)
-        self.bremove.grid(column=1, row=6)
-
-        self.canvas = Canvas(self.frame, width=600, height=450)
-        self.canvas.grid(column=2, row=1, rowspan=3, sticky=NE,
-                         padx=(20,20))
-        self.img = pilImage.open(self.photo.get_path())
-        self.resize_img = self.img.resize((600, 450))
-        self.canvas_img = ImageTk.PhotoImage(image=self.resize_img)
-        self.canvas.create_image(10, 10, anchor=NW, image=self.canvas_img)
+        self.bcancel = ttk.Button(self, text='Cancel', command=self.destroy)
+        self.bcancel.grid(column=0, row=3)
+        self.bremove = ttk.Button(self, text='Remove',
+                                  command=self.confirm_remove)
+        self.bremove.grid(column=1, row=3)
 
     def confirm_remove(self):
-        photo_name = self.photo_name.get()
-        photo_path = self.photo_path.get()
+        photo_name = self.photo.get_name()
+        photo_path = self.photo.get_path()
         result = messagebox.askyesnocancel('Confirm Removal',
                     message=f'Remove photo {photo_name}?',
                     detail='Only removes the catalog entry, not the file.',
                     parent=self,
                  )
         if result is True:
-            self.db.remove_photo_by_id(self.photo_id)
+            self.db.remove_photo_by_id(self.photo.get_id())
             self.destroy()
 
 class PlornEditPhoto(Toplevel):
