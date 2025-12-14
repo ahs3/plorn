@@ -1204,6 +1204,8 @@ class PlornDb:
         return result
 
     def get_names_for_photo(self, photo):
+        if not photo:
+            return []
         sql  = f'SELECT * FROM photo_names'
         sql += f' WHERE photo_id = {photo.get_id()}'
         res = self.cursor.execute(sql)
@@ -1214,6 +1216,8 @@ class PlornDb:
         return result
 
     def get_places_for_photo(self, photo):
+        if not photo:
+            return []
         sql  = f'SELECT * FROM photo_places'
         sql += f' WHERE photo_id = {photo.get_id()}'
         res = self.cursor.execute(sql)
@@ -1224,6 +1228,8 @@ class PlornDb:
         return result
 
     def get_tags_for_photo(self, photo):
+        if not photo:
+            return []
         sql  = f'SELECT * FROM photo_tags'
         sql += f' WHERE photo_id = {photo.get_id()}'
         res = self.cursor.execute(sql)

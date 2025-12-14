@@ -693,7 +693,6 @@ class Plorn(Tk):
         
         if photo != None and photo.get_id() != None:
             logger.debug(f'add a photo to {self.current_album.get_name()}')
-            linkname = self.get_symlink()
             self.photo_list.clear()
             self.button_imgs.clear()
             logger.debug(f'add photo {photo.get_name()} with album_id {album_id}')

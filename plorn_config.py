@@ -5,10 +5,11 @@ import os
 import pwd
 import sys
 
-version = '0.16.4'
+version = '0.16.5'
 config = None
 
 FONTSIZE = 16
+PLORN_PHOTO_PATH = "plorn_app.png"
 
 module_logger = logging.getLogger('plorn.config')
 module_logger.setLevel(logging.INFO)
@@ -127,4 +128,7 @@ def close():
     if config != None:
         config.write_config()
     config = None
+
+def plorn_photo_path():
+    return PLORN_PHOTO_PATH
 
