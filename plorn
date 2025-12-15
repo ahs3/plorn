@@ -502,6 +502,7 @@ class Plorn(Tk):
             self.album_buttons[n].grid(column=0, row=n+1)
 
     def build_album_selector(self, parent):
+        global logger 
         tfont = font.nametofont('TkDefaultFont')
 
         aframe = ttk.Frame(parent, padding=(5,5,5,5))
@@ -522,6 +523,9 @@ class Plorn(Tk):
         self.album_selector.bind('<<ComboboxSelected>>', self.album_chosen)
         self.album_selector.grid(column=1, row=0, sticky=(W+E))
 
+        if self.current_album:
+            self.album_selected.set(self.current_album.get_name())
+            self.album_selector.event_generate('<<ComboboxSelected>>')
         return aframe
 
     def album_chosen(self, event):

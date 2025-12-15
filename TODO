@@ -1,7 +1,5 @@
 TODO
 ====
--- Add in attributes to photos when adding, editing and so on.
-
 -- Add in search tab to look for names or attributes.  If a search
    finds something, have a button to create a new album from the
    results (i.e., a way to organize different perspectives)
@@ -28,6 +26,10 @@ TODO
 -- Use plorn image from:
    https://victorianweb.org/victorian/authors/dickens/family/child10.html ?
    Sent email asking about distribution right.
+
+-- Select a default current album on start (retain between executions?)
+   and pass that to the photos tab when it get clicked on so I don't have
+   to select an album in the photo tab but I can do it in the album tab
 
 
 DONE
