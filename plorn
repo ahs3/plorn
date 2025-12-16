@@ -209,7 +209,26 @@ class Plorn(Tk):
         notebook.add(self.settings, text=' Settings ')
         self.settings_tab = 5
 
+        #   ... and let us know when the selected tab has changed
+        notebook.bind('<<NotebookTabChanged>>', self.set_current_album)
+
         return notebook
+
+    def set_current_album(self, event):
+        # we need this to pass on info to the photos tab only
+        tab_no = self.notebook.index(self.notebook.select())
+        if tab_no == self.photos_tab:
+            row = self.aview.focus()
+            if row != '':
+                album_info = self.aview.item(row)
+                album_id = album_info['text']
+                album_name = album_info['values'][1]
+                logger.debug(f'set_current_album: id {album_id}')
+                logger.debug(f'set_current_album: name {album_name}')
+                self.current_album = self.db.get_album(album_id)
+                self.current_album_name = self.current_album.get_name()
+                self.album_selector.set(self.current_album.get_name())
+                self.update_photoview()
 
     def setup_footer(self, parent):
         #-- footer for the main app
@@ -268,6 +287,7 @@ class Plorn(Tk):
                 entry = self.aview.item(child_id)
                 self.current_album = self.db.get_album(entry['text'])
                 self.current_album_name.set(self.current_album.get_name())
+                logger.debug(f'update_albumview: default is "{self.current_album_name.get()}"')
         self.update_counts()
 
     def add_album(self):
@@ -374,8 +394,12 @@ class Plorn(Tk):
         self.photo_list.clear()
         self.button_imgs.clear()
 
-        if self.current_album == None or album_id == None:
-            return
+        if album_id == None:
+            if self.current_album == None:
+                logger.debug('update_photoview: no album provided')
+                return
+            else:
+                album_id = self.current_album.get_id()
 
         self.photo_list = self.db.get_photos(album_id)
         for ii in self.photo_list:
@@ -522,13 +546,11 @@ class Plorn(Tk):
         self.album_selector.config(state="readonly")
         self.album_selector.bind('<<ComboboxSelected>>', self.album_chosen)
         self.album_selector.grid(column=1, row=0, sticky=(W+E))
-
-        if self.current_album:
-            self.album_selected.set(self.current_album.get_name())
-            self.album_selector.event_generate('<<ComboboxSelected>>')
         return aframe
 
     def album_chosen(self, event):
+        global logger
+
         album_name = self.album_selected.get()
         album_id = None
         logger.debug(f'album chosen: {album_name}')
@@ -556,14 +578,13 @@ class Plorn(Tk):
         parent.rowconfigure(1, weight=4)
         parent.rowconfigure(2, weight=1)
 
+        selected_album = ''
+        if self.current_album != None:
+            selected_album = self.current_album.get_name()
+        self.album_selected.set(selected_album)
         sframe = self.build_album_selector(parent)
         sframe.grid(column=0, row=0, columnspan=2, sticky=(N,W,E,S))
         self.static_widgets['photo.sframe'] = sframe
-        if self.current_album == None:
-            selected_album = ''
-        else:
-            selected_album = self.current_album.get_name()
-        self.album_selected.set(selected_album)
 
         tframe = ttk.Frame(parent, padding=(5,5,5,5))
         tframe.columnconfigure(0, weight=4)
@@ -608,8 +629,8 @@ class Plorn(Tk):
         pview.heading('name', text='Name')
         pview.column('path', anchor='w', width=200, stretch=True)
         pview.heading('path', text='Path')
-        #pview.column('thumb', anchor='w', minwidth=0)
-        #pview.heading('thumb', text='Thumbnail')
+        #FOO: pview.column('thumb', anchor='w', minwidth=0)
+        #FOO: pview.heading('thumb', text='Thumbnail')
         pview.grid(column=0, row=0, sticky=(N,W,E,S))
         pview['displaycolumns'] = ('name', 'path')
         xscrollbar = ttk.Scrollbar(lframe, orient='vertical',
