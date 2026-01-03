@@ -1,5 +1,7 @@
 TODO
 ====
+-- Album add needs to have attributes as part of frame!
+
 -- Add in search tab to look for names or attributes.  If a search
    finds something, have a button to create a new album from the
    results (i.e., a way to organize different perspectives)

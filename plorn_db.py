@@ -13,7 +13,7 @@ import plorn_config
 import plorn_photo
 
 module_logger = logging.getLogger('plorn.db')
-module_logger.setLevel(logging.DEBUG)
+module_logger.setLevel(logging.INFO)
 
 config = None
 current_db = None
@@ -137,7 +137,7 @@ class PlornDb:
                 parent_id INT DEFAULT 0,
                 value TEXT,
                 FOREIGN KEY (parent_id)
-                REFERENCES names (id)
+                REFERENCES {table_name} (id)
                     ON DELETE CASCADE
                     ON UPDATE CASCADE
             );
@@ -524,6 +524,11 @@ class PlornDb:
         module_logger.debug(f'removed album by name: {album.get_name()}')
         return 
 
+    def get_album_cursor(self):
+        sql = f'SELECT * FROM albums'
+        res = self.cursor.execute(sql)
+        return self.cursor
+
     def get_albums(self):
         sql = f'SELECT * FROM albums'
         res = self.cursor.execute(sql)
@@ -535,6 +540,11 @@ class PlornDb:
             p = self.get_album_by_id(ii['id'])
             result.append(p)
         return result
+
+    def get_photo_cursor(self):
+        sql  = 'SELECT * FROM photos'
+        res = self.cursor.execute(sql)
+        return self.cursor
 
     def get_photos(self, album_id):
         sql  = f'SELECT * FROM photos WHERE album_id = \'{album_id}\''
@@ -764,6 +774,21 @@ class PlornDb:
             if ii['parent_id'] == pid:
                 return True
         return False
+
+    def get_names_cursor(self):
+        sql = f'SELECT * FROM names'
+        res = self.cursor.execute(sql)
+        return self.cursor
+
+    def get_places_cursor(self):
+        sql = f'SELECT * FROM places'
+        res = self.cursor.execute(sql)
+        return self.cursor
+
+    def get_tags_cursor(self):
+        sql = f'SELECT * FROM tags'
+        res = self.cursor.execute(sql)
+        return self.cursor
 
     def get_name(self, name_id, parent_id=0):
         sql = f'SELECT * FROM names WHERE id = \'{name_id}\''
@@ -1170,9 +1195,9 @@ class PlornDb:
             result.append(ii['name_id'])
         return result
 
-    def get_names_for_album(self, album):
+    def get_names_for_album_by_id(self, album_id):
         sql  = f'SELECT * FROM album_names'
-        sql += f' WHERE album_id = {album.get_id()}'
+        sql += f' WHERE album_id = {album_id}'
         res = self.cursor.execute(sql)
         rows = res.fetchall()
         result = []
@@ -1180,46 +1205,59 @@ class PlornDb:
             result.append(self.get_name(ii['name_id']))
         return result
 
-    def get_places_for_album(self, album):
+    def get_names_for_album(self, album):
+        if not album:
+            return []
+        return self.get_names_for_album_by_id(album.get_id())
+
+    def get_places_for_album_by_id(self, album_id):
         sql  = f'SELECT * FROM album_places'
-        sql += f' WHERE album_id = {album.get_id()}'
+        sql += f' WHERE album_id = {album_id}'
         res = self.cursor.execute(sql)
         rows = res.fetchall()
-        #print(f'-- db: get_places_for_album')
-        #for ii in rows:
-        #    print(f'   {str(ii)}')
         result = []
         for ii in rows:
             result.append(self.get_place(ii['place_id']))
         return result
 
-    def get_tags_for_album(self, album):
+    def get_places_for_album(self, album):
+        if not album:
+            return []
+        return self.get_places_for_album_by_id(album.get_id())
+
+    def get_tags_for_album_by_id(self, album_id):
         sql  = f'SELECT * FROM album_tags'
-        sql += f' WHERE album_id = {album.get_id()}'
+        sql += f' WHERE album_id = {album_id}'
         res = self.cursor.execute(sql)
         rows = res.fetchall()
         result = []
         for ii in rows:
             result.append(self.get_tag(ii['tag_id']))
+        return result
+
+    def get_tags_for_album(self, album):
+        if not album:
+            return []
+        return self.get_tags_for_album_by_id(album.get_id())
+
+    def get_names_for_photo_by_id(self, photo_id):
+        sql  = f'SELECT * FROM photo_names'
+        sql += f' WHERE photo_id = {photo_id}'
+        res = self.cursor.execute(sql)
+        rows = res.fetchall()
+        result = []
+        for ii in rows:
+            result.append(self.get_name(ii['name_id']))
         return result
 
     def get_names_for_photo(self, photo):
         if not photo:
             return []
-        sql  = f'SELECT * FROM photo_names'
-        sql += f' WHERE photo_id = {photo.get_id()}'
-        res = self.cursor.execute(sql)
-        rows = res.fetchall()
-        result = []
-        for ii in rows:
-            result.append(self.get_name(ii['name_id']))
-        return result
+        return self.get_names_for_photo_by_id(self, photo.get_id())
 
-    def get_places_for_photo(self, photo):
-        if not photo:
-            return []
+    def get_places_for_photo_by_id(self, photo_id):
         sql  = f'SELECT * FROM photo_places'
-        sql += f' WHERE photo_id = {photo.get_id()}'
+        sql += f' WHERE photo_id = {photo_id}'
         res = self.cursor.execute(sql)
         rows = res.fetchall()
         result = []
@@ -1227,17 +1265,25 @@ class PlornDb:
             result.append(self.get_place(ii['place_id']))
         return result
 
-    def get_tags_for_photo(self, photo):
+    def get_places_for_photo(self, photo):
         if not photo:
             return []
+        return self.get_places_for_photo_by_id(self, photo.get_id())
+
+    def get_tags_for_photo_by_id(self, photo_id):
         sql  = f'SELECT * FROM photo_tags'
-        sql += f' WHERE photo_id = {photo.get_id()}'
+        sql += f' WHERE photo_id = {photo_id}'
         res = self.cursor.execute(sql)
         rows = res.fetchall()
         result = []
         for ii in rows:
             result.append(self.get_tag(ii['tag_id']))
         return result
+
+    def get_tags_for_photo(self, photo):
+        if not photo:
+            return []
+        return self.get_tags_for_photo_by_id(self, photo.get_id())
 
     def get_raw_names_table(self):
         sql  = f'SELECT * FROM names'

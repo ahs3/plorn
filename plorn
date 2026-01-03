@@ -3,6 +3,7 @@
 import filetype
 import logging
 import os
+import re
 import shutil
 import sys
 import time
@@ -16,10 +17,15 @@ from tkinter import messagebox
 
 import plorn_album
 import plorn_attr
+import plorn_common
+from plorn_common import SearchDomains, SearchDomainStrings
+from plorn_common import SearchFields, SearchFieldStrings
+from plorn_common import AlbumSearchInfo, PhotoSearchInfo
 import plorn_config
 from plorn_config import FONTSIZE
 import plorn_db
 import plorn_photo
+import plorn_search
 
 #-- the application
 class Plorn(Tk):
@@ -96,7 +102,16 @@ class Plorn(Tk):
         self.last_tag_id = None
         self.tag_open = False
 
-        self.settings_tab = 5
+        self.search_tab = 5
+        self.s_domain_box = None
+        self.s_domain = StringVar()
+        self.s_field_choice = None
+        self.s_field = StringVar()
+        self.s_regex_box = None
+        self.s_regex = StringVar()
+        self.s_regex.set('.*')
+
+        self.settings_tab = 6
 
         #-- create tabbed pane windows for albums, photos, names, places,
         #   and so on
@@ -199,6 +214,16 @@ class Plorn(Tk):
         notebook.add(self.tags, text=' Tags ')
         self.tags_tab = 4
 
+        #   ... and has a way to search for pictures and albums
+        self.search = ttk.Frame(notebook, padding='5 5 5 5')
+        self.search['borderwidth'] = 2
+        self.search['relief'] = 'groove'
+        self.search.columnconfigure(0, weight=1)
+        self.search.rowconfigure(0, weight=1)
+        self.build_search_options(self.search)
+        notebook.add(self.search, text=' Search ')
+        self.search_tab = 5
+
         #   ... and that has a config table for the application
         self.settings = ttk.Frame(notebook, padding='5 5 5 5')
         self.settings['borderwidth'] = 2
@@ -207,7 +232,7 @@ class Plorn(Tk):
         self.settings.columnconfigure(1, weight=2)
         self.build_settings(self.settings)
         notebook.add(self.settings, text=' Settings ')
-        self.settings_tab = 5
+        self.settings_tab = 6
 
         #   ... and let us know when the selected tab has changed
         notebook.bind('<<NotebookTabChanged>>', self.set_current_album)
@@ -286,8 +311,8 @@ class Plorn(Tk):
                 self.aview.selection_set(child_id)
                 entry = self.aview.item(child_id)
                 self.current_album = self.db.get_album(entry['text'])
-                self.current_album_name.set(self.current_album.get_name())
-                logger.debug(f'update_albumview: default is "{self.current_album_name.get()}"')
+                self.current_album_name = self.current_album.get_name()
+                logger.debug(f'update_albumview: default is "{self.current_album_name}"')
         self.update_counts()
 
     def add_album(self):
@@ -1022,6 +1047,98 @@ class Plorn(Tk):
             messagebox.showerror(parent=self,
                                  title='Select a Tag',
                                  detail='Please select a tag to edit')
+
+    def build_search_options(self, parent):
+        tfont = font.nametofont('TkDefaultFont')
+
+        parent.columnconfigure(0, weight=1)
+        parent.columnconfigure(1, weight=5)
+        for ii in range(0,6):
+            parent.rowconfigure(ii, weight=1)
+
+        text = 'Simple Search:'
+        header1 = ttk.Label(parent, width=len(text), text=text)
+        header1.config(font=(tfont, FONTSIZE+4, 'bold'))
+        header1.grid(column=0, row=0, sticky=W, columnspan=2)
+
+        lab1 = ttk.Label(parent, width=20, text='What to Search:')
+        lab1.grid(column=0, row=1, sticky=E)
+        self.s_domain_box = ttk.Combobox(parent, font=tfont,
+                                         textvariable=self.s_domain)
+        choices = [
+                SearchDomainStrings[SearchDomains.ALBUMS],
+                SearchDomainStrings[SearchDomains.PHOTOS],
+                SearchDomainStrings[SearchDomains.ALL],
+        ]
+        self.s_domain_box.config(values=choices)
+        self.s_domain_box.config(state="readonly")
+        self.s_domain_box.grid(column=1, row=1, sticky=(W,E))
+        self.s_domain.set(SearchDomainStrings[SearchDomains.ALL])
+
+        self.s_field_choice = ttk.Combobox(parent, font=tfont,
+                                           textvariable=self.s_field)
+
+        lab2 = ttk.Label(parent, width=20, text='Field to Search:')
+        lab2.grid(column=0, row=2, sticky=E)
+        choices = [
+            SearchFieldStrings[SearchFields.NAME],
+            SearchFieldStrings[SearchFields.PATH],
+            SearchFieldStrings[SearchFields.DATED],
+            SearchFieldStrings[SearchFields.NOTES],
+            SearchFieldStrings[SearchFields.PHOTO_COUNTS],
+            SearchFieldStrings[SearchFields.NAME_ATTR],
+            SearchFieldStrings[SearchFields.PLACE_ATTR],
+            SearchFieldStrings[SearchFields.TAG_ATTR],
+        ]
+        self.s_field_choice.config(values=choices)
+        self.s_field_choice.config(state="readonly")
+        self.s_field_choice.grid(column=1, row=2, sticky=(W,E))
+        self.s_field.set(SearchFieldStrings[SearchFields.NAME])
+
+        lab3 = ttk.Label(parent, width=20, text='Regular Expression:')
+        lab3.grid(column=0, row=3, sticky=E)
+        self.s_regex_box = ttk.Entry(parent, width=40, font=tfont,
+                                      text=self.s_regex)
+        self.s_regex_box.grid(column=1, row=3, sticky=W)
+
+        bframe = ttk.Frame(parent, padding=(5,5,5,5))
+        bframe.columnconfigure(0, weight=1)
+        bframe.rowconfigure(0, weight=8)
+        self.search_buttons = [
+            ttk.Button(bframe, text='Clear', command=self.clear_search),
+            ttk.Button(bframe, text='Search', command=self.do_search),
+            ttk.Button(bframe, text='Advanced Search', command=self.adv_search),
+        ]
+        for n in range(0, len(self.search_buttons)):
+            bframe.columnconfigure(n, weight=1)
+            self.search_buttons[n].grid(column=n, row=0, padx=20)
+        bframe.grid(column=0, row=4, sticky=(S), columnspan=2)
+    
+    def clear_search(self):
+        self.s_domain.set(SearchDomainStrings[SearchDomains.ALL])
+        self.s_field.set(SearchFieldStrings[SearchFields.NAME])
+        self.s_regex.set('.*')
+        self.s_domain_box.focus_set()
+
+    def do_search(self):
+        global logger
+
+        logger.debug('do_search: started...')
+        try:
+            srch = plorn_search.PlornSearch(self.s_domain.get(),
+                                            self.s_field.get(),
+                                            self.s_regex.get(),
+                                           )
+            albums, photos = srch.do_search()
+            logger.debug(f'do_search: albums found -- {albums}')
+            logger.debug(f'do_search: photos found -- {photos}')
+        except plorn_search.SearchException as se:
+            messagebox.showerror(parent=self,
+                                 title='Invalid Search',
+                                 detail=f'{se}')
+
+    def adv_search(self):
+        return plorn_search.PlornAdvancedSearch(self)
 
     def build_settings(self, parent):
         config = plorn_config.get_config()
