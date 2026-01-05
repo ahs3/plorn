@@ -1,3 +1,5 @@
+# -*- coding: UTF-8 -*-
+
 import copy
 import filetype
 import logging
@@ -6,6 +8,7 @@ from PIL import Image as pilImage
 from PIL import ImageTk
 import re
 
+import tkinter as tk
 from tkinter import *
 from tkinter import ttk
 from tkinter import font
@@ -311,4 +314,170 @@ class PlornAdvancedSearch(Toplevel):
         for ii in range(0,3):
             self.op_chosen[ii].set('AND')
         self.domain_box.focus_set()
+
+
+class PlornSearchResults(Toplevel):
+    '''
+    Show what we found searchs
+    '''
+    def __init__(self, parent, albums, photos, domainstr, fieldstr, regex):
+        super().__init__(parent)
+        module_logger.debug('started PlornAdvancedSearch')
+        self.albums = albums
+        self.photos = photos
+        self.domainstr = domainstr
+        self.fieldstr = fieldstr
+        self.regex = regex
+        self.tfont = font.nametofont('TkDefaultFont')
+        self.db = plorn_db.open()
+
+        with pilImage.open('photo-album.png') as img:
+            img.thumbnail((25,25), pilImage.Resampling.LANCZOS)
+            self.album_icon = ImageTk.PhotoImage(image=img)
+        with pilImage.open('photo.png') as img:
+            img.thumbnail((25,25), pilImage.Resampling.LANCZOS)
+            self.photo_icon = ImageTk.PhotoImage(image=img)
+
+        self.title('Search Results')
+        self.geometry('1200x650')
+        self.columnconfigure(0, weight=5)
+        self.columnconfigure(1, weight=1)
+        self.rowconfigure(0, weight=1)
+        self.rowconfigure(1, weight=5)
+        self.rowconfigure(2, weight=1)
+
+        title_frame = ttk.Frame(self, padding=(5, 5, 5, 5))
+        title_frame.columnconfigure(0, weight=1)
+        title_frame.rowconfigure(0, weight=1)
+        title_frame.rowconfigure(1, weight=1)
+        title_frame.rowconfigure(2, weight=1)
+        title_frame.rowconfigure(3, weight=1)
+        title_frame.grid(column=0, row=0, sticky=(N,W,E,S), columnspan=2)
+        title_frame.columnconfigure(0, weight=1)
+        title_frame.columnconfigure(1, weight=1)
+        title_frame.columnconfigure(2, weight=1)
+
+        lab1 = ttk.Label(title_frame, width=20, text='Search Results')
+        lab1.configure(font=(self.tfont, FONTSIZE, 'bold'))
+        lab1.grid(column=0, row=0, sticky=(W), padx=20)
+
+        lab2 = ttk.Label(title_frame, width=20, text='Objects Searched:')
+        lab2.grid(column=0, row=1, sticky=(W), padx=20)
+        lab2a = ttk.Label(title_frame, width=40, text=f'{self.domainstr}',
+                          borderwidth=1, relief='sunken')
+        lab2a.grid(column=1, row=1, sticky=(W), padx=20)
+
+        lab3 = ttk.Label(title_frame, width=20, text='Field Searched:')
+        lab3.grid(column=0, row=2, sticky=(W), padx=20)
+        lab3a = ttk.Label(title_frame, width=40, text=f'{self.fieldstr}',
+                          borderwidth=1, relief='sunken')
+        lab3a.grid(column=1, row=2, sticky=(W), padx=20)
+
+        lab4 = ttk.Label(title_frame, width=20, text='Search Expression:')
+        lab4.grid(column=0, row=3, sticky=(W), padx=20)
+        lab4a = ttk.Label(title_frame, width=40, text=f'{self.regex}',
+                          borderwidth=1, relief='sunken')
+        lab4a.grid(column=1, row=3, sticky=(W), padx=20)
+
+        lframe = ttk.Frame(self, padding=(5, 5, 5, 5))
+        lframe.columnconfigure(0, weight=1)
+        lframe.rowconfigure(0, weight=1)
+        lframe.grid(column=0, row=1, sticky=(N,W,E,S))
+
+        rframe = ttk.Frame(self, padding=(5, 5, 5, 5))
+        rframe.columnconfigure(0, weight=1)
+        rframe.rowconfigure(0, weight=1)
+        rframe.rowconfigure(1, weight=1)
+        rframe.rowconfigure(2, weight=1)
+        rframe.rowconfigure(3, weight=1)
+        rframe.rowconfigure(4, weight=1)
+        rframe.grid(column=1, row=1, sticky=(N,W,E,S))
+
+        style = ttk.Style()
+        style.layout('plorn.Treeview',
+            [('Treeview.field', {'sticky': 'nwes', 'border': 1, 'children': [
+                ('Treeview.padding', {'sticky': 'nwes', 'children': [
+                    ('Treeview.treearea', {'sticky': 'nwes'})
+                    ]})
+                ]})
+            ])
+        style.configure('plorn.Treeview',
+                        font=('TkDefaultFont', FONTSIZE),
+                        rowheight=30,
+                       )
+        style.configure('plorn.Treeview.Heading',
+                        font=('TkDefaultFont', FONTSIZE))
+        tview = ttk.Treeview(lframe,
+                             columns=('dated', 'id'),
+                             selectmode='browse',
+                             style='plorn.Treeview',
+                            )
+        tview.column('#0', anchor='w', width=400, stretch=True)
+        tview.heading('#0', text='Name')
+        tview.column('dated', anchor='w', minwidth=400, stretch=True)
+        tview.heading('dated', text='Dated')
+        tview.column('id', anchor='w', minwidth=100, stretch=False)
+        tview.heading('id', text='ID')
+        tview.grid(column=0, row=0, sticky=(N,W,E,S))
+        xscrollbar = ttk.Scrollbar(lframe, orient='vertical',
+                                  command=tview.yview)
+        xscrollbar.grid(column=1, row=0, sticky=(N,S,E,W))
+        yscrollbar = ttk.Scrollbar(lframe, orient='horizontal',
+                                  command=tview.xview)
+        yscrollbar.grid(column=0, row=1, sticky=(N,S,E,W))
+        tview.configure(xscrollcommand=yscrollbar.set)
+        tview.configure(yscrollcommand=xscrollbar.set)
+        tview['displaycolumns'] = ('dated')
+        self.tview = tview
+        self.tview_info = {}
+        self.update_view()
+
+        info = ttk.Button(rframe, text='info', command=self.destroy)
+        info.grid(column=0, row=1)
+        edit = ttk.Button(rframe, text='edit', command=self.destroy)
+        edit.grid(column=0, row=3)
+
+        footer = ttk.Frame(self, padding=(5, 5, 5, 5))
+        footer.columnconfigure(0, weight=1)
+        footer.rowconfigure(0, weight=1)
+        footer.rowconfigure(1, weight=1)
+        footer.rowconfigure(2, weight=50)
+        footer.grid(column=0, row=2, sticky=(N,W,E,S), columnspan=2)
+        sep1 = ttk.Separator(footer, orient=HORIZONTAL)
+        sep1.grid(column=0, row=0, sticky=(W+E))
+        sep2 = ttk.Separator(footer, orient=HORIZONTAL)
+        sep2.grid(column=0, row=1, sticky=(W+E))
+        quit_button = ttk.Button(footer, text='Quit', command=self.destroy)
+        quit_button.grid(column=0, row=2, sticky=(E), padx=20, pady=20)
+
+    def update_view(self):
+        def make_key(obj_type, value):
+            return f'{obj_type}{value:04}'
+
+        for ii in self.tview.get_children():
+            self.tview.delete(ii)
+        self.tview_info.clear()
+        for ii in self.albums:
+            name = f'📖 {ii['name']}'
+            entry = self.tview.insert('', END,
+                                      text=f'{ii['name']}',
+                                      values=(ii['dated'],),
+                                      image=self.album_icon)
+            key = make_key('album', ii['id'])
+            self.tview_info[key] = { 'entry': entry, 'row': ii }
+        for ii in self.photos:
+            album_key = make_key('album', ii['album_id'])
+            entry = self.tview.insert(self.tview_info[album_key]['entry'], END,
+                                      text=f'{ii['name']}',
+                                      values=(ii['dated']),
+                                      image=self.photo_icon)
+            key = make_key('photo', ii['id'])
+            self.tview_info[key] = { 'entry': entry, 'row': ii }
+        self.tview.focus_set()
+        kids = self.tview.get_children()
+        if len(kids) > 0:
+            child_id = kids[0]
+            if child_id != '':
+                self.tview.focus(child_id)
+                self.tview.selection_set(child_id)
 

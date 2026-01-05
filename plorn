@@ -654,8 +654,6 @@ class Plorn(Tk):
         pview.heading('name', text='Name')
         pview.column('path', anchor='w', width=200, stretch=True)
         pview.heading('path', text='Path')
-        #FOO: pview.column('thumb', anchor='w', minwidth=0)
-        #FOO: pview.heading('thumb', text='Thumbnail')
         pview.grid(column=0, row=0, sticky=(N,W,E,S))
         pview['displaycolumns'] = ('name', 'path')
         xscrollbar = ttk.Scrollbar(lframe, orient='vertical',
@@ -1130,8 +1128,13 @@ class Plorn(Tk):
                                             self.s_regex.get(),
                                            )
             albums, photos = srch.do_search()
-            logger.debug(f'do_search: albums found -- {albums}')
-            logger.debug(f'do_search: photos found -- {photos}')
+            #logger.debug(f'do_search: albums found -- {albums}')
+            #logger.debug(f'do_search: photos found -- {photos}')
+            res = plorn_search.PlornSearchResults(self, albums, photos,
+                                                  self.s_domain.get(),
+                                                  self.s_field.get(),
+                                                  self.s_regex.get())
+
         except plorn_search.SearchException as se:
             messagebox.showerror(parent=self,
                                  title='Invalid Search',
