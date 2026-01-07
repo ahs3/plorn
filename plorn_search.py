@@ -1,5 +1,3 @@
-# -*- coding: UTF-8 -*-
-
 import copy
 import filetype
 import logging
@@ -331,12 +329,12 @@ class PlornSearchResults(Toplevel):
         self.tfont = font.nametofont('TkDefaultFont')
         self.db = plorn_db.open()
 
-        with pilImage.open('photo-album.png') as img:
+        with pilImage.open('checkbox.png') as img:
             img.thumbnail((25,25), pilImage.Resampling.LANCZOS)
-            self.album_icon = ImageTk.PhotoImage(image=img)
-        with pilImage.open('photo.png') as img:
+            self.found_icon = ImageTk.PhotoImage(image=img)
+        with pilImage.open('red-x.png') as img:
             img.thumbnail((25,25), pilImage.Resampling.LANCZOS)
-            self.photo_icon = ImageTk.PhotoImage(image=img)
+            self.notfound_icon = ImageTk.PhotoImage(image=img)
 
         self.title('Search Results')
         self.geometry('1200x650')
@@ -428,6 +426,8 @@ class PlornSearchResults(Toplevel):
         tview.configure(xscrollcommand=yscrollbar.set)
         tview.configure(yscrollcommand=xscrollbar.set)
         tview['displaycolumns'] = ('dated')
+        tview.tag_configure('found', image=self.found_icon)
+        tview.tag_configure('notfound', image=self.notfound_icon)
         self.tview = tview
         self.tview_info = {}
         self.update_view()
@@ -457,20 +457,32 @@ class PlornSearchResults(Toplevel):
         for ii in self.tview.get_children():
             self.tview.delete(ii)
         self.tview_info.clear()
+
         for ii in self.albums:
-            name = f'📖 {ii['name']}'
             entry = self.tview.insert('', END,
                                       text=f'{ii['name']}',
                                       values=(ii['dated'],),
-                                      image=self.album_icon)
+                                      open=True,
+                                      tags=('found'))
             key = make_key('album', ii['id'])
             self.tview_info[key] = { 'entry': entry, 'row': ii }
+
         for ii in self.photos:
             album_key = make_key('album', ii['album_id'])
+            if album_key not in self.tview_info:
+                new_album = self.db.get_album(ii['album_id'])
+                new_entry = self.tview.insert('', END,
+                                      text=f'{new_album.get_name()}',
+                                      values=(new_album.get_dated(),),
+                                      open=True,
+                                      tags=('notfound'))
+                album_key = make_key('album', ii['album_id'])
+                self.tview_info[album_key] = { 'entry': new_entry,
+                                               'row': new_album }
             entry = self.tview.insert(self.tview_info[album_key]['entry'], END,
                                       text=f'{ii['name']}',
                                       values=(ii['dated']),
-                                      image=self.photo_icon)
+                                      tags=('found'))
             key = make_key('photo', ii['id'])
             self.tview_info[key] = { 'entry': entry, 'row': ii }
         self.tview.focus_set()
