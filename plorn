@@ -996,8 +996,8 @@ class Plorn(Tk):
         attr = addone.get_new_attr()
         
         if attr and attr['id'] != None:
-            tag = plorn_tag.PlornTag(attr['value'], id=attr['id'],
-                                     parent_id=attr['parent_id'])
+            tag = plorn_attr.PlornTag(attr['value'], id=attr['id'],
+                                      parent_id=attr['parent_id'])
             logger.debug(f'add tag {tag.get_value()}')
             self.update_tagview()
 
@@ -1010,9 +1010,9 @@ class Plorn(Tk):
             return
         entry = self.tag_tree.item(entry_id)
         logger.debug(f'entry: {str(entry)}')
-        tag = plorn_tag.PlornTag(entry['text'],
-                                 id=entry['values'][0],
-                                 parent_id=entry['values'][1])
+        tag = plorn_attr.PlornTag(entry['text'],
+                                  id=entry['values'][0],
+                                  parent_id=entry['values'][1])
         
         kids = self.db.get_tag_children(tag)
         if len(kids) > 0:
@@ -1032,9 +1032,9 @@ class Plorn(Tk):
         entry = self.tag_tree.focus()
         if entry != '':
             tag_entry = self.tag_tree.item(entry)
-            tag = plorn_tag.PlornTag(tag_entry['text'],
-                                     id=tag_entry['values'][0],
-                                     parent_id=tag_entry['values'][1])
+            tag = plorn_attr.PlornTag(tag_entry['text'],
+                                      id=tag_entry['values'][0],
+                                      parent_id=tag_entry['values'][1])
             showone = plorn_attr.PlornEditAttr(self, tag,
                                                attr_name='Tag',
                                                table_name='tags')

@@ -471,11 +471,19 @@ class PlornDb:
         module_logger.debug(f'got by name: {str(row)}')
         return self.get_album_by_id(row['id'])
 
-    def get_album_by_id(self, album_id):
+    def get_album_row_by_id(self, album_id):
         sql = f'SELECT * FROM albums WHERE id = \'{album_id}\''
         res = self.cursor.execute(sql)
         row = res.fetchone()
-        module_logger.debug(f'got by id: {str(row)}')
+        if row == None:
+            return None
+        row['names'] = self.get_names_for_album_by_id(album_id)
+        row['places'] = self.get_places_for_album_by_id(album_id)
+        row['tags'] = self.get_tags_for_album_by_id(album_id)
+        return row
+
+    def get_album_by_id(self, album_id):
+        row = self.get_album_row_by_id(album_id)
         if row == None:
             return None
         p = plorn_album.PlornAlbum(row['name'], id=row['id'],
@@ -483,18 +491,9 @@ class PlornDb:
                                    photo_count=row['photo_count'],
                                   )
 
-        p.set_name_list(self.get_names_for_album(p))
-        #print(f'-- db: p pre place list')
-        #print(f'   len {len(p.get_place_list())}')
-        #print(f'-- db: p pre get place list')
-        #for ii in self.get_places_for_album(p):
-        #    print(f'   {str(ii)}')
-        p.set_place_list(self.get_places_for_album(p))
-        #print(f'-- db: p post place list')
-        #print(f'   len {len(p.get_place_list())}')
-        #for ii in p.get_place_list():
-        #    print(f'   {str(ii)}')
-        p.set_tag_list(self.get_tags_for_album(p))
+        p.set_name_list(row['names'])
+        p.set_place_list(row['places'])
+        p.set_tag_list(row['tags'])
         return p
 
     def remove_album_by_name(self, album_name):
@@ -651,15 +650,25 @@ class PlornDb:
         module_logger.debug(msg)
         return self.get_album_by_id(row['id'])
 
-    def get_photo_by_id(self, photo_id):
+    def get_photo_row_by_id(self, photo_id):
         sql = f'SELECT * FROM photos WHERE id = {photo_id}'
         res = self.cursor.execute(sql)
         row = res.fetchone()
-        module_logger.debug(f'got photo by id: {str(row)}')
-        return plorn_photo.PlornPhoto(row['name'], id=row['id'],
-                                      album_id=row['album_id'],
-                                      path=row['path'], dated=row['dated'],
-                                      notes=row['notes'])
+        row['names'] = self.get_names_for_photo_by_id(photo_id)
+        row['places'] = self.get_places_for_photo_by_id(photo_id)
+        row['tags'] = self.get_tags_for_photo_by_id(photo_id)
+        return row
+
+    def get_photo_by_id(self, photo_id):
+        row = self.get_photo_row_by_id(photo_id)
+        p = plorn_photo.PlornPhoto(row['name'], id=row['id'],
+                                   album_id=row['album_id'],
+                                   path=row['path'], dated=row['dated'],
+                                   notes=row['notes'])
+        p.set_name_list(row['names'])
+        p.set_place_list(row['places'])
+        p.set_tag_list(row['tags'])
+        return p
 
     def get_photo(self, photo_id):
         return self.get_photo_by_id(photo_id)
@@ -1253,7 +1262,7 @@ class PlornDb:
     def get_names_for_photo(self, photo):
         if not photo:
             return []
-        return self.get_names_for_photo_by_id(self, photo.get_id())
+        return self.get_names_for_photo_by_id(photo.get_id())
 
     def get_places_for_photo_by_id(self, photo_id):
         sql  = f'SELECT * FROM photo_places'
@@ -1268,7 +1277,7 @@ class PlornDb:
     def get_places_for_photo(self, photo):
         if not photo:
             return []
-        return self.get_places_for_photo_by_id(self, photo.get_id())
+        return self.get_places_for_photo_by_id(photo.get_id())
 
     def get_tags_for_photo_by_id(self, photo_id):
         sql  = f'SELECT * FROM photo_tags'
@@ -1283,7 +1292,7 @@ class PlornDb:
     def get_tags_for_photo(self, photo):
         if not photo:
             return []
-        return self.get_tags_for_photo_by_id(self, photo.get_id())
+        return self.get_tags_for_photo_by_id(photo.get_id())
 
     def get_raw_names_table(self):
         sql  = f'SELECT * FROM names'

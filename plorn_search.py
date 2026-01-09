@@ -22,6 +22,8 @@ from plorn_common import AlbumSearchInfo, PhotoSearchInfo, AttrSearchInfo
 import plorn_config
 from plorn_config import FONTSIZE
 import plorn_db
+import plorn_album
+import plorn_photo
 
 module_logger = logging.getLogger('plorn.search')
 module_logger.setLevel(logging.DEBUG)
@@ -338,8 +340,7 @@ class PlornSearchResults(Toplevel):
 
         self.title('Search Results')
         self.geometry('1200x650')
-        self.columnconfigure(0, weight=5)
-        self.columnconfigure(1, weight=1)
+        self.columnconfigure(0, weight=1)
         self.rowconfigure(0, weight=1)
         self.rowconfigure(1, weight=5)
         self.rowconfigure(2, weight=1)
@@ -350,7 +351,7 @@ class PlornSearchResults(Toplevel):
         title_frame.rowconfigure(1, weight=1)
         title_frame.rowconfigure(2, weight=1)
         title_frame.rowconfigure(3, weight=1)
-        title_frame.grid(column=0, row=0, sticky=(N,W,E,S), columnspan=2)
+        title_frame.grid(column=0, row=0, sticky=(N,W,E,S))
         title_frame.columnconfigure(0, weight=1)
         title_frame.columnconfigure(1, weight=1)
         title_frame.columnconfigure(2, weight=1)
@@ -382,15 +383,6 @@ class PlornSearchResults(Toplevel):
         lframe.rowconfigure(0, weight=1)
         lframe.grid(column=0, row=1, sticky=(N,W,E,S))
 
-        rframe = ttk.Frame(self, padding=(5, 5, 5, 5))
-        rframe.columnconfigure(0, weight=1)
-        rframe.rowconfigure(0, weight=1)
-        rframe.rowconfigure(1, weight=1)
-        rframe.rowconfigure(2, weight=1)
-        rframe.rowconfigure(3, weight=1)
-        rframe.rowconfigure(4, weight=1)
-        rframe.grid(column=1, row=1, sticky=(N,W,E,S))
-
         style = ttk.Style()
         style.layout('plorn.Treeview',
             [('Treeview.field', {'sticky': 'nwes', 'border': 1, 'children': [
@@ -406,7 +398,7 @@ class PlornSearchResults(Toplevel):
         style.configure('plorn.Treeview.Heading',
                         font=('TkDefaultFont', FONTSIZE))
         tview = ttk.Treeview(lframe,
-                             columns=('dated', 'id'),
+                             columns=('dated'),
                              selectmode='browse',
                              style='plorn.Treeview',
                             )
@@ -414,8 +406,6 @@ class PlornSearchResults(Toplevel):
         tview.heading('#0', text='Name')
         tview.column('dated', anchor='w', minwidth=400, stretch=True)
         tview.heading('dated', text='Dated')
-        tview.column('id', anchor='w', minwidth=100, stretch=False)
-        tview.heading('id', text='ID')
         tview.grid(column=0, row=0, sticky=(N,W,E,S))
         xscrollbar = ttk.Scrollbar(lframe, orient='vertical',
                                   command=tview.yview)
@@ -425,24 +415,20 @@ class PlornSearchResults(Toplevel):
         yscrollbar.grid(column=0, row=1, sticky=(N,S,E,W))
         tview.configure(xscrollcommand=yscrollbar.set)
         tview.configure(yscrollcommand=xscrollbar.set)
-        tview['displaycolumns'] = ('dated')
+        #tview['displaycolumns'] = ('dated')
+        tview.bind('<Double-ButtonRelease-1>', self.edit_entry)
         tview.tag_configure('found', image=self.found_icon)
         tview.tag_configure('notfound', image=self.notfound_icon)
         self.tview = tview
         self.tview_info = {}
         self.update_view()
 
-        info = ttk.Button(rframe, text='info', command=self.destroy)
-        info.grid(column=0, row=1)
-        edit = ttk.Button(rframe, text='edit', command=self.destroy)
-        edit.grid(column=0, row=3)
-
         footer = ttk.Frame(self, padding=(5, 5, 5, 5))
         footer.columnconfigure(0, weight=1)
         footer.rowconfigure(0, weight=1)
         footer.rowconfigure(1, weight=1)
         footer.rowconfigure(2, weight=50)
-        footer.grid(column=0, row=2, sticky=(N,W,E,S), columnspan=2)
+        footer.grid(column=0, row=2, sticky=(N,W,E,S))
         sep1 = ttk.Separator(footer, orient=HORIZONTAL)
         sep1.grid(column=0, row=0, sticky=(W+E))
         sep2 = ttk.Separator(footer, orient=HORIZONTAL)
@@ -451,40 +437,44 @@ class PlornSearchResults(Toplevel):
         quit_button.grid(column=0, row=2, sticky=(E), padx=20, pady=20)
 
     def update_view(self):
-        def make_key(obj_type, value):
-            return f'{obj_type}{value:04}'
+        global module_logger
 
         for ii in self.tview.get_children():
             self.tview.delete(ii)
         self.tview_info.clear()
 
+        album_list = {}
         for ii in self.albums:
             entry = self.tview.insert('', END,
-                                      text=f'{ii['name']}',
+                                      text=ii['name'],
                                       values=(ii['dated'],),
                                       open=True,
                                       tags=('found'))
-            key = make_key('album', ii['id'])
-            self.tview_info[key] = { 'entry': entry, 'row': ii }
+            album_list[ii['id']] = entry
+            self.tview_info[entry] = { 'album': True, 'id': ii['id'] }
 
         for ii in self.photos:
-            album_key = make_key('album', ii['album_id'])
-            if album_key not in self.tview_info:
+            parent_entry = ''
+            if ii['album_id'] not in album_list:
                 new_album = self.db.get_album(ii['album_id'])
                 new_entry = self.tview.insert('', END,
-                                      text=f'{new_album.get_name()}',
+                                      text=new_album.get_name(),
                                       values=(new_album.get_dated(),),
                                       open=True,
                                       tags=('notfound'))
-                album_key = make_key('album', ii['album_id'])
-                self.tview_info[album_key] = { 'entry': new_entry,
-                                               'row': new_album }
-            entry = self.tview.insert(self.tview_info[album_key]['entry'], END,
-                                      text=f'{ii['name']}',
-                                      values=(ii['dated']),
+                self.tview_info[new_entry] = { 'album': True,
+                                               'id': ii['album_id'] }
+                parent_entry = new_entry
+                album_list[ii['album_id']] = new_entry
+            else:
+                parent_entry = album_list[ii['album_id']]
+
+            entry = self.tview.insert(parent_entry, END,
+                                      text=ii['name'],
+                                      values=(ii['dated'],),
                                       tags=('found'))
-            key = make_key('photo', ii['id'])
-            self.tview_info[key] = { 'entry': entry, 'row': ii }
+            self.tview_info[entry] = { 'album': False, 'id': ii['id'] }
+
         self.tview.focus_set()
         kids = self.tview.get_children()
         if len(kids) > 0:
@@ -492,4 +482,36 @@ class PlornSearchResults(Toplevel):
             if child_id != '':
                 self.tview.focus(child_id)
                 self.tview.selection_set(child_id)
+
+    def edit_entry(self, event):
+        entry = self.tview.focus()
+        item = self.tview.item(entry)
+        is_album = self.tview_info[entry]['album']
+        obj_id = self.tview_info[entry]['id']
+
+        if is_album:
+            win = plorn_album.PlornEditAlbum(self, obj_id)
+            self.wait_window(win)
+            album = win.get_updated_album()
+            for ii in self.albums:
+                if ii['id'] == obj_id:
+                    module_logger.debug(f'edit_entry found album: {ii}')
+                    row = self.db.get_album_row_by_id(album.get_id())
+                    self.albums[self.albums.index(ii)] = copy.deepcopy(row)
+                    module_logger.debug(f'edit_entry album replacement: {row}')
+                    break
+
+        else:
+            win = plorn_photo.PlornEditPhoto(self, obj_id)
+            self.wait_window(win)
+            photo = win.get_updated_photo()
+            for ii in self.photos:
+                if ii['id'] == obj_id:
+                    module_logger.debug(f'edit_entry found photo: {ii}')
+                    row = self.db.get_photo_row_by_id(photo.get_id())
+                    self.photos[self.photos.index(ii)] = copy.deepcopy(row)
+                    module_logger.debug(f'edit_entry photo replacement: {row}')
+                    break
+
+        self.update_view()
 

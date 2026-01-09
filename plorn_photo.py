@@ -4,6 +4,8 @@ import logging
 import os
 from PIL import Image as pilImage
 from PIL import ImageTk
+from PIL.ExifTags import TAGS as pilTAGS
+from PIL.ExifTags import GPSTAGS as pilGPSTAGS
 
 from tkinter import *
 from tkinter import ttk
@@ -174,13 +176,87 @@ class PlornPhotoLeftFrame:
     def set_notes(self, notes):
         self.notes.delete('1.0', END)
 
+    def get_metadata(self, path):
+        '''
+        Get EXIF metadata from the image if we can
+        '''
+
+        def format_dms(degrees, minutes, seconds, direction):
+            degree_symbol = u'\N{DEGREE SIGN}'
+            value  = float(degrees)
+            value += float(float(minutes) / 60.0)
+            value += float(float(seconds) / 3600.0)
+            return f'{value:.6}{degree_symbol} {direction}'
+
+        exif_data = {}
+        try:
+            with pilImage.open(path) as img:
+                info = img._getexif()
+                for tag, value in info.items():
+                    decoded_tag = pilTAGS.get(tag, tag)
+                    if decoded_tag == 'DateTime':
+                        exif_data[decoded_tag] = value
+                    elif decoded_tag == 'OffsetTime':
+                        exif_data[decoded_tag] = value
+                    elif decoded_tag == 'GPSInfo':
+                        gps_data = {}
+                        for gps_tag in value:
+                            sub_decoded_tag = pilGPSTAGS.get(gps_tag, gps_tag)
+                            gps_data[sub_decoded_tag] = value[gps_tag]
+                        exif_data[decoded_tag] = gps_data
+                    else:
+                        continue
+            img.close()
+        except (IOError, AttributeError, KeyError, IndexError):
+            pass
+
+        result = ''
+        dated = ''
+        if 'DateTime' in exif_data:
+            dt = exif_data['DateTime'].split()
+            date = dt[0].replace(':', '-')
+            tm = dt[1]
+            dated = f'{date}  {tm}'
+            msg = f'Date and Time: {date}  {tm}'
+            if 'OffsetTime' in exif_data:
+                msg += f'{exif_data["OffsetTime"]}'
+            result += msg
+
+        if 'GPSInfo' in exif_data:
+            loc = exif_data['GPSInfo']
+            if len(loc) > 0:
+                lat_deg = None
+                lat_min = None
+                lat_sec = None
+                long_deg = None
+                long_min = None
+                long_sec = None
+                if 'GPSLatitude' in loc:
+                    lat_deg, lat_min, lat_sec = loc['GPSLatitude']
+                    lat_dir = loc['GPSLatitudeRef']
+                if 'GPSLongitude' in loc:
+                    long_deg, long_min, long_sec = loc['GPSLongitude']
+                    long_dir = loc['GPSLongitudeRef']
+                if (lat_deg and lat_min and lat_sec) and \
+                   (long_deg and long_min and long_sec):
+                    lat = format_dms(lat_deg, lat_min, lat_sec, lat_dir)
+                    long = format_dms(long_deg, long_min, long_sec, long_dir)
+                    result += f'\nLatitude, Longitude: {lat}, {long}'
+
+        return dated, result
+
     def get_image_name(self):
-        self.photo_path = filedialog.askopenfilename(parent=self.lframe,
+        photo_path = filedialog.askopenfilename(parent=self.lframe,
                                        title='Select an Image',
                                        initialdir=os.environ['HOME'],
                                       )
-        if self.photo_path:
-            self.path_entry.insert(0, self.photo_path)
+        if photo_path:
+            self.set_photo_name(os.path.basename(photo_path))
+            self.set_photo_path(photo_path)
+            dated, notes = self.get_metadata(photo_path)
+            self.set_dated(dated)
+            self.set_notes(notes)
+            self.path_entry.insert(0, photo_path)
 
 
 class PhotoCanvas:
@@ -458,8 +534,6 @@ class PlornEditPhoto(Toplevel):
         self.bupdate.grid(column=0, row=4)
         self.bcancel = ttk.Button(self, text='Cancel', command=self.destroy)
         self.bcancel.grid(column=1, row=4)
-        self.bdone = ttk.Button(self, text='Done', command=self.destroy)
-        self.bdone.grid(column=2, row=4)
 
     def update_photo(self):
         fullpath = os.path.expandvars(os.path.expanduser(self.lframe.get_photo_path()))
@@ -485,8 +559,6 @@ class PlornEditPhoto(Toplevel):
 
                 self.photo = self.db.update_photo(self.photo, photo_copy)
 
-                msg = f'Updated Photo \'{self.lframe.get_photo_name()}\''
-                messagebox.showinfo(parent=self, message=msg)
             else:
                 messagebox.showerror(parent=self,
                                     title='Update a Photo',
@@ -498,7 +570,7 @@ class PlornEditPhoto(Toplevel):
                                  message='Image is not a regular file',
                                  detail='Please choose another path.')
 
-        return
+        self.destroy()
 
     def add_name(self):
         global module_logger
@@ -586,6 +658,9 @@ class PlornEditPhoto(Toplevel):
         else:
             self.photo.remove_tag_from_list(tag)
             self.rframe.set_tag_listbox_values(self.photo.get_tag_list())
+
+    def get_updated_photo(self):
+        return self.photo
 
 
 class PlornAddPhoto(Toplevel):
@@ -707,9 +782,6 @@ class PlornAddPhoto(Toplevel):
         photo_copy.set_tag_list(self.rframe.get_listbox_tags())
 
         self.photo = self.db.update_photo(self.photo, photo_copy)
-
-        msg = f'Updated Photo \'{self.lframe.get_photo_name()}\''
-        messagebox.showinfo(parent=self, message=msg)
 
     def clear_info(self):
         self.lframe.set_photo_name('')

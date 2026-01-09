@@ -590,9 +590,10 @@ class PlornEditAlbum(Toplevel):
         self.album = self.db.update_album(self.album, album_copy)
 
         aname = self.lframe.get_album_name()
-        msg = f'Updated Album \'{aname}\''
-        messagebox.showinfo(message=msg, parent=self)
         self.destroy()
+
+    def get_updated_album(self):
+        return self.album
 
 
 class PlornImportToAlbum:
@@ -686,15 +687,23 @@ class PlornImportToAlbum:
         if 'GPSInfo' in exif_data:
             loc = exif_data['GPSInfo']
             if len(loc) > 0:
+                lat_deg = None
+                lat_min = None
+                lat_sec = None
+                long_deg = None
+                long_min = None
+                long_sec = None
                 if 'GPSLatitude' in loc:
                     lat_deg, lat_min, lat_sec = loc['GPSLatitude']
                     lat_dir = loc['GPSLatitudeRef']
                 if 'GPSLongitude' in loc:
                     long_deg, long_min, long_sec = loc['GPSLongitude']
                     long_dir = loc['GPSLongitudeRef']
-                lat = format_dms(lat_deg, lat_min, lat_sec, lat_dir)
-                long = format_dms(long_deg, long_min, long_sec, long_dir)
-                result += f'\nLatitude, Longitude: {lat}, {long}'
+                if (lat_deg and lat_min and lat_sec) and \
+                   (long_deg and long_min and long_sec):
+                    lat = format_dms(lat_deg, lat_min, lat_sec, lat_dir)
+                    long = format_dms(long_deg, long_min, long_sec, long_dir)
+                    result += f'\nLatitude, Longitude: {lat}, {long}'
 
         return dated, result
 

@@ -1,7 +1,5 @@
 TODO
 ====
--- Album add needs to have attributes as part of frame!
-
 -- Add in search tab to look for names or attributes.  If a search
    finds something, have a button to create a new album from the
    results (i.e., a way to organize different perspectives)
@@ -22,8 +20,12 @@ TODO
    check that images are still there, with option to delete items that
    are no longer present.  But, don't modify anything else.
 
--- Post source to github/gitlab?  Need clear licensing first in all the
-   source files.
+-- Post source to github/gitlab?
+   -- Need clear licensing first in all the source files.
+   -- Need README
+   -- Need attributions
+   -- Turn off debug
+   -- Proper packaging (at least pip) -- .png paths okay?
 
 -- Use plorn image from:
    https://victorianweb.org/victorian/authors/dickens/family/child10.html ?
