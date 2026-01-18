@@ -44,12 +44,13 @@ class PlornSearch:
     '''
     Search engine, when provided a given set of conditions
     '''
-    def __init__(self, domainstr, fieldstr, regex):
+    def __init__(self, domainstr, fieldstr, regex, allow_blank=False):
         global module_logger
 
-        module_logger.debug('started PlornAdvancedSearch')
+        module_logger.debug('started PlornSearch')
         self.tfont = font.nametofont('TkDefaultFont')
         self.db = plorn_db.open()
+        self.blank_regex_allowed = allow_blank
 
         #-- what do we search?
         self.domainstr = domainstr
@@ -57,6 +58,7 @@ class PlornSearch:
 
         #-- what field do we look through?
         self.fieldstr = fieldstr
+        module_logger.debug(f'DBG> "{fieldstr}"')
         self.field = SearchFieldStrings.index(fieldstr)
 
         #-- using what regex (or value for photo_count)?
@@ -89,7 +91,8 @@ class PlornSearch:
             raise SearchException('Internal error: no search domain')
         elif self.field == None:
             raise SearchException('Internal error: no search field')
-        elif self.regex == None or self.regex == '':
+        elif (self.regex == None or self.regex == '') and \
+             (not self.blank_regex_allowed):
             raise SearchException('Please enter a search expression')
         elif self.domain == SearchDomains.ALBUMS:
             if self.field not in AlbumSearchInfo.keys() and \
@@ -121,6 +124,8 @@ class PlornSearch:
         '''
         search attribute tables which are a little funky
         '''
+        global module_logger
+
         AttrSearchFunctions = {
             SearchDomains.ALBUMS : {
                 SearchFields.NAME_ATTR: {
@@ -155,25 +160,33 @@ class PlornSearch:
         albums = []
         photos = []
         if self.search_albums:
-            func = AttrSearchFunctions[self.domain][self.field]['func']
-            get  = AttrSearchFunctions[self.domain][self.field]['get ']
+            domain = SearchDomains.ALBUMS
+            func = AttrSearchFunctions[domain][self.field]['func']
+            get  = AttrSearchFunctions[domain][self.field]['get']
             cursor = self.db.get_album_cursor()
             for row in cursor:
+                module_logger.debug(f'do_attr_search: album row {row}')
                 data = func(row['id'])
+                module_logger.debug(f'do_attr_search: album data {data}')
                 for ii in data:
-                    attr = get(ii['id'])
-                    if self.cregex.match(attr['value']):
+                    attr = get(ii.get_id())
+                    if self.cregex.match(attr.get_value()):
+                        module_logger.debug(f'do_attr_search: found album attr {attr}')
                         albums.append(row)
 
         if self.search_photos:
-            func = AttrSearchFunctions[self.domain][self.field]['func']
-            get  = AttrSearchFunctions[self.domain][self.field]['get ']
+            domain = SearchDomains.PHOTOS
+            func = AttrSearchFunctions[domain][self.field]['func']
+            get  = AttrSearchFunctions[domain][self.field]['get']
             cursor = self.db.get_photo_cursor()
             for row in cursor:
+                module_logger.debug(f'do_attr_search: photo row {row}')
                 data = func(row['id'])
+                module_logger.debug(f'do_attr_search: photo data {data}')
                 for ii in data:
-                    attr = get(ii['id'])
-                    if self.cregex.match(attr['value']):
+                    attr = get(ii.get_id())
+                    if self.cregex.match(attr.get_value()):
+                        module_logger.debug(f'do_attr_search: found photo attr {attr}')
                         photos.append(row)
 
         return (albums, photos)
@@ -256,20 +269,14 @@ class PlornAdvancedSearch(Toplevel):
 
         self.field_boxes = []
         self.field_chosen = []
-        self.field_choices = [
-            'Album Name', 'Album Path', 'Album Dated', 'Album Notes',
-            'Album Photo Count',
-            'Photo Name', 'Photo Path', 'Photo Dated', 'Photo Notes',
-            'Name Attribute', 'Place Attribute', 'Tag Attribute',
-        ]
         for ii in range(0,4):
             self.field_chosen.append(StringVar())
             box = ttk.Combobox(self, font=self.tfont,
                                textvariable=self.field_chosen[ii])
-            box.config(values=self.field_choices)
+            box.config(values=SearchFieldStrings)
             box.config(state='readonly')
             box.grid(column=0, row=ii+3, sticky=(W,E), padx=20)
-            self.field_chosen[ii].set('Albums & Photos')
+            self.field_chosen[ii].set('Name')
             self.field_boxes.append(box)
 
         self.regex_boxes = []
@@ -298,7 +305,7 @@ class PlornAdvancedSearch(Toplevel):
         self.bframe.rowconfigure(0, weight=1)
         self.buttons = [
             ttk.Button(self.bframe, text='Clear', command=self.clear_entries),
-            ttk.Button(self.bframe, text='Search', command=self.destroy),
+            ttk.Button(self.bframe, text='Search', command=self.do_search),
             ttk.Button(self.bframe, text='Done', command=self.destroy),
         ]
         for ii in range(0, len(self.buttons)):
@@ -309,12 +316,51 @@ class PlornAdvancedSearch(Toplevel):
     def clear_entries(self):
         self.domain.set('Albums & Photos')
         for ii in range(0,4):
-            self.field_chosen[ii].set('Albums & Photos')
+            self.field_chosen[ii].set('Name')
             self.regex[ii].set('')
         for ii in range(0,3):
             self.op_chosen[ii].set('AND')
         self.domain_box.focus_set()
 
+    def do_search(self):
+        srch_results = [(None, None), (None, None), (None, None), (None, None)]
+        try:
+            found_regex = False
+            for ii in range(0,4):
+                if len(self.regex[ii].get()) > 0:
+                    found_regex = True
+            if not found_regex:
+                raise SearchException('Must supply at least one expression')
+            for ii in range(0,4):
+                if len(self.regex[ii].get()) > 0:
+                    msg  = f'advsearch: "{self.domain.get()}", '
+                    msg += f'"{self.field_chosen[ii].get()}", '
+                    msg += f'"{self.regex[ii].get()}"'
+                    module_logger.debug(msg)
+                    srch = PlornSearch(self.domain.get(),
+                                       self.field_chosen[ii].get(),
+                                       self.regex[ii].get(),
+                                       allow_blank=True)
+                    srch_results[ii] = (srch.do_search())
+            module_logger.debug(f'do_search: found {len(srch_results)} search(es)')
+            for ii in range(0,4):
+                albums, photos = srch_results[ii]
+                msg  = f'do_search: res[{ii}]: '
+                if albums:
+                    msg += f'{len(albums)} albums, '
+                else:
+                    msg += 'no albums, '
+                if photos:
+                    msg += f'{len(photos)} photos'
+                else:
+                    msg += 'no photos'
+                module_logger.debug(msg)
+
+        except SearchException as se:
+            messagebox.showerror(parent=self,
+                                 title='Invalid Search',
+                                 detail=f'{se}')
+        
 
 class PlornSearchResults(Toplevel):
     '''
@@ -322,7 +368,7 @@ class PlornSearchResults(Toplevel):
     '''
     def __init__(self, parent, albums, photos, domainstr, fieldstr, regex):
         super().__init__(parent)
-        module_logger.debug('started PlornAdvancedSearch')
+        module_logger.debug('started PlornSearchResults')
         self.albums = albums
         self.photos = photos
         self.domainstr = domainstr

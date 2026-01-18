@@ -524,9 +524,10 @@ class PlornDb:
         return 
 
     def get_album_cursor(self):
+        cursor = self.db.cursor()
         sql = f'SELECT * FROM albums'
-        res = self.cursor.execute(sql)
-        return self.cursor
+        res = cursor.execute(sql)
+        return cursor
 
     def get_albums(self):
         sql = f'SELECT * FROM albums'
@@ -541,9 +542,10 @@ class PlornDb:
         return result
 
     def get_photo_cursor(self):
+        cursor = self.db.cursor()
         sql  = 'SELECT * FROM photos'
-        res = self.cursor.execute(sql)
-        return self.cursor
+        res = cursor.execute(sql)
+        return cursor
 
     def get_photos(self, album_id):
         sql  = f'SELECT * FROM photos WHERE album_id = \'{album_id}\''
