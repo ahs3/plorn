@@ -111,13 +111,15 @@ class PlornSearch:
     def do_search(self):
         global module_logger
 
-        module_logger.debug(f'do_search: field [{self.field}] {self.fieldstr}')
+        #module_logger.debug(f'do_search: field [{self.field}] {self.fieldstr}')
 
         #-- collect pertinent albums and photos
         if self.field in AttrSearchInfo.keys():
             albums, photos = self.do_attr_search()
         else:
             albums, photos = self.do_field_search()
+        #module_logger.debug(f'do_search: albums {albums}')
+        #module_logger.debug(f'do_search: photos {photos}')
         return (albums, photos)
 
     def do_attr_search(self):
@@ -170,7 +172,7 @@ class PlornSearch:
                 module_logger.debug(f'do_attr_search: album data {data}')
                 for ii in data:
                     attr = get(ii.get_id())
-                    if self.cregex.match(attr.get_value()):
+                    if self.cregex.search(attr.get_value()):
                         module_logger.debug(f'do_attr_search: found album attr {attr}')
                         albums.append(row)
 
@@ -185,7 +187,7 @@ class PlornSearch:
                 module_logger.debug(f'do_attr_search: photo data {data}')
                 for ii in data:
                     attr = get(ii.get_id())
-                    if self.cregex.match(attr.get_value()):
+                    if self.cregex.search(attr.get_value()):
                         module_logger.debug(f'do_attr_search: found photo attr {attr}')
                         photos.append(row)
 
@@ -209,16 +211,18 @@ class PlornSearch:
         if self.search_albums:
             cursor = self.db.get_album_cursor()
             for row in cursor:
-                value = row[FieldSearchNames[self.field]]
-                if self.cregex.match(value):
-                    albums.append(row)
+                if FieldSearchNames[self.field] in row.keys():
+                    value = row[FieldSearchNames[self.field]]
+                    if self.cregex.search(value):
+                        albums.append(row)
 
         if self.search_photos:
             cursor = self.db.get_photo_cursor()
             for row in cursor:
-                value = row[FieldSearchNames[self.field]]
-                if self.cregex.match(value):
-                    photos.append(row)
+                if FieldSearchNames[self.field] in row.keys():
+                    value = row[FieldSearchNames[self.field]]
+                    if self.cregex.search(value):
+                        photos.append(row)
 
         return (albums, photos)
 
@@ -267,17 +271,20 @@ class PlornAdvancedSearch(Toplevel):
         lab5.configure(font=(self.tfont, FONTSIZE, 'bold'))
         lab5.grid(column=2, row=2, sticky=(W), padx=20)
 
+        self.search_field_strings = ['']
+        self.search_field_strings.extend(SearchFieldStrings.copy())
         self.field_boxes = []
         self.field_chosen = []
         for ii in range(0,4):
             self.field_chosen.append(StringVar())
             box = ttk.Combobox(self, font=self.tfont,
                                textvariable=self.field_chosen[ii])
-            box.config(values=SearchFieldStrings)
+            box.config(values=self.search_field_strings)
             box.config(state='readonly')
             box.grid(column=0, row=ii+3, sticky=(W,E), padx=20)
-            self.field_chosen[ii].set('Name')
+            self.field_chosen[ii].set('')
             self.field_boxes.append(box)
+        self.field_chosen[0].set('Name')
 
         self.regex_boxes = []
         self.regex = []
@@ -287,10 +294,11 @@ class PlornAdvancedSearch(Toplevel):
                             text=self.regex[ii])
             box.grid(column=1, row=ii+3, sticky=(W,E), padx=20)
             self.regex_boxes.append(box)
+        self.regex[0].set('.*')
 
         self.op_boxes = []
         self.op_chosen = []
-        self.op_choices = ['AND', 'OR']
+        self.op_choices = ['', 'AND', 'OR']
         for ii in range(0,3):
             self.op_chosen.append(StringVar())
             box = ttk.Combobox(self, font=self.tfont,
@@ -298,14 +306,14 @@ class PlornAdvancedSearch(Toplevel):
             box.config(values=self.op_choices)
             box.config(state='readonly')
             box.grid(column=2, row=ii+3, sticky=(W,E), padx=20)
-            self.op_chosen[ii].set('AND')
+            self.op_chosen[ii].set('')
             self.op_boxes.append(box)
 
         self.bframe = ttk.Frame(self, padding=(5,5,5,5))
         self.bframe.rowconfigure(0, weight=1)
         self.buttons = [
             ttk.Button(self.bframe, text='Clear', command=self.clear_entries),
-            ttk.Button(self.bframe, text='Search', command=self.do_search),
+            ttk.Button(self.bframe, text='Search', command=self.do_adv_search),
             ttk.Button(self.bframe, text='Done', command=self.destroy),
         ]
         for ii in range(0, len(self.buttons)):
@@ -315,15 +323,36 @@ class PlornAdvancedSearch(Toplevel):
 
     def clear_entries(self):
         self.domain.set('Albums & Photos')
-        for ii in range(0,4):
-            self.field_chosen[ii].set('Name')
+        self.field_chosen[0].set('Name')
+        self.regex[0].set('.*')
+        for ii in range(1,4):
+            self.field_chosen[ii].set('')
             self.regex[ii].set('')
         for ii in range(0,3):
-            self.op_chosen[ii].set('AND')
+            self.op_chosen[ii].set('')
         self.domain_box.focus_set()
 
-    def do_search(self):
-        srch_results = [(None, None), (None, None), (None, None), (None, None)]
+    def do_adv_search(self):
+        def make_set(objs):
+            result = {}
+            for jj in objs:
+                result[jj['id']] = jj
+            return set(result)
+
+        def get_album_list(album_set):
+            result = []
+            for jj in album_set:
+                result.append(self.db.get_album_row_by_id(jj))
+            return result
+
+        def get_photo_list(photo_set):
+            result = []
+            for jj in photo_set:
+                result.append(self.db.get_photo_row_by_id(jj))
+            return result
+
+        albums = set()
+        photos = set()
         try:
             found_regex = False
             for ii in range(0,4):
@@ -331,30 +360,42 @@ class PlornAdvancedSearch(Toplevel):
                     found_regex = True
             if not found_regex:
                 raise SearchException('Must supply at least one expression')
+            hdr = ''
             for ii in range(0,4):
+                more_albums = []
+                more_photos = []
                 if len(self.regex[ii].get()) > 0:
                     msg  = f'advsearch: "{self.domain.get()}", '
                     msg += f'"{self.field_chosen[ii].get()}", '
                     msg += f'"{self.regex[ii].get()}"'
                     module_logger.debug(msg)
+                    hdr += f'{self.field_chosen[ii].get()} for '
+                    hdr += f'"{self.regex[ii].get()}" '
+                    hdr += f'{self.op_chosen[ii].get()}\n'
                     srch = PlornSearch(self.domain.get(),
                                        self.field_chosen[ii].get(),
-                                       self.regex[ii].get(),
-                                       allow_blank=True)
-                    srch_results[ii] = (srch.do_search())
-            module_logger.debug(f'do_search: found {len(srch_results)} search(es)')
-            for ii in range(0,4):
-                albums, photos = srch_results[ii]
-                msg  = f'do_search: res[{ii}]: '
-                if albums:
-                    msg += f'{len(albums)} albums, '
-                else:
-                    msg += 'no albums, '
-                if photos:
-                    msg += f'{len(photos)} photos'
-                else:
-                    msg += 'no photos'
-                module_logger.debug(msg)
+                                       self.regex[ii].get())
+                    more_albums.clear()
+                    more_photos.clear()
+                    more_albums, more_photos = srch.do_search()
+                    if ii == 0:
+                        albums.update(make_set(more_albums))
+                        photos.update(make_set(more_photos))
+                    else:
+                        if self.op_chosen[ii-1].get() == 'AND':
+                            module_logger.debug(f'advsearch: AND')
+                            albums = albums.intersection(make_set(more_albums))
+                            photos = photos.intersection(make_set(more_photos))
+                        elif self.op_chosen[ii-1].get() == 'OR':
+                            module_logger.debug(f'advsearch: OR')
+                            albums = albums.union(make_set(more_albums))
+                            photos = photos.union(make_set(more_photos))
+
+            res = PlornSearchResults(self,
+                                     get_album_list(albums),
+                                     get_photo_list(photos),
+                                     domainstr=self.domain.get(),
+                                     advanced_hdr=hdr)
 
         except SearchException as se:
             messagebox.showerror(parent=self,
@@ -366,9 +407,19 @@ class PlornSearchResults(Toplevel):
     '''
     Show what we found searchs
     '''
-    def __init__(self, parent, albums, photos, domainstr, fieldstr, regex):
+    def __init__(self, parent, albums, photos,
+                 domainstr='', fieldstr='', regex='',
+                 advanced_hdr=''):
+
+        if len(albums) == 0 and len(photos) == 0:
+            messagebox.showinfo(parent=parent,
+                                title='Search Results',
+                                detail='Nothing found!')
+            return
+
         super().__init__(parent)
         module_logger.debug('started PlornSearchResults')
+
         self.albums = albums
         self.photos = photos
         self.domainstr = domainstr
@@ -412,17 +463,25 @@ class PlornSearchResults(Toplevel):
                           borderwidth=1, relief='sunken')
         lab2a.grid(column=1, row=1, sticky=(W), padx=20)
 
-        lab3 = ttk.Label(title_frame, width=20, text='Field Searched:')
-        lab3.grid(column=0, row=2, sticky=(W), padx=20)
-        lab3a = ttk.Label(title_frame, width=40, text=f'{self.fieldstr}',
-                          borderwidth=1, relief='sunken')
-        lab3a.grid(column=1, row=2, sticky=(W), padx=20)
+        if len(advanced_hdr) > 0:
+            lab3 = ttk.Label(title_frame, width=20,
+                             text='Search Expression:')
+            lab3.grid(column=0, row=2, sticky=(W), padx=20)
+            lab3a = Text(title_frame, height=4, width=40, font=self.tfont)
+            lab3a.insert('1.0', advanced_hdr)
+            lab3a.grid(column=1, row=2, sticky=(W), padx=20)
+        else:
+            lab3 = ttk.Label(title_frame, width=20, text='Field Searched:')
+            lab3.grid(column=0, row=2, sticky=(W), padx=20)
+            lab3a = ttk.Label(title_frame, width=40, text=f'{self.fieldstr}',
+                              borderwidth=1, relief='sunken')
+            lab3a.grid(column=1, row=2, sticky=(W), padx=20)
 
-        lab4 = ttk.Label(title_frame, width=20, text='Search Expression:')
-        lab4.grid(column=0, row=3, sticky=(W), padx=20)
-        lab4a = ttk.Label(title_frame, width=40, text=f'{self.regex}',
-                          borderwidth=1, relief='sunken')
-        lab4a.grid(column=1, row=3, sticky=(W), padx=20)
+            lab4 = ttk.Label(title_frame, width=20, text='Search Expression:')
+            lab4.grid(column=0, row=3, sticky=(W), padx=20)
+            lab4a = ttk.Label(title_frame, width=40, text=f'{self.regex}',
+                              borderwidth=1, relief='sunken')
+            lab4a.grid(column=1, row=3, sticky=(W), padx=20)
 
         lframe = ttk.Frame(self, padding=(5, 5, 5, 5))
         lframe.columnconfigure(0, weight=1)

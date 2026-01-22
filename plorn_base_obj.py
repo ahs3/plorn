@@ -20,7 +20,7 @@ from plorn_config import FONTSIZE
 import plorn_photo
 
 module_logger = logging.getLogger('plorn.base_obj')
-module_logger.setLevel(logging.DEBUG)
+module_logger.setLevel(logging.INFO)
 
 class PlornBaseObj:
     def __init__(self, name, id=None, dated='', notes='',

@@ -1178,7 +1178,7 @@ fh.setFormatter(formatter)
 root_logger.addHandler(fh)
 
 logger = logging.getLogger('plorn')
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 #-- get the config file
 logger.debug('calling PlornConfig()')

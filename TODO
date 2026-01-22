@@ -1,8 +1,12 @@
 TODO
 ====
--- Add in search tab to look for names or attributes.  If a search
-   finds something, have a button to create a new album from the
-   results (i.e., a way to organize different perspectives)
+-- Replace get_{albums,photos} with getting a db cursor
+
+-- Add a "slideshow" button to albums that shows all the images in the
+   album.  Would need to add delay parameter and full-screen option.
+
+-- If a search finds something, have a button to create a new album
+   from the results (i.e., a way to organize different perspectives)
 
 -- Add an album "Export" that creates a tarball containing an ASCII
    version of the database info (e.g., in debian/control-like file
@@ -40,4 +44,8 @@ TODO
 
 DONE
 ====
+-- Add in search tab to look for names or attributes.
+
+-- When no search results are found, just use infobox, not SearchResults
+   window
 

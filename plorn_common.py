@@ -18,7 +18,7 @@ import plorn_config
 from plorn_config import FONTSIZE
 
 module_logger = logging.getLogger('plorn.common')
-module_logger.setLevel(logging.DEBUG)
+module_logger.setLevel(logging.INFO)
 
 
 class SearchDomains(IntEnum):

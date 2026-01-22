@@ -21,7 +21,7 @@ from plorn_config import FONTSIZE
 import plorn_db
 
 module_logger = logging.getLogger('plorn.photo')
-module_logger.setLevel(logging.DEBUG)
+module_logger.setLevel(logging.INFO)
 
 class PlornPhoto(plorn_base_obj.PlornBaseObj):
     def __init__(self, name, id=None, album_id=None,
