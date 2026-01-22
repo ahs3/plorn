@@ -119,23 +119,25 @@ class TestDbAlbumMethods(unittest.TestCase):
         plorn_db.close()
         plorn_config.close()
 
-    def test_get_albums(self):
+    def test_get_all_albums(self):
         db = plorn_db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
         album1 = self.make_album('fred', None, 'now', 'note1', '1')
         album2 = self.make_album('barney', None, 'now', 'note2', '2')
         album1 = db.add_album(album1)
         album2 = db.add_album(album2)
-        albums = db.get_albums()
-        self.assertEqual(len(albums), 2)
-        album = albums[0]
+        album_cursor = db.get_album_cursor()
         ids = []
-        for ii in albums:
-            ids.append(ii.get_id())
+        album = None
+        for ii in album_cursor:
+            if not album:
+                album = ii
+            ids.append(ii['id'])
+        self.assertEqual(len(ids), 2)
         self.assertTrue(album1.get_id() in ids)
         self.assertTrue(album2.get_id() in ids)
-        self.assertTrue(album.get_id() in ids)
-        self.assertEqual(album.get_name(), 'fred')
+        self.assertTrue(album['id'] in ids)
+        self.assertEqual(album['name'], 'fred')
         plorn_db.close()
         plorn_config.close()
 
@@ -146,9 +148,12 @@ class TestDbAlbumMethods(unittest.TestCase):
         tmp2 = self.make_album('barney', None, 'now', 'note2', '2')
         album1 = db.add_album(tmp1)
         album2 = db.add_album(tmp2)
-        albums = db.get_albums()
-        self.assertEqual(len(albums), 2)
-        self.assertEqual(len(albums), db.album_count())
+        album_cursor = db.get_album_cursor()
+        rows = []
+        for ii in album_cursor:
+            rows.append(ii)
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(len(rows), db.album_count())
         plorn_db.close()
         plorn_config.close()
 

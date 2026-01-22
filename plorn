@@ -293,15 +293,23 @@ class Plorn(Tk):
         self.album_count_str.set(f'Albums: {self.db.album_count()}')
         self.photo_count_str.set(f'Photos: {self.db.photo_count()}')
 
+    def get_albums(self):
+        result = []
+        cursor = self.db.get_album_cursor()
+        for ii in cursor:
+            result.append(ii)
+        result.sort(key=lambda x: int(x['id']))
+        return result
+
     def update_albumview(self):
         for ii in self.aview.get_children():
             self.aview.delete(ii)
         self.album_list.clear()
-        self.album_list = self.db.get_albums()
+        self.album_list = self.get_albums()
         for ii in self.album_list:
             self.aview.insert('', END,
-                              text=f'{ii.get_id():04}',
-                              values=(ii.get_photo_count(), ii.get_name()))
+                              text=f'{ii['id']:04}',
+                              values=(ii['photo_count'], ii['name']))
         self.aview.focus_set()
         kids = self.aview.get_children()
         if len(kids) > 0:
@@ -589,11 +597,11 @@ class Plorn(Tk):
 
     def update_album_selections(self):
         self.album_list.clear()
-        self.album_list = self.db.get_albums()
+        self.album_list = self.get_albums()
         self.album_name_list.clear()
         self.album_name_list.append('')
         for ii in self.album_list:
-            self.album_name_list.append(ii.get_name())
+            self.album_name_list.append(ii['name'])
 
     def build_photo_list(self, parent):
         tfont = font.nametofont('TkDefaultFont')

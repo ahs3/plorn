@@ -529,18 +529,6 @@ class PlornDb:
         res = cursor.execute(sql)
         return cursor
 
-    def get_albums(self):
-        sql = f'SELECT * FROM albums'
-        res = self.cursor.execute(sql)
-        rows = res.fetchall()
-        rows.sort(key=lambda x: int(x['id']))
-        module_logger.debug(f'get_albums: {str(rows)}')
-        result = []
-        for ii in rows:
-            p = self.get_album_by_id(ii['id'])
-            result.append(p)
-        return result
-
     def get_photo_cursor(self):
         cursor = self.db.cursor()
         sql  = 'SELECT * FROM photos'
