@@ -301,6 +301,14 @@ class Plorn(Tk):
         result.sort(key=lambda x: int(x['id']))
         return result
 
+    def get_photos(self, album_id=None):
+        result = []
+        cursor = self.db.get_photo_cursor(album_id)
+        for ii in cursor:
+            result.append(ii)
+        result.sort(key=lambda x: int(x['id']))
+        return result
+
     def update_albumview(self):
         for ii in self.aview.get_children():
             self.aview.delete(ii)
@@ -434,19 +442,19 @@ class Plorn(Tk):
             else:
                 album_id = self.current_album.get_id()
 
-        self.photo_list = self.db.get_photos(album_id)
+        self.photo_list = self.get_photos(album_id)
         for ii in self.photo_list:
-            thumb_path = ii.get_thumbnail()
+            thumb_path = ii['thumbnail']
             child = self.pview.insert('', END,
-                                      text=f'{ii.get_id():04}',
-                                      values=(ii.get_name(), ii.get_path(),
+                                      text=f'{ii['id']:04}',
+                                      values=(ii['name'], ii['path'],
                                               thumb_path)
                                      )
             logger.debug(f'thumb_path: {thumb_path}')
             thumbnail = pilImage.open(thumb_path)
             button_img = ImageTk.PhotoImage(image=thumbnail)
             self.button_imgs[child] = button_img
-            logger.debug(f'add btn img for child {child} from {ii.get_path()}')
+            logger.debug(f'add btn img for child {child} from {ii['path']}')
 
         self.pview.focus_set()
         kids = self.pview.get_children()
@@ -752,7 +760,7 @@ class Plorn(Tk):
             self.photo_list.clear()
             self.button_imgs.clear()
             logger.debug(f'add photo {photo.get_name()} with album_id {album_id}')
-            for ii in self.db.get_photos(album_id):
+            for ii in self.get_photos(album_id):
                 self.photo_list.append(ii)
             self.update_photoview(album_id)
             self.update_albumview()

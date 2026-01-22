@@ -1,7 +1,5 @@
 TODO
 ====
--- Replace get_{albums,photos} with getting a db cursor
-
 -- Add a "slideshow" button to albums that shows all the images in the
    album.  Would need to add delay parameter and full-screen option.
 
@@ -48,4 +46,6 @@ DONE
 
 -- When no search results are found, just use infobox, not SearchResults
    window
+
+-- Replace get_{albums,photos} with getting a db cursor
 

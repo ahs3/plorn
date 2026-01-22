@@ -529,26 +529,13 @@ class PlornDb:
         res = cursor.execute(sql)
         return cursor
 
-    def get_photo_cursor(self):
+    def get_photo_cursor(self, album_id=None):
         cursor = self.db.cursor()
         sql  = 'SELECT * FROM photos'
+        if album_id:
+            sql += f' WHERE album_id = \'{album_id}\''
         res = cursor.execute(sql)
         return cursor
-
-    def get_photos(self, album_id):
-        sql  = f'SELECT * FROM photos WHERE album_id = \'{album_id}\''
-        res = self.cursor.execute(sql)
-        rows = res.fetchall()
-        rows.sort(key=lambda x: int(x['id']))
-        result = []
-        for ii in rows:
-            p = plorn_photo.PlornPhoto(ii['name'], id=ii['id'],
-                                       album_id=album_id,
-                                       path=ii['path'],
-                                       dated=ii['dated'], notes=ii['notes'],
-                                       thumbnail=ii['thumbnail'])
-            result.append(p)
-        return result
 
     def album_count(self):
         sql = f'SELECT id FROM albums'
