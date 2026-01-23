@@ -1,3 +1,10 @@
+
+#######################################################################
+# Copyright (c) 2025, Albert H. Stone, III <ahs3@ahs3.net>
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2025 Albert H. Stone, III <ahs3@ahs3.net>
+#######################################################################
+
 TODO
 ====
 -- Add a "slideshow" button to albums that shows all the images in the
@@ -29,16 +36,6 @@ TODO
    -- Turn off debug
    -- Proper packaging (at least pip) -- .png paths okay?
 
--- Use plorn image from:
-   https://victorianweb.org/victorian/authors/dickens/family/child10.html ?
-   Sent email asking about distribution right.
-
--- Include red cross icon attribution: copied from 
-   <a href="https://www.flaticon.com/free-icons/incorrect" title="incorrect icons">Incorrect icons created by heisenberg_jr - Flaticon</a>
-
--- Include green check icon attribution: copied from 
-   Mint in /usr/share/icons/Mint
-
 
 DONE
 ====
@@ -48,4 +45,14 @@ DONE
    window
 
 -- Replace get_{albums,photos} with getting a db cursor
+
+-- Use plorn image from:
+   https://victorianweb.org/victorian/authors/dickens/family/child10.html ?
+   Sent email asking about distribution right.
+
+-- Include red cross icon attribution: copied from 
+   <a href="https://www.flaticon.com/free-icons/incorrect" title="incorrect icons">Incorrect icons created by heisenberg_jr - Flaticon</a>
+
+-- Include green check icon attribution: copied from 
+   Mint in /usr/share/icons/Mint
 

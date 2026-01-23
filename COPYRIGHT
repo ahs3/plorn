@@ -1,0 +1,36 @@
+All Python code for the Plorn project is:
+
+Copyright (c) 2026, Albert H. Stone, III <ahs3@ahs3.net>
+
+The file plorn_app.png is a copy from a photograph from the Charles
+Dickens Museum, 48-49 Doughty Street, London WC1N 2LX, England.  It
+was originally found here:
+
+   https://victorianweb.org/victorian/authors/dickens/family/child10.html
+
+and has been used in the book "Charles Dickens: Dickens' Bicentenary
+1812-2012" by Lucinda Dickens Hawksley, copyright 2011 Lucinda Hawksley,
+Insight Editions, San Rafael, California, ISBN 978-1-60887-052-3.  See
+page 35.  The photograph in the book was taken circa 1868 and is of Charles
+Dickens' son, Edward "Plorn" Dickens.  Ownership is unclear; the Charles
+Dickens Museum, who is credited with providing the picture used in the
+book, does not know where this picture is and says they may or may not
+have it.  Ms. Hawksley, a key member of the Museum, said I should ask
+the museum about re-use of the photograph -- who in turn pointed me to
+Ms. Hawksley.  Given the age of the original, it is most likely in the
+public domain, but I cannot prove or disprove that.  The photo is only
+used in one place and may easily be replaced (see PLORN_PHOTO_PATH in the
+file plorn_config.py) if this becomes an issue.
+
+The red X icon used in the search results (checkbox.png) is from:
+	
+	https://www.flaticon.com/free-icons/incorrect
+	Incorrect icons created by heisenberg_jr - Flaticon
+
+The green check mark (tick mark) in the search results (red-x.png) is
+borrowed from the Linux Mint desktop icons and is distributed under
+the terms of GPL-3.0-or later, as is this project.
+
+The plus and minus icons used when adding or removing attributes (files
+list-add.png and list-remove.png) are borrowed from the GNOME project,
+and are re-used under the terms of GPL-3.0-or-later, as is this project.
