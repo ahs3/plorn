@@ -7,6 +7,19 @@
 
 TODO
 ====
+-- Provide a way to specify a config file on the command line.
+
+-- When searching attributes, allow for searching the full path.  For
+   example, ',' is used by default with name attributes.  Adding the
+   Name "Flintstone" and adding the name "Fred" under it gives the
+   full name "Flintstone, Fred" which I should be able to search for.
+
+-- Add a config parameter that allows the user to choose the separator
+   when showing full paths for attributes.  For example, ',' is used by
+   default with name attributes.  Adding the Name "Flintstone" and adding
+   the name "Fred" under it gives "Flintstone, Fred" when using the
+   "full" name.
+
 -- Add a "slideshow" button to albums that shows all the images in the
    album.  Would need to add delay parameter and full-screen option.
 
@@ -29,30 +42,7 @@ TODO
    check that images are still there, with option to delete items that
    are no longer present.  But, don't modify anything else.
 
--- Post source to github/gitlab?
-   -- Need clear licensing first in all the source files.
-   -- Need README
-   -- Need attributions
-   -- Turn off debug
-   -- Proper packaging (at least pip) -- .png paths okay?
+   -- Some sort of way to verify an album is still "intact" would be
+      good; i.e., verify that all the photos are actually still there.
 
-
-DONE
-====
--- Add in search tab to look for names or attributes.
-
--- When no search results are found, just use infobox, not SearchResults
-   window
-
--- Replace get_{albums,photos} with getting a db cursor
-
--- Use plorn image from:
-   https://victorianweb.org/victorian/authors/dickens/family/child10.html ?
-   Sent email asking about distribution right.
-
--- Include red cross icon attribution: copied from 
-   <a href="https://www.flaticon.com/free-icons/incorrect" title="incorrect icons">Incorrect icons created by heisenberg_jr - Flaticon</a>
-
--- Include green check icon attribution: copied from 
-   Mint in /usr/share/icons/Mint
 
