@@ -9,11 +9,11 @@ import copy
 import os
 import unittest
 
-import plorn_album
-import plorn_attr
-import plorn_config
-import plorn_db
-import plorn_photo
+import plorn.album
+import plorn.attr
+import plorn.config
+import plorn.db
+import plorn.photo
 
 
 class TestDbNameMethods(unittest.TestCase):
@@ -48,13 +48,13 @@ class TestDbNameMethods(unittest.TestCase):
         if os.path.exists(cfg):
             os.remove(cfg)
         self.write_test_config(self.get_test_cfgname())
-        db = plorn_db.open(self.get_test_dbname(),
+        db = plorn.db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
-        plorn_db.close()
+        plorn.db.close()
 
     def tearDown(self):
-        plorn_db.close()
-        plorn_config.close()
+        plorn.db.close()
+        plorn.config.close()
         dbname = self.get_test_dbname()
         cfg = self.get_test_cfgname()
         if os.path.exists(dbname):
@@ -63,21 +63,21 @@ class TestDbNameMethods(unittest.TestCase):
             os.remove(cfg)
 
     def make_name(self, name, parent_id=None):
-        return plorn_attr.PlornName(name, parent_id=parent_id)
+        return plorn.attr.PlornName(name, parent_id=parent_id)
 
     def test_add_name(self):
-        db = plorn_db.open(self.get_test_dbname(),
+        db = plorn.db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
 
         tmp = self.make_name('fred')
         name = db.add_name(tmp)
         self.assertTrue(db.name_exists(name))
 
-        plorn_db.close()
-        plorn_config.close()
+        plorn.db.close()
+        plorn.config.close()
 
     def test_add_subname(self):
-        db = plorn_db.open(self.get_test_dbname(),
+        db = plorn.db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
 
         tmp = self.make_name('Flintstone')
@@ -92,11 +92,11 @@ class TestDbNameMethods(unittest.TestCase):
         c = db.get_name(child.get_id())
         self.assertTrue(c.get_parent_id(), p.get_id())
 
-        plorn_db.close()
-        plorn_config.close()
+        plorn.db.close()
+        plorn.config.close()
 
     def test_get_name_children(self):
-        db = plorn_db.open(self.get_test_dbname(),
+        db = plorn.db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
 
         tmp = self.make_name('Flintstone')
@@ -119,11 +119,11 @@ class TestDbNameMethods(unittest.TestCase):
                 break
         self.assertTrue(found)
 
-        plorn_db.close()
-        plorn_config.close()
+        plorn.db.close()
+        plorn.config.close()
 
     def test_get_full_name(self):
-        db = plorn_db.open(self.get_test_dbname(),
+        db = plorn.db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
 
         tmp = self.make_name('Flintstone')
@@ -141,11 +141,11 @@ class TestDbNameMethods(unittest.TestCase):
         self.assertTrue(fullname == ['Flintstone', 'Fred'])
         self.assertTrue(', '.join(fullname) == 'Flintstone, Fred')
 
-        plorn_db.close()
-        plorn_config.close()
+        plorn.db.close()
+        plorn.config.close()
 
     def test_get_all_names(self):
-        db = plorn_db.open(self.get_test_dbname(),
+        db = plorn.db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
 
         tmp = self.make_name('Flintstone')
@@ -172,11 +172,11 @@ class TestDbNameMethods(unittest.TestCase):
         self.assertTrue(p.get_id() in id_list)
         self.assertTrue(c.get_id() in id_list)
 
-        plorn_db.close()
-        plorn_config.close()
+        plorn.db.close()
+        plorn.config.close()
 
     def test_remove_name(self):
-        db = plorn_db.open(self.get_test_dbname(),
+        db = plorn.db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
 
         tmp = self.make_name('fred')
@@ -189,11 +189,11 @@ class TestDbNameMethods(unittest.TestCase):
         names = db.get_all_names()
         self.assertTrue(len(names) == 0)
 
-        plorn_db.close()
-        plorn_config.close()
+        plorn.db.close()
+        plorn.config.close()
 
     def test_update_name(self):
-        db = plorn_db.open(self.get_test_dbname(),
+        db = plorn.db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
 
         tmp = self.make_name('fred')
@@ -212,6 +212,6 @@ class TestDbNameMethods(unittest.TestCase):
         names = db.get_all_names()
         self.assertTrue(len(names) == 1)
 
-        plorn_db.close()
-        plorn_config.close()
+        plorn.db.close()
+        plorn.config.close()
 

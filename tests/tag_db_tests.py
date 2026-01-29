@@ -9,11 +9,11 @@ import copy
 import os
 import unittest
 
-import plorn_album
-import plorn_attr
-import plorn_config
-import plorn_db
-import plorn_photo
+import plorn.album
+import plorn.attr
+import plorn.config
+import plorn.db
+import plorn.photo
 
 
 class TestDbTagMethods(unittest.TestCase):
@@ -48,13 +48,13 @@ class TestDbTagMethods(unittest.TestCase):
         if os.path.exists(cfg):
             os.remove(cfg)
         self.write_test_config(self.get_test_cfgname())
-        db = plorn_db.open(self.get_test_dbname(),
+        db = plorn.db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
-        plorn_db.close()
+        plorn.db.close()
 
     def tearDown(self):
-        plorn_db.close()
-        plorn_config.close()
+        plorn.db.close()
+        plorn.config.close()
         dbname = self.get_test_dbname()
         cfg = self.get_test_cfgname()
         if os.path.exists(dbname):
@@ -63,21 +63,21 @@ class TestDbTagMethods(unittest.TestCase):
             os.remove(cfg)
 
     def make_tag(self, tag, parent_id=None):
-        return plorn_attr.PlornTag(tag, parent_id=parent_id)
+        return plorn.attr.PlornTag(tag, parent_id=parent_id)
 
     def test_add_tag(self):
-        db = plorn_db.open(self.get_test_dbname(),
+        db = plorn.db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
 
         tmp = self.make_tag('fred')
         tag = db.add_tag(tmp)
         self.assertTrue(db.tag_exists(tag))
 
-        plorn_db.close()
-        plorn_config.close()
+        plorn.db.close()
+        plorn.config.close()
 
     def test_add_subtag(self):
-        db = plorn_db.open(self.get_test_dbname(),
+        db = plorn.db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
 
         tmp = self.make_tag('Flintstone')
@@ -92,11 +92,11 @@ class TestDbTagMethods(unittest.TestCase):
         c = db.get_tag(child.get_id())
         self.assertTrue(c.get_parent_id(), p.get_id())
 
-        plorn_db.close()
-        plorn_config.close()
+        plorn.db.close()
+        plorn.config.close()
 
     def test_get_tag_children(self):
-        db = plorn_db.open(self.get_test_dbname(),
+        db = plorn.db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
 
         tmp = self.make_tag('Flintstone')
@@ -119,11 +119,11 @@ class TestDbTagMethods(unittest.TestCase):
                 break
         self.assertTrue(found)
 
-        plorn_db.close()
-        plorn_config.close()
+        plorn.db.close()
+        plorn.config.close()
 
     def test_get_full_tag(self):
-        db = plorn_db.open(self.get_test_dbname(),
+        db = plorn.db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
 
         tmp = self.make_tag('Flintstone')
@@ -141,11 +141,11 @@ class TestDbTagMethods(unittest.TestCase):
         self.assertTrue(fulltag == ['Flintstone', 'Fred'])
         self.assertTrue(', '.join(fulltag) == 'Flintstone, Fred')
 
-        plorn_db.close()
-        plorn_config.close()
+        plorn.db.close()
+        plorn.config.close()
 
     def test_get_all_tags(self):
-        db = plorn_db.open(self.get_test_dbname(),
+        db = plorn.db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
 
         tmp = self.make_tag('Flintstone')
@@ -172,11 +172,11 @@ class TestDbTagMethods(unittest.TestCase):
         self.assertTrue(p.get_id() in id_list)
         self.assertTrue(c.get_id() in id_list)
 
-        plorn_db.close()
-        plorn_config.close()
+        plorn.db.close()
+        plorn.config.close()
 
     def test_remove_tag(self):
-        db = plorn_db.open(self.get_test_dbname(),
+        db = plorn.db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
 
         tmp = self.make_tag('fred')
@@ -189,11 +189,11 @@ class TestDbTagMethods(unittest.TestCase):
         tags = db.get_all_tags()
         self.assertTrue(len(tags) == 0)
 
-        plorn_db.close()
-        plorn_config.close()
+        plorn.db.close()
+        plorn.config.close()
 
     def test_update_tag(self):
-        db = plorn_db.open(self.get_test_dbname(),
+        db = plorn.db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
 
         tmp = self.make_tag('fred')
@@ -212,6 +212,6 @@ class TestDbTagMethods(unittest.TestCase):
         tags = db.get_all_tags()
         self.assertTrue(len(tags) == 1)
 
-        plorn_db.close()
-        plorn_config.close()
+        plorn.db.close()
+        plorn.config.close()
 

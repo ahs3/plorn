@@ -15,9 +15,9 @@ from tkinter import font
 from tkinter import filedialog
 from tkinter import messagebox
 
-import plorn_config
-from plorn_config import FONTSIZE
-import plorn_db
+import plorn.config
+from plorn.config import FONTSIZE
+import plorn.db
 
 module_logger = logging.getLogger('plorn.attr')
 module_logger.setLevel(logging.INFO)
@@ -231,7 +231,7 @@ class PlornAddAttr(Toplevel):
         style = ttk.Style()
         style.configure('TCombobox', font=self.tfont)
         self.value = ''
-        self.db = plorn_db.open()
+        self.db = plorn.db.open()
         self.new_attr = None
 
         self.geometry('600x200')
@@ -327,7 +327,7 @@ class PlornRemoveAttr(Toplevel):
         self.attr_id = attr.get_id()
         self.parent_id = attr.get_parent_id()
         self.attr_name = attr_name
-        self.db = plorn_db.open()
+        self.db = plorn.db.open()
         self.tfont = font.nametofont('TkDefaultFont')
         style = ttk.Style()
         style.configure('TCombobox', font=self.tfont)
@@ -395,7 +395,7 @@ class PlornEditAttr(Toplevel):
         self.attr_id = attr.get_id()
         self.parent_id = attr.get_parent_id()
         self.parent_row = {}
-        self.db = plorn_db.open()
+        self.db = plorn.db.open()
 
         self.geometry('600x200')
         self.title(f'Edit {self.attr_name}')
@@ -507,7 +507,7 @@ class PlornSelectAttr(Toplevel):
         self.attr = None
         self.attr_list = attr_list
         module_logger.debug(f'PlornSelectAttr attr_list: {str(attr_list)}')
-        self.db = plorn_db.open()
+        self.db = plorn.db.open()
         self.tfont = font.nametofont('TkDefaultFont')
 
         self.geometry('600x450')

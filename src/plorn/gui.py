@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 #######################################################################
 # Copyright (c) 2025, Albert H. Stone, III <ahs3@ahs3.net>
 # SPDX-License-Identifier: GPL-3.0-or-later
@@ -21,30 +19,47 @@ from tkinter import ttk
 from tkinter import font
 from tkinter import messagebox
 
-import plorn_album
-import plorn_attr
-import plorn_common
-from plorn_common import SearchDomains, SearchDomainStrings
-from plorn_common import SearchFields, SearchFieldStrings
-from plorn_common import AlbumSearchInfo, PhotoSearchInfo
-import plorn_config
-from plorn_config import FONTSIZE
-import plorn_db
-import plorn_photo
-import plorn_search
+import plorn.album
+import plorn.attr
+import plorn.common
+from plorn.common import SearchDomains, SearchDomainStrings
+from plorn.common import SearchFields, SearchFieldStrings
+from plorn.common import AlbumSearchInfo, PhotoSearchInfo
+from plorn.config import get_config
+from plorn.config import FONTSIZE
+import plorn.db
+import plorn.photo
+import plorn.search
+
+#-- set up logging
+root_logger = logging.getLogger('')
+root_logger.setLevel(logging.DEBUG)
+fh = logging.FileHandler('plorn.log')
+fh.setLevel(logging.DEBUG)
+fhformat = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+formatter = logging.Formatter(fhformat)
+fh.setFormatter(formatter)
+root_logger.addHandler(fh)
+
+module_logger = logging.getLogger('plorn.gui')
+module_logger.setLevel(logging.INFO)
 
 #-- the application
 class Plorn(Tk):
     def __init__(self):
-        global config
-
         super().__init__()
         self.geometry('800x600')
         self.title('plorn')
         self.columnconfigure(0, weight=1)
         self.rowconfigure(0, weight=1)
         font.nametofont('TkDefaultFont').configure(size=FONTSIZE)
-        self.db = plorn_db.open(config.get_dbname())
+        
+        #-- get the config file
+        config_name = None
+        if len(sys.argv) > 1:
+            config_name = sys.argv[1]
+        self.config = get_config(config_name)
+        self.db = plorn.db.open(self.config.get_dbname())
 
         #-- create the main app frame
         self.mainframe = ttk.Frame(self, padding='10 10 10 10')
@@ -148,7 +163,7 @@ class Plorn(Tk):
         mheader.grid(column=1, row=0)
         self.static_widgets['header.middle'] = mheader
 
-        value = f'version {plorn_config.version}'
+        value = f'version {plorn.config.version}'
         rheader = ttk.Label(header, width=30, text=f'{value:>30}')
         rheader.grid(column=2, row=0, sticky=(E))
         self.static_widgets['header.right'] = rheader
@@ -246,6 +261,8 @@ class Plorn(Tk):
         return notebook
 
     def set_current_album(self, event):
+        global module_logger
+
         # we need this to pass on info to the photos tab only
         tab_no = self.notebook.index(self.notebook.select())
         if tab_no == self.photos_tab:
@@ -254,8 +271,8 @@ class Plorn(Tk):
                 album_info = self.aview.item(row)
                 album_id = album_info['text']
                 album_name = album_info['values'][1]
-                logger.debug(f'set_current_album: id {album_id}')
-                logger.debug(f'set_current_album: name {album_name}')
+                module_logger.debug(f'set_current_album: id {album_id}')
+                module_logger.debug(f'set_current_album: name {album_name}')
                 self.current_album = self.db.get_album(album_id)
                 self.current_album_name = self.current_album.get_name()
                 self.album_selector.set(self.current_album.get_name())
@@ -316,6 +333,8 @@ class Plorn(Tk):
         return result
 
     def update_albumview(self):
+        global module_logger
+
         for ii in self.aview.get_children():
             self.aview.delete(ii)
         self.album_list.clear()
@@ -334,12 +353,14 @@ class Plorn(Tk):
                 entry = self.aview.item(child_id)
                 self.current_album = self.db.get_album(entry['text'])
                 self.current_album_name = self.current_album.get_name()
-                logger.debug(f'update_albumview: default is "{self.current_album_name}"')
+                module_logger.debug(f'update_albumview: default is "{self.current_album_name}"')
         self.update_counts()
 
     def add_album(self):
-        logger.debug('adding album')
-        addone = plorn_album.PlornAddAlbum(self)
+        global module_logger
+
+        module_logger.debug('adding album')
+        addone = plorn.album.PlornAddAlbum(self)
         addone.grab_set()
         self.wait_window(addone)
         album = addone.get_new_album()
@@ -353,8 +374,8 @@ class Plorn(Tk):
         if row != '':
             album = self.aview.item(row)
             album_id = album['text']
-            logger.debug(f'remove album {album['values'][0]}')
-            rmone = plorn_album.PlornRemoveAlbum(self, album_id)
+            module_logger.debug(f'remove album {album['values'][0]}')
+            rmone = plorn.album.PlornRemoveAlbum(self, album_id)
             rmone.grab_set()
             self.wait_window(rmone)
             self.update_albumview()
@@ -364,12 +385,14 @@ class Plorn(Tk):
                                  detail='Please select an album to remove')
 
     def album_info(self):
+        global module_logger
+
         row = self.aview.focus()
         if row != '':
             album = self.aview.item(row)
             album_name = album['values'][0]
-            logger.debug(f'show info for {album_name}')
-            showone = plorn_album.PlornShowAlbum(self, album['text'])
+            module_logger.debug(f'show info for {album_name}')
+            showone = plorn.album.PlornShowAlbum(self, album['text'])
             showone.grab_set()
             self.wait_window(showone)
         else:
@@ -378,12 +401,14 @@ class Plorn(Tk):
                                  detail='Please select an album to show')
 
     def import_photos(self):
+        global module_logger
+
         row = self.aview.focus()
         if row != '':
             album = self.aview.item(row)
             album_name = album['values'][1]
-            logger.debug(f'show info for {album_name}')
-            added = plorn_album.PlornImportToAlbum(self, album['text'])
+            module_logger.debug(f'show info for {album_name}')
+            added = plorn.album.PlornImportToAlbum(self, album['text'])
             count = added.get_photo_count()
             suffix=''
             if count != 1:
@@ -399,43 +424,53 @@ class Plorn(Tk):
                                  detail='Please select an album to import into')
 
     def up_photo(self, event):
+        global module_logger
+
         cur = self.last_button_img
         child = self.pview.prev(cur)
         if not child:
             child = cur
-        logger.debug(f'up_photo selection: {str(cur)} -> {str(child)}')
+        module_logger.debug(f'up_photo selection: {str(cur)} -> {str(child)}')
         self.pview.selection_set(child)
         self.set_button_img(child)
         self.last_button_img = child
 
     def down_photo(self, event):
+        global module_logger
+
         cur = self.last_button_img
         child = self.pview.next(cur)
         if not child:
             child = cur
-        logger.debug(f'down_photo selection: {str(cur)} -> {str(child)}')
+        module_logger.debug(f'down_photo selection: {str(cur)} -> {str(child)}')
         self.pview.selection_set(child)
         self.set_button_img(child)
         self.last_button_img = child
 
     def select_photo(self, event):
+        global module_logger
+
         child = self.pview.identify_row(event.y)
         if not self.last_button_img:
             return
         if not child:
             child = self.last_button_img
-        logger.debug(f'select_photo selection: {str(child)}')
+        module_logger.debug(f'select_photo selection: {str(child)}')
         self.pview.selection_set(child)
         self.set_button_img(child)
         self.last_button_img = child
 
     def set_button_img(self, child):
-        logger.debug(f'set_button_img entry: {str(child)}')
+        global module_logger
+
+        module_logger.debug(f'set_button_img entry: {str(child)}')
         if child != '':
-            logger.debug(f'set_button_img: [{len(self.button_imgs)}] {str(child)}')
+            module_logger.debug(f'set_button_img: [{len(self.button_imgs)}] {str(child)}')
             self.current_photo_button.config(image=self.button_imgs[child])
 
     def update_photoview(self, album_id=None):
+        global module_logger
+
         for ii in self.pview.get_children():
             self.pview.delete(ii)
         self.photo_list.clear()
@@ -443,7 +478,7 @@ class Plorn(Tk):
 
         if album_id == None:
             if self.current_album == None:
-                logger.debug('update_photoview: no album provided')
+                module_logger.debug('update_photoview: no album provided')
                 return
             else:
                 album_id = self.current_album.get_id()
@@ -456,11 +491,11 @@ class Plorn(Tk):
                                       values=(ii['name'], ii['path'],
                                               thumb_path)
                                      )
-            logger.debug(f'thumb_path: {thumb_path}')
+            module_logger.debug(f'thumb_path: {thumb_path}')
             thumbnail = pilImage.open(thumb_path)
             button_img = ImageTk.PhotoImage(image=thumbnail)
             self.button_imgs[child] = button_img
-            logger.debug(f'add btn img for child {child} from {ii['path']}')
+            module_logger.debug(f'add btn img for child {child} from {ii['path']}')
 
         self.pview.focus_set()
         kids = self.pview.get_children()
@@ -475,13 +510,15 @@ class Plorn(Tk):
         self.update_counts()
 
     def open_album(self):
+        global module_logger
+
         row = self.aview.focus()
         if row != '':
             album_info = self.aview.item(row)
             album_id = album_info['text']
             album_name = album_info['values'][0]
             self.current_album = self.db.get_album(album_id)
-            logger.debug(f'open album {album_name}')
+            module_logger.debug(f'open album {album_name}')
             self.notebook.select(self.photos_tab)
             self.update_photoview(album_id)
         else:
@@ -490,12 +527,14 @@ class Plorn(Tk):
                                  detail='Please select an album to open')
 
     def edit_album(self):
+        global module_logger
+
         row = self.aview.focus()
         if row != '':
             album = self.aview.item(row)
             album_name = album['values'][0]
-            logger.debug(f'edit album {album_name}')
-            showone = plorn_album.PlornEditAlbum(self, album['text'])
+            module_logger.debug(f'edit album {album_name}')
+            showone = plorn.album.PlornEditAlbum(self, album['text'])
             showone.grab_set()
             self.wait_window(showone)
             self.update_albumview()
@@ -505,6 +544,8 @@ class Plorn(Tk):
                                  detail='Please select an album to edit')
 
     def build_album_list(self, parent):
+        global module_logger
+
         tfont = font.nametofont('TkDefaultFont')
 
         parent.columnconfigure(0, weight=1)
@@ -536,7 +577,7 @@ class Plorn(Tk):
                        )
         style.configure('plorn.Treeview.Heading',
                         font=('TkDefaultFont', FONTSIZE))
-        logger.debug(f'style: {str(style)}')
+        module_logger.debug(f'style: {str(style)}')
         aview = ttk.Treeview(lframe,
                              columns=('photos', 'name'),
                              selectmode='browse',
@@ -573,7 +614,8 @@ class Plorn(Tk):
             self.album_buttons[n].grid(column=0, row=n+1)
 
     def build_album_selector(self, parent):
-        global logger 
+        global module_logger 
+
         tfont = font.nametofont('TkDefaultFont')
 
         aframe = ttk.Frame(parent, padding=(5,5,5,5))
@@ -596,11 +638,11 @@ class Plorn(Tk):
         return aframe
 
     def album_chosen(self, event):
-        global logger
+        global module_logger
 
         album_name = self.album_selected.get()
         album_id = None
-        logger.debug(f'album chosen: {album_name}')
+        module_logger.debug(f'album chosen: {album_name}')
         if album_name == '':
             self.current_album = None
             album_id = None
@@ -706,12 +748,14 @@ class Plorn(Tk):
             self.photo_buttons[n].grid(column=0, row=n+1)
 
     def photo_info(self):
+        global module_logger
+
         row = self.pview.focus()
         if row != '':
             photo = self.pview.item(row)
             photo_id = photo['text']
-            logger.debug(f'show info for {photo_id}')
-            showone = plorn_photo.PlornShowPhoto(self, photo_id)
+            module_logger.debug(f'show info for {photo_id}')
+            showone = plorn.photo.PlornShowPhoto(self, photo_id)
             showone.grab_set()
             self.wait_window(showone)
         else:
@@ -720,13 +764,15 @@ class Plorn(Tk):
                                  detail='Please select a photo to show')
 
     def remove_photo(self):
+        global module_logger
+
         row = self.pview.focus()
         if row != '':
             photo_entry = self.pview.item(row)
             photo_id = photo_entry['text']
             photo = self.db.get_photo(photo_id)
-            logger.debug(f'remove_photo: row {row}, id {photo_id}, photo {str(photo)}')
-            rmone = plorn_photo.PlornRemovePhoto(self, photo_id)
+            module_logger.debug(f'remove_photo: row {row}, id {photo_id}, photo {str(photo)}')
+            rmone = plorn.photo.PlornRemovePhoto(self, photo_id)
             rmone.grab_set()
             self.wait_window(rmone)
             del self.button_imgs[row]
@@ -743,7 +789,7 @@ class Plorn(Tk):
             photo_entry = self.pview.item(row)
             photo_id = photo_entry['text']
             photo = self.db.get_photo(photo_id)
-            rmone = plorn_photo.PlornEditPhoto(self, photo_id)
+            rmone = plorn.photo.PlornEditPhoto(self, photo_id)
             rmone.grab_set()
             self.wait_window(rmone)
             self.update_photoview(photo.get_album_id())
@@ -754,25 +800,27 @@ class Plorn(Tk):
                                  detail='Please select a photo to edit')
 
     def add_photo(self):
-        logger.debug('adding photo')
+        global module_logger
+
+        module_logger.debug('adding photo')
         album_id = self.current_album.get_id()
-        addone = plorn_photo.PlornAddPhoto(self, album_id)
+        addone = plorn.photo.PlornAddPhoto(self, album_id)
         addone.grab_set()
         self.wait_window(addone)
         photo = addone.get_new_photo()
         
         if photo != None and photo.get_id() != None:
-            logger.debug(f'add a photo to {self.current_album.get_name()}')
+            module_logger.debug(f'add a photo to {self.current_album.get_name()}')
             self.photo_list.clear()
             self.button_imgs.clear()
-            logger.debug(f'add photo {photo.get_name()} with album_id {album_id}')
+            module_logger.debug(f'add photo {photo.get_name()} with album_id {album_id}')
             for ii in self.get_photos(album_id):
                 self.photo_list.append(ii)
             self.update_photoview(album_id)
             self.update_albumview()
 
     def build_name_list(self, parent):
-        self.name_tree = plorn_attr.PlornAttrTreeview(parent, heading='Name')
+        self.name_tree = plorn.attr.PlornAttrTreeview(parent, heading='Name')
         self.name_tree.get_frame().grid(column=0, row=0, sticky=(N,W,E,S))
 
         bframe = ttk.Frame(parent, padding=(5,5,5,5))
@@ -805,14 +853,16 @@ class Plorn(Tk):
         self.name_tree.toggle_treeview(self.name_open)
 
     def add_name(self):
-        logger.debug(f'adding name')
+        global module_logger
+
+        module_logger.debug(f'adding name')
         parent = self.name_tree.focus()
         if parent == '':
             pid = 0
         else:
             entry = self.name_tree.item(parent)
             pid = entry['values'][0]
-        addone = plorn_attr.PlornAddAttr(self, parent_id=pid,
+        addone = plorn.attr.PlornAddAttr(self, parent_id=pid,
                                          attr_name='Name',
                                          table_name='names')
         addone.grab_set()
@@ -820,12 +870,14 @@ class Plorn(Tk):
         attr = addone.get_new_attr()
         
         if attr and attr['id'] != None:
-            name = plorn_attr.PlornName(attr['value'], id=attr['id'],
+            name = plorn.attr.PlornName(attr['value'], id=attr['id'],
                                           parent_id=attr['parent_id'])
-            logger.debug(f'add name {name.get_value()}')
+            module_logger.debug(f'add name {name.get_value()}')
             self.update_nameview()
 
     def remove_name(self):
+        global module_logger
+
         entry_id = self.name_tree.focus()
         if entry_id == '':
             messagebox.showerror(parent=self,
@@ -833,8 +885,8 @@ class Plorn(Tk):
                                  detail='Please select a name to remove')
             return
         entry = self.name_tree.item(entry_id)
-        logger.debug(f'entry: {str(entry)}')
-        name = plorn_attr.PlornName(entry['text'],
+        module_logger.debug(f'entry: {str(entry)}')
+        name = plorn.attr.PlornName(entry['text'],
                                       id=entry['values'][0],
                                       parent_id=entry['values'][1])
         
@@ -846,8 +898,8 @@ class Plorn(Tk):
 
         name = self.db.get_name(entry['values'][0])
         parent_id = name.get_parent_id()
-        logger.debug(f'removing name {name.get_value()} from {parent_id}')
-        rmone = plorn_attr.PlornRemoveAttr(self, name, attr_name='Name')
+        module_logger.debug(f'removing name {name.get_value()} from {parent_id}')
+        rmone = plorn.attr.PlornRemoveAttr(self, name, attr_name='Name')
         rmone.grab_set()
         self.wait_window(rmone)
         self.update_nameview()
@@ -856,10 +908,10 @@ class Plorn(Tk):
         entry = self.name_tree.focus()
         if entry != '':
             name_entry = self.name_tree.item(entry)
-            name = plorn_attr.PlornName(name_entry['text'],
+            name = plorn.attr.PlornName(name_entry['text'],
                                            id=name_entry['values'][0],
                                            parent_id=name_entry['values'][1])
-            showone = plorn_attr.PlornEditAttr(self, name,
+            showone = plorn.attr.PlornEditAttr(self, name,
                                                attr_name='Name',
                                                table_name='names')
             showone.grab_set()
@@ -871,7 +923,7 @@ class Plorn(Tk):
                                  detail='Please select a name to edit')
 
     def build_place_list(self, parent):
-        self.place_tree = plorn_attr.PlornAttrTreeview(parent, heading='Place')
+        self.place_tree = plorn.attr.PlornAttrTreeview(parent, heading='Place')
         self.place_tree.get_frame().grid(column=0, row=0, sticky=(N,W,E,S))
 
         bframe = ttk.Frame(parent, padding=(5,5,5,5))
@@ -904,14 +956,16 @@ class Plorn(Tk):
         self.place_tree.toggle_treeview(self.place_open)
 
     def add_place(self):
-        logger.debug(f'adding place')
+        global module_logger
+
+        module_logger.debug(f'adding place')
         parent = self.place_tree.focus()
         if parent == '':
             pid = 0
         else:
             entry = self.place_tree.item(parent)
             pid = entry['values'][0]
-        addone = plorn_attr.PlornAddAttr(self, parent_id=pid,
+        addone = plorn.attr.PlornAddAttr(self, parent_id=pid,
                                          attr_name='Place',
                                          table_name='places')
         addone.grab_set()
@@ -919,12 +973,14 @@ class Plorn(Tk):
         attr = addone.get_new_attr()
         
         if attr and attr['id'] != None:
-            place = plorn_attr.PlornPlace(attr['value'], id=attr['id'],
+            place = plorn.attr.PlornPlace(attr['value'], id=attr['id'],
                                           parent_id=attr['parent_id'])
-            logger.debug(f'add place {place.get_value()}')
+            module_logger.debug(f'add place {place.get_value()}')
             self.update_placeview()
 
     def remove_place(self):
+        global module_logger
+
         entry_id = self.place_tree.focus()
         if entry_id == '':
             messagebox.showerror(parent=self,
@@ -932,8 +988,8 @@ class Plorn(Tk):
                                  detail='Please select a place to remove')
             return
         entry = self.place_tree.item(entry_id)
-        logger.debug(f'entry: {str(entry)}')
-        place = plorn_attr.PlornPlace(entry['text'],
+        module_logger.debug(f'entry: {str(entry)}')
+        place = plorn.attr.PlornPlace(entry['text'],
                                       id=entry['values'][0],
                                       parent_id=entry['values'][1])
         
@@ -945,8 +1001,8 @@ class Plorn(Tk):
 
         place = self.db.get_place(entry['values'][0])
         parent_id = place.get_parent_id()
-        logger.debug(f'removing place {place.get_value()} from {parent_id}')
-        rmone = plorn_attr.PlornRemoveAttr(self, place, attr_name='Place')
+        module_logger.debug(f'removing place {place.get_value()} from {parent_id}')
+        rmone = plorn.attr.PlornRemoveAttr(self, place, attr_name='Place')
         rmone.grab_set()
         self.wait_window(rmone)
         self.update_placeview()
@@ -955,10 +1011,10 @@ class Plorn(Tk):
         entry = self.place_tree.focus()
         if entry != '':
             place_entry = self.place_tree.item(entry)
-            place = plorn_attr.PlornPlace(place_entry['text'],
+            place = plorn.attr.PlornPlace(place_entry['text'],
                                            id=place_entry['values'][0],
                                            parent_id=place_entry['values'][1])
-            showone = plorn_attr.PlornEditAttr(self, place,
+            showone = plorn.attr.PlornEditAttr(self, place,
                                                attr_name='Place',
                                                table_name='places')
             showone.grab_set()
@@ -970,7 +1026,7 @@ class Plorn(Tk):
                                  detail='Please select a place to edit')
 
     def build_tag_list(self, parent):
-        self.tag_tree = plorn_attr.PlornAttrTreeview(parent, heading='Tag')
+        self.tag_tree = plorn.attr.PlornAttrTreeview(parent, heading='Tag')
         self.tag_tree.get_frame().grid(column=0, row=0, sticky=(N,W,E,S))
 
         bframe = ttk.Frame(parent, padding=(5,5,5,5))
@@ -1003,14 +1059,16 @@ class Plorn(Tk):
         self.tag_tree.toggle_treeview(self.tag_open)
 
     def add_tag(self):
-        logger.debug(f'adding tag')
+        global module_logger
+
+        module_logger.debug(f'adding tag')
         parent = self.tag_tree.focus()
         if parent == '':
             pid = 0
         else:
             entry = self.tag_tree.item(parent)
             pid = entry['values'][0]
-        addone = plorn_attr.PlornAddAttr(self, parent_id=pid,
+        addone = plorn.attr.PlornAddAttr(self, parent_id=pid,
                                          attr_name='Tag',
                                          table_name='tags')
         addone.grab_set()
@@ -1018,12 +1076,14 @@ class Plorn(Tk):
         attr = addone.get_new_attr()
         
         if attr and attr['id'] != None:
-            tag = plorn_attr.PlornTag(attr['value'], id=attr['id'],
+            tag = plorn.attr.PlornTag(attr['value'], id=attr['id'],
                                       parent_id=attr['parent_id'])
-            logger.debug(f'add tag {tag.get_value()}')
+            module_logger.debug(f'add tag {tag.get_value()}')
             self.update_tagview()
 
     def remove_tag(self):
+        global module_logger
+
         entry_id = self.tag_tree.focus()
         if entry_id == '':
             messagebox.showerror(parent=self,
@@ -1031,8 +1091,8 @@ class Plorn(Tk):
                                  detail='Please select a tag to remove')
             return
         entry = self.tag_tree.item(entry_id)
-        logger.debug(f'entry: {str(entry)}')
-        tag = plorn_attr.PlornTag(entry['text'],
+        module_logger.debug(f'entry: {str(entry)}')
+        tag = plorn.attr.PlornTag(entry['text'],
                                   id=entry['values'][0],
                                   parent_id=entry['values'][1])
         
@@ -1044,8 +1104,8 @@ class Plorn(Tk):
 
         tag = self.db.get_tag(entry['values'][0])
         parent_id = tag.get_parent_id()
-        logger.debug(f'removing tag {tag.get_value()} from {parent_id}')
-        rmone = plorn_attr.PlornRemoveAttr(self, tag, attr_name='Tag')
+        module_logger.debug(f'removing tag {tag.get_value()} from {parent_id}')
+        rmone = plorn.attr.PlornRemoveAttr(self, tag, attr_name='Tag')
         rmone.grab_set()
         self.wait_window(rmone)
         self.update_tagview()
@@ -1054,10 +1114,10 @@ class Plorn(Tk):
         entry = self.tag_tree.focus()
         if entry != '':
             tag_entry = self.tag_tree.item(entry)
-            tag = plorn_attr.PlornTag(tag_entry['text'],
+            tag = plorn.attr.PlornTag(tag_entry['text'],
                                       id=tag_entry['values'][0],
                                       parent_id=tag_entry['values'][1])
-            showone = plorn_attr.PlornEditAttr(self, tag,
+            showone = plorn.attr.PlornEditAttr(self, tag,
                                                attr_name='Tag',
                                                table_name='tags')
             showone.grab_set()
@@ -1141,32 +1201,32 @@ class Plorn(Tk):
         self.s_domain_box.focus_set()
 
     def do_search(self):
-        global logger
+        global module_logger
 
-        logger.debug('do_search: started...')
+        module_logger.debug('do_search: started...')
         try:
-            srch = plorn_search.PlornSearch(self.s_domain.get(),
+            srch = plorn.search.PlornSearch(self.s_domain.get(),
                                             self.s_field.get(),
                                             self.s_regex.get(),
                                            )
             albums, photos = srch.do_search()
-            #logger.debug(f'do_search: albums found -- {albums}')
-            #logger.debug(f'do_search: photos found -- {photos}')
-            res = plorn_search.PlornSearchResults(self, albums, photos,
+            #module_logger.debug(f'do_search: albums found -- {albums}')
+            #module_logger.debug(f'do_search: photos found -- {photos}')
+            res = plorn.search.PlornSearchResults(self, albums, photos,
                                                   self.s_domain.get(),
                                                   self.s_field.get(),
                                                   self.s_regex.get())
 
-        except plorn_search.SearchException as se:
+        except plorn.search.SearchException as se:
             messagebox.showerror(parent=self,
                                  title='Invalid Search',
                                  detail=f'{se}')
 
     def adv_search(self):
-        return plorn_search.PlornAdvancedSearch(self)
+        return plorn.search.PlornAdvancedSearch(self)
 
     def build_settings(self, parent):
-        config = plorn_config.get_config()
+        config = plorn.config.get_config()
         tfont = font.nametofont('TkDefaultFont')
 
         items = [
@@ -1189,28 +1249,8 @@ class Plorn(Tk):
             entries[row].configure(state='readonly')
 
 
-#-- set up logging
-root_logger = logging.getLogger('')
-root_logger.setLevel(logging.DEBUG)
-fh = logging.FileHandler('plorn.log')
-fh.setLevel(logging.DEBUG)
-fhformat = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-formatter = logging.Formatter(fhformat)
-fh.setFormatter(formatter)
-root_logger.addHandler(fh)
-
-logger = logging.getLogger('plorn')
-logger.setLevel(logging.INFO)
-
-#-- get the config file
-logger.debug('calling PlornConfig()')
-config_name = None
-if len(sys.argv) > 1:
-    config = plorn_config.get_config(config_name)
-else:
-    config = plorn_config.get_config()
-
-if __name__ == '__main__':
+#-- the plorn GUI
+def user_interface():
     plorn = Plorn()
     plorn.mainloop()
 

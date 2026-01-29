@@ -19,12 +19,12 @@ from tkinter import font
 from tkinter import filedialog
 from tkinter import messagebox
 
-import plorn_attr
-import plorn_db
-import plorn_common
-import plorn_config
-from plorn_config import FONTSIZE
-import plorn_photo
+import plorn.attr
+import plorn.db
+import plorn.common
+import plorn.config
+from plorn.config import FONTSIZE
+import plorn.photo
 
 module_logger = logging.getLogger('plorn.base_obj')
 module_logger.setLevel(logging.INFO)

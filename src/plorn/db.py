@@ -14,10 +14,10 @@ import sys
 from PIL import Image as pilImage
 from PIL import ImageTk
 
-import plorn_album
-import plorn_attr
-import plorn_config
-import plorn_photo
+import plorn.album
+import plorn.attr
+import plorn.config
+import plorn.photo
 
 module_logger = logging.getLogger('plorn.db')
 module_logger.setLevel(logging.INFO)
@@ -452,7 +452,7 @@ class PlornDb:
         res = self.cursor.execute(sql)
         row = res.fetchone()
         module_logger.debug(f'added album {str(row)}')
-        result = plorn_album.PlornAlbum(row['name'], id=row['id'],
+        result = plorn.album.PlornAlbum(row['name'], id=row['id'],
                                         dated=row['dated'], notes=row['notes'],
                                         photo_count=row['photo_count'])
 
@@ -493,7 +493,7 @@ class PlornDb:
         row = self.get_album_row_by_id(album_id)
         if row == None:
             return None
-        p = plorn_album.PlornAlbum(row['name'], id=row['id'],
+        p = plorn.album.PlornAlbum(row['name'], id=row['id'],
                                    dated=row['dated'], notes=row['notes'],
                                    photo_count=row['photo_count'],
                                   )
@@ -645,7 +645,7 @@ class PlornDb:
 
     def get_photo_by_id(self, photo_id):
         row = self.get_photo_row_by_id(photo_id)
-        p = plorn_photo.PlornPhoto(row['name'], id=row['id'],
+        p = plorn.photo.PlornPhoto(row['name'], id=row['id'],
                                    album_id=row['album_id'],
                                    path=row['path'], dated=row['dated'],
                                    notes=row['notes'])
@@ -705,7 +705,7 @@ class PlornDb:
         res = self.cursor.execute(sql)
         row = res.fetchone()
         module_logger.debug(f'added photo {str(row)}')
-        return plorn_photo.PlornPhoto(row['name'],
+        return plorn.photo.PlornPhoto(row['name'],
                                       id=row['id'], album_id=row['album_id'],
                                       path=row['path'],
                                       dated=row['dated'], notes=row['notes'],
@@ -788,7 +788,7 @@ class PlornDb:
         res = self.cursor.execute(sql)
         row = res.fetchone()
         module_logger.debug(f'get_name: {str(row)}')
-        return plorn_attr.PlornName(row['name'], id=row['id'],
+        return plorn.attr.PlornName(row['name'], id=row['id'],
                                     parent_id=row['parent_id'])
 
     def get_name_by_name(self, name, parent_id=0):
@@ -796,7 +796,7 @@ class PlornDb:
         sql += f' AND parent_id = \'{parent_id}\''
         res = self.cursor.execute(sql)
         row = res.fetchone()
-        return plorn_attr.PlornName(row['name'], id=row['id'],
+        return plorn.attr.PlornName(row['name'], id=row['id'],
                                     parent_id=row['parent_id'])
 
     def get_name_children(self, name_id):
@@ -805,7 +805,7 @@ class PlornDb:
         rows = res.fetchall()
         result = []
         for ii in rows:
-            p = plorn_attr.PlornName(ii['name'], id=ii['id'],
+            p = plorn.attr.PlornName(ii['name'], id=ii['id'],
                                      parent_id=ii['parent_id'])
             result.append(p)
         return result
@@ -815,7 +815,7 @@ class PlornDb:
         sql += ' AND parent_id = {parent_id}'
         res = self.cursor.execute(sql)
         row = res.fetchone()
-        return plorn_attr.PlornName(row['name'], id=row['id'],
+        return plorn.attr.PlornName(row['name'], id=row['id'],
                                     parent_id=row['parent_id'])
 
     def get_full_name(self, name_id):
@@ -849,7 +849,7 @@ class PlornDb:
         rows.sort(key=lambda x: x['name'])
         result = []
         for ii in rows:
-            p = plorn_attr.PlornName(ii['name'], id=ii['id'],
+            p = plorn.attr.PlornName(ii['name'], id=ii['id'],
                                      parent_id=ii['parent_id'])
             result.append(p)
         return result
@@ -869,7 +869,7 @@ class PlornDb:
         msg = f'updated name: from {name.get_name()}'
         msg += f' to {row['name']}'
         module_logger.debug(msg)
-        return plorn_attr.PlornName(row['name'], id=row['id'],
+        return plorn.attr.PlornName(row['name'], id=row['id'],
                                     parent_id=row['parent_id'])
 
     def place_exists(self, place, parent_id=0):
@@ -889,7 +889,7 @@ class PlornDb:
         module_logger.debug(f'get_place_children: found {len(rows)} for {place_id}')
         result = []
         for ii in rows:
-            p = plorn_attr.PlornPlace(ii['place'], id=ii['id'],
+            p = plorn.attr.PlornPlace(ii['place'], id=ii['id'],
                                       parent_id=ii['parent_id'])
             result.append(p)
         return result
@@ -917,7 +917,7 @@ class PlornDb:
         module_logger.debug(f'get_places: {rows}')
         result = []
         for ii in rows:
-            p = plorn_attr.PlornPlace(ii['place'], id=ii['id'],
+            p = plorn.attr.PlornPlace(ii['place'], id=ii['id'],
                                        parent_id=ii['parent_id'])
             result.append(p)
         return result
@@ -934,7 +934,7 @@ class PlornDb:
         res = self.cursor.execute(sql)
         row = res.fetchone()
         module_logger.debug(f'place obj by place \'{place}\': {str(row)}')
-        return plorn_attr.PlornPlace(row['place'], id=row['id'],
+        return plorn.attr.PlornPlace(row['place'], id=row['id'],
                                      parent_id=row['parent_id'])
 
     def remove_place(self, place_id, parent_id):
@@ -981,17 +981,17 @@ class PlornDb:
 
     def add_name(self, name):
         row = self.add_attr(name)
-        return plorn_attr.PlornName(row['value'], id=row['id'],
+        return plorn.attr.PlornName(row['value'], id=row['id'],
                                     parent_id=row['parent_id'])
 
     def add_place(self, place):
         row = self.add_attr(place)
-        return plorn_attr.PlornPlace(row['value'], id=row['id'],
+        return plorn.attr.PlornPlace(row['value'], id=row['id'],
                                      parent_id=row['parent_id'])
 
     def add_tag(self, tag):
         row = self.add_attr(tag)
-        return plorn_attr.PlornTag(row['value'], id=row['id'],
+        return plorn.attr.PlornTag(row['value'], id=row['id'],
                                    parent_id=row['parent_id'])
 
     def attr_exists(self, attr):
@@ -1020,17 +1020,17 @@ class PlornDb:
 
     def get_name(self, name_id):
         row = self.get_attr(name_id, 'names')
-        return plorn_attr.PlornName(row['value'], id=row['id'],
+        return plorn.attr.PlornName(row['value'], id=row['id'],
                                     parent_id=row['parent_id'])
 
     def get_place(self, place_id):
         row = self.get_attr(place_id, 'places')
-        return plorn_attr.PlornPlace(row['value'], id=row['id'],
+        return plorn.attr.PlornPlace(row['value'], id=row['id'],
                                      parent_id=row['parent_id'])
 
     def get_tag(self, tag_id):
         row = self.get_attr(tag_id, 'tags')
-        return plorn_attr.PlornTag(row['value'], id=row['id'],
+        return plorn.attr.PlornTag(row['value'], id=row['id'],
                                    parent_id=row['parent_id'])
 
     def get_attr_children(self, attr):
@@ -1045,7 +1045,7 @@ class PlornDb:
         rows = self.get_attr_children(name)
         result = []
         for ii in rows:
-            p = plorn_attr.PlornName(ii['value'], id=ii['id'],
+            p = plorn.attr.PlornName(ii['value'], id=ii['id'],
                                      parent_id=ii['parent_id'])
             result.append(p)
         return result
@@ -1054,7 +1054,7 @@ class PlornDb:
         rows = self.get_attr_children(place)
         result = []
         for ii in rows:
-            p = plorn_attr.PlornPlace(ii['value'], id=ii['id'],
+            p = plorn.attr.PlornPlace(ii['value'], id=ii['id'],
                                       parent_id=ii['parent_id'])
             result.append(p)
         return result
@@ -1063,7 +1063,7 @@ class PlornDb:
         rows = self.get_attr_children(tag)
         result = []
         for ii in rows:
-            p = plorn_attr.PlornTag(ii['value'], id=ii['id'],
+            p = plorn.attr.PlornTag(ii['value'], id=ii['id'],
                                     parent_id=ii['parent_id'])
             result.append(p)
         return result
@@ -1109,7 +1109,7 @@ class PlornDb:
         rows = self.get_all_attrs('names')
         result = []
         for ii in rows:
-            p = plorn_attr.PlornName(ii['value'], id=ii['id'],
+            p = plorn.attr.PlornName(ii['value'], id=ii['id'],
                                      parent_id=ii['parent_id'])
             result.append(p)
         return result
@@ -1118,7 +1118,7 @@ class PlornDb:
         rows = self.get_all_attrs('places')
         result = []
         for ii in rows:
-            p = plorn_attr.PlornPlace(ii['value'], id=ii['id'],
+            p = plorn.attr.PlornPlace(ii['value'], id=ii['id'],
                                       parent_id=ii['parent_id'])
             result.append(p)
         return result
@@ -1127,7 +1127,7 @@ class PlornDb:
         rows = self.get_all_attrs('tags')
         result = []
         for ii in rows:
-            p = plorn_attr.PlornTag(ii['value'], id=ii['id'],
+            p = plorn.attr.PlornTag(ii['value'], id=ii['id'],
                                     parent_id=ii['parent_id'])
             result.append(p)
         return result
@@ -1308,7 +1308,7 @@ def open(dbname='plorn.db', cfgname='plorn.cfg'):
     module_logger.debug('open db')
     module_logger.debug(f'config is \'{cfgname}\'')
 
-    config = plorn_config.get_config(cfgname)
+    config = plorn.config.get_config(cfgname)
     if config.needs_db():
         module_logger.debug('need to create tables')
         current_db = PlornDb(get_dbname(config), config)
@@ -1339,7 +1339,7 @@ def open(dbname='plorn.db', cfgname='plorn.cfg'):
     module_logger.debug('open db')
     module_logger.debug(f'config is \'{cfgname}\'')
 
-    config = plorn_config.get_config(cfgname)
+    config = plorn.config.get_config(cfgname)
     if config.needs_db():
         module_logger.debug('need to create tables')
         current_db = PlornDb(get_dbname(config), config)

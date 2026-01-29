@@ -11,11 +11,11 @@ import shutil
 import sys
 import unittest
 
-import plorn_album
-import plorn_attr
-import plorn_config
-import plorn_db
-import plorn_photo
+import plorn.album
+import plorn.attr
+import plorn.config
+import plorn.db
+import plorn.photo
 
 
 class TestDbAlbumMethods(unittest.TestCase):
@@ -50,13 +50,13 @@ class TestDbAlbumMethods(unittest.TestCase):
         if os.path.exists(cfg):
             os.remove(cfg)
         self.write_test_config(self.get_test_cfgname())
-        db = plorn_db.open(self.get_test_dbname(),
+        db = plorn.db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
-        plorn_db.close()
+        plorn.db.close()
 
     def tearDown(self):
-        plorn_db.close()
-        plorn_config.close()
+        plorn.db.close()
+        plorn.config.close()
         dbname = self.get_test_dbname()
         cfg = self.get_test_cfgname()
         if os.path.exists(dbname):
@@ -65,28 +65,28 @@ class TestDbAlbumMethods(unittest.TestCase):
             os.remove(cfg)
 
     def make_album(self, name, id, dated, notes, nphotos):
-        return plorn_album.PlornAlbum(name, id, dated, notes, nphotos)
+        return plorn.album.PlornAlbum(name, id, dated, notes, nphotos)
 
     def make_name(self, name, parent_id=0):
-        return plorn_attr.PlornName(name)
+        return plorn.attr.PlornName(name)
 
     def make_place(self, place, parent_id=0):
-        return plorn_attr.PlornPlace(place)
+        return plorn.attr.PlornPlace(place)
 
     def make_tag(self, tag, parent_id=0):
-        return plorn_attr.PlornTag(tag)
+        return plorn.attr.PlornTag(tag)
 
     def test_album_exists(self):
-        db = plorn_db.open(self.get_test_dbname(),
+        db = plorn.db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
         tmp = self.make_album('fred', None, 'now', 'note1', '1')
         album = db.add_album(tmp)
         self.assertTrue(db.album_exists(album))
-        plorn_db.close()
-        plorn_config.close()
+        plorn.db.close()
+        plorn.config.close()
 
     def test_albums_table_by_name(self):
-        db = plorn_db.open(self.get_test_dbname(),
+        db = plorn.db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
         tmp = self.make_album('fred', None, 'now', 'note1', '42')
         orig = db.add_album(tmp)
@@ -97,11 +97,11 @@ class TestDbAlbumMethods(unittest.TestCase):
         self.assertEqual(album.get_dated(), 'now')
         self.assertEqual(album.get_notes(), 'note1')
         self.assertEqual(album.get_photo_count(), 42)
-        plorn_db.close()
-        plorn_config.close()
+        plorn.db.close()
+        plorn.config.close()
 
     def test_albums_table_by_id(self):
-        db = plorn_db.open(self.get_test_dbname(),
+        db = plorn.db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
         tmp = self.make_album('fred', None, 'now', 'note1', '42')
         orig = db.add_album(tmp)
@@ -112,22 +112,22 @@ class TestDbAlbumMethods(unittest.TestCase):
         self.assertEqual(album.get_dated(), 'now')
         self.assertEqual(album.get_notes(), 'note1')
         self.assertEqual(album.get_photo_count(), 42)
-        plorn_db.close()
-        plorn_config.close()
+        plorn.db.close()
+        plorn.config.close()
 
     def test_remove_by_name(self):
-        db = plorn_db.open(self.get_test_dbname(),
+        db = plorn.db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
         album = self.make_album('fred', None, 'now', 'note1', '1')
         id = db.add_album(album)
         self.assertTrue(db.album_exists(album))
         db.remove_album_by_name('fred')
         self.assertFalse(db.album_exists(album))
-        plorn_db.close()
-        plorn_config.close()
+        plorn.db.close()
+        plorn.config.close()
 
     def test_get_all_albums(self):
-        db = plorn_db.open(self.get_test_dbname(),
+        db = plorn.db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
         album1 = self.make_album('fred', None, 'now', 'note1', '1')
         album2 = self.make_album('barney', None, 'now', 'note2', '2')
@@ -145,11 +145,11 @@ class TestDbAlbumMethods(unittest.TestCase):
         self.assertTrue(album2.get_id() in ids)
         self.assertTrue(album['id'] in ids)
         self.assertEqual(album['name'], 'fred')
-        plorn_db.close()
-        plorn_config.close()
+        plorn.db.close()
+        plorn.config.close()
 
     def test_album_count(self):
-        db = plorn_db.open(self.get_test_dbname(),
+        db = plorn.db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
         tmp1 = self.make_album('fred', None, 'now', 'note1', '1')
         tmp2 = self.make_album('barney', None, 'now', 'note2', '2')
@@ -161,11 +161,11 @@ class TestDbAlbumMethods(unittest.TestCase):
             rows.append(ii)
         self.assertEqual(len(rows), 2)
         self.assertEqual(len(rows), db.album_count())
-        plorn_db.close()
-        plorn_config.close()
+        plorn.db.close()
+        plorn.config.close()
 
     def test_add_album(self):
-        db = plorn_db.open(self.get_test_dbname(),
+        db = plorn.db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
         tmp = self.make_album('fred', None, 'now', 'note1', '42')
 
@@ -290,11 +290,11 @@ class TestDbAlbumMethods(unittest.TestCase):
                     break
             self.assertTrue(found)
 
-        plorn_db.close()
-        plorn_config.close()
+        plorn.db.close()
+        plorn.config.close()
 
     def test_update_album(self):
-        db = plorn_db.open(self.get_test_dbname(),
+        db = plorn.db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
         tmp = self.make_album('fred', None, 'now', 'note1', '1')
         album = db.add_album(tmp)
@@ -307,6 +307,6 @@ class TestDbAlbumMethods(unittest.TestCase):
         self.assertEqual(a.get_name(), 'fred')
         self.assertEqual(a.get_notes(), 'lots of notes')
         self.assertEqual(a.get_photo_count(), 12)
-        plorn_db.close()
-        plorn_config.close()
+        plorn.db.close()
+        plorn.config.close()
 

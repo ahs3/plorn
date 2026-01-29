@@ -20,9 +20,9 @@ from tkinter import font
 from tkinter import filedialog
 from tkinter import messagebox
 
-import plorn_db
-import plorn_config
-from plorn_config import FONTSIZE
+import plorn.db
+import plorn.config
+from plorn.config import FONTSIZE
 
 module_logger = logging.getLogger('plorn.common')
 module_logger.setLevel(logging.INFO)
@@ -138,8 +138,10 @@ class PlornAttrFrame:
         for ii in range(0,3):
             self.rframe.rowconfigure(ii, weight=1)
 
-        self.add_icon = tk.PhotoImage(file='list-add.png')
-        self.rm_icon = tk.PhotoImage(file='list-remove.png')
+        plus = os.path.join(os.path.dirname(__file__), 'list-add.png')
+        minus = os.path.join(os.path.dirname(__file__), 'list-remove.png')
+        self.add_icon = tk.PhotoImage(file=plus)
+        self.rm_icon = tk.PhotoImage(file=minus)
 
         self.name_listbox = PlornAttrListbox(self.rframe, title='Names')
         self.name_listbox.get_frame().grid(column=0, row=0, sticky=(N,W,E,S))

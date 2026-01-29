@@ -23,18 +23,18 @@ from PIL import Image as pilImage
 from PIL.ExifTags import TAGS as pilTAGS
 from PIL.ExifTags import GPSTAGS as pilGPSTAGS
 
-import plorn_attr
-import plorn_base_obj
-import plorn_db
-import plorn_common
-import plorn_config
-from plorn_config import FONTSIZE
-import plorn_photo
+import plorn.attr
+import plorn.base_obj
+import plorn.db
+import plorn.common
+import plorn.config
+from plorn.config import FONTSIZE
+import plorn.photo
 
 module_logger = logging.getLogger('plorn.album')
 module_logger.setLevel(logging.INFO)
 
-class PlornAlbum(plorn_base_obj.PlornBaseObj):
+class PlornAlbum(plorn.base_obj.PlornBaseObj):
     def __init__(self, name, id=None, dated='', notes='', photo_count=0,
                  names=[], places=[], tags=[]):
         self.photo_count = photo_count
@@ -144,8 +144,8 @@ class PlornAddAlbum(Toplevel):
         tfont = font.nametofont('TkDefaultFont')
         self.name = ''
         self.new_album = PlornAlbum('')
-        self.db = plorn_db.open()
-        self.cfg = plorn_config.get_config()
+        self.db = plorn.db.open()
+        self.cfg = plorn.config.get_config()
         self.photo_count = 0
 
         self.geometry('950x650')
@@ -160,7 +160,7 @@ class PlornAddAlbum(Toplevel):
         self.lframe = PlornAlbumLeftFrame(self.db, self, album=None)
         self.lframe.get_frame().grid(column=0, row=0, sticky=(N,W,E,S))
 
-        self.rframe = plorn_common.PlornAttrFrame(self.db, self,
+        self.rframe = plorn.common.PlornAttrFrame(self.db, self,
                 base_obj=None,
                 get_name_list=self.db.get_names_for_album,
                 get_place_list=self.db.get_places_for_album,
@@ -195,7 +195,7 @@ class PlornAddAlbum(Toplevel):
         global module_logger
 
         name_list = self.db.get_all_names()
-        selectone = plorn_attr.PlornSelectAttr('Name', table_name='names',
+        selectone = plorn.attr.PlornSelectAttr('Name', table_name='names',
                                                attr_list=name_list)
         selectone.grab_set()
         self.wait_window(selectone)
@@ -224,7 +224,7 @@ class PlornAddAlbum(Toplevel):
         global module_logger
 
         place_list = self.db.get_all_places()
-        selectone = plorn_attr.PlornSelectAttr('Place', table_name='places',
+        selectone = plorn.attr.PlornSelectAttr('Place', table_name='places',
                                                attr_list=place_list)
         selectone.grab_set()
         self.wait_window(selectone)
@@ -253,7 +253,7 @@ class PlornAddAlbum(Toplevel):
         global module_logger
 
         tag_list = self.db.get_all_tags()
-        selectone = plorn_attr.PlornSelectAttr('Tag', table_name='tags',
+        selectone = plorn.attr.PlornSelectAttr('Tag', table_name='tags',
                                                attr_list=tag_list)
         selectone.grab_set()
         self.wait_window(selectone)
@@ -327,7 +327,7 @@ class PlornShowAlbum(Toplevel):
         super().__init__(parent)
         module_logger.debug('started PlornShowAlbum')
         self.tfont = font.nametofont('TkDefaultFont')
-        self.db = plorn_db.open()
+        self.db = plorn.db.open()
         self.album = self.db.get_album(album_id)
 
         self.geometry('950x650')
@@ -344,7 +344,7 @@ class PlornShowAlbum(Toplevel):
                                           default_state='readonly')
         self.lframe.get_frame().grid(column=0, row=0, sticky=(N,W,E,S))
 
-        self.rframe = plorn_common.PlornAttrFrame(self.db, self,
+        self.rframe = plorn.common.PlornAttrFrame(self.db, self,
                 base_obj=self.album,
                 get_name_list=self.db.get_names_for_album,
                 get_place_list=self.db.get_places_for_album,
@@ -367,7 +367,7 @@ class PlornRemoveAlbum(Toplevel):
         super().__init__(parent)
         module_logger.debug('started PlornRemoveAlbum')
         tfont = font.nametofont('TkDefaultFont')
-        self.db = plorn_db.open()
+        self.db = plorn.db.open()
         self.album_id = album_id
         self.album = self.db.get_album(album_id)
         self.name_listbox = {}
@@ -387,7 +387,7 @@ class PlornRemoveAlbum(Toplevel):
                                           default_state='readonly')
         self.lframe.get_frame().grid(column=0, row=0, sticky=(N,W,E,S))
 
-        self.rframe = plorn_common.PlornAttrFrame(self.db, self,
+        self.rframe = plorn.common.PlornAttrFrame(self.db, self,
                 base_obj=self.album,
                 get_name_list=self.db.get_names_for_album,
                 get_place_list=self.db.get_places_for_album,
@@ -425,7 +425,7 @@ class PlornEditAlbum(Toplevel):
         super().__init__(parent)
         module_logger.debug('started PlornEditAlbum')
         tfont = font.nametofont('TkDefaultFont')
-        self.db = plorn_db.open()
+        self.db = plorn.db.open()
         self.album = self.db.get_album(album_id)
         self.name_listbox = {}
         self.place_listbox = {}
@@ -445,7 +445,7 @@ class PlornEditAlbum(Toplevel):
         self.lframe.get_photos_field().configure(state='readonly')
         self.lframe.get_frame().grid(column=0, row=0, sticky=(N,W,E,S))
 
-        self.rframe = plorn_common.PlornAttrFrame(self.db, self,
+        self.rframe = plorn.common.PlornAttrFrame(self.db, self,
                 base_obj=self.album,
                 get_name_list=self.db.get_names_for_album,
                 get_place_list=self.db.get_places_for_album,
@@ -473,7 +473,7 @@ class PlornEditAlbum(Toplevel):
         global module_logger
 
         name_list = self.db.get_all_names()
-        selectone = plorn_attr.PlornSelectAttr('Name', table_name='names',
+        selectone = plorn.attr.PlornSelectAttr('Name', table_name='names',
                                                attr_list=name_list)
         selectone.grab_set()
         self.wait_window(selectone)
@@ -502,7 +502,7 @@ class PlornEditAlbum(Toplevel):
         global module_logger
 
         place_list = self.db.get_all_places()
-        selectone = plorn_attr.PlornSelectAttr('Place', table_name='places',
+        selectone = plorn.attr.PlornSelectAttr('Place', table_name='places',
                                                attr_list=place_list)
         selectone.grab_set()
         self.wait_window(selectone)
@@ -531,7 +531,7 @@ class PlornEditAlbum(Toplevel):
         global module_logger
 
         tag_list = self.db.get_all_tags()
-        selectone = plorn_attr.PlornSelectAttr('Tag', table_name='tags',
+        selectone = plorn.attr.PlornSelectAttr('Tag', table_name='tags',
                                                attr_list=tag_list)
         selectone.grab_set()
         self.wait_window(selectone)
@@ -610,14 +610,14 @@ class PlornImportToAlbum:
         self.album_id = album_id
         self.added_count = 0
         tfont = font.nametofont('TkDefaultFont')
-        self.db = plorn_db.open()
+        self.db = plorn.db.open()
         self.album = self.db.get_album(self.album_id)
 
         image_list = self.collect_images()
         for path in image_list:
             name = os.path.basename(path)
             dated, notes = self.get_metadata(path)
-            tmp = plorn_photo.PlornPhoto(name, id=None, album_id=album_id,
+            tmp = plorn.photo.PlornPhoto(name, id=None, album_id=album_id,
                                          path=path, dated=dated, notes=notes,
                                         )
             photo = self.db.add_photo(tmp)

@@ -10,10 +10,10 @@ import shutil
 import sys
 import unittest
 
-import plorn_album
-import plorn_config
-import plorn_db
-import plorn_photo
+import plorn.album
+import plorn.config
+import plorn.db
+import plorn.photo
 
 class TestDbBasics(unittest.TestCase):
 
@@ -49,8 +49,8 @@ class TestDbBasics(unittest.TestCase):
         self.write_test_config(self.get_test_cfgname())
 
     def tearDown(self):
-        plorn_db.close()
-        plorn_config.close()
+        plorn.db.close()
+        plorn.config.close()
         dbname = self.get_test_dbname()
         cfg = self.get_test_cfgname()
         if os.path.exists(dbname):
@@ -59,25 +59,25 @@ class TestDbBasics(unittest.TestCase):
             os.remove(cfg)
 
     def test_open(self):
-        db = plorn_db.open(self.get_test_dbname(),
+        db = plorn.db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
         self.assertTrue(db != None)
-        plorn_db.close()
-        plorn_config.close()
+        plorn.db.close()
+        plorn.config.close()
 
     def test_multiple_opens(self):
-        db1 = plorn_db.open(self.get_test_dbname(),
+        db1 = plorn.db.open(self.get_test_dbname(),
                             self.get_test_cfgname())
-        db2 = plorn_db.open(self.get_test_dbname(),
+        db2 = plorn.db.open(self.get_test_dbname(),
                             self.get_test_cfgname())
         self.assertTrue(db1 == db2)
         db1.close()
         db2.close()
-        plorn_db.close()
-        plorn_config.close()
+        plorn.db.close()
+        plorn.config.close()
 
     def test_config_table(self):
-        db = plorn_db.open(self.get_test_dbname(),
+        db = plorn.db.open(self.get_test_dbname(),
                            self.get_test_cfgname())
         row = db.get_config()
         self.assertEqual(row["name"], "plorn")
@@ -86,6 +86,6 @@ class TestDbBasics(unittest.TestCase):
         dbfile = os.path.join(row["datadir"], self.get_test_dbname())
         datadir = os.path.expanduser("~/.local/share/plorn")
         self.assertEqual(row["datadir"], datadir)
-        plorn_db.close()
-        plorn_config.close()
+        plorn.db.close()
+        plorn.config.close()
 

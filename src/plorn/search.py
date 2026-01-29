@@ -20,17 +20,17 @@ from tkinter import font
 from tkinter import filedialog
 from tkinter import messagebox
 
-import plorn_attr
-import plorn_base_obj
-import plorn_common
-from plorn_common import SearchDomains, SearchDomainStrings
-from plorn_common import SearchFields, SearchFieldStrings
-from plorn_common import AlbumSearchInfo, PhotoSearchInfo, AttrSearchInfo
-import plorn_config
-from plorn_config import FONTSIZE
-import plorn_db
-import plorn_album
-import plorn_photo
+import plorn.attr
+import plorn.base_obj
+import plorn.common
+from plorn.common import SearchDomains, SearchDomainStrings
+from plorn.common import SearchFields, SearchFieldStrings
+from plorn.common import AlbumSearchInfo, PhotoSearchInfo, AttrSearchInfo
+import plorn.config
+from plorn.config import FONTSIZE
+import plorn.db
+import plorn.album
+import plorn.photo
 
 module_logger = logging.getLogger('plorn.search')
 module_logger.setLevel(logging.DEBUG)
@@ -56,7 +56,7 @@ class PlornSearch:
 
         module_logger.debug('started PlornSearch')
         self.tfont = font.nametofont('TkDefaultFont')
-        self.db = plorn_db.open()
+        self.db = plorn.db.open()
         self.blank_regex_allowed = allow_blank
 
         #-- what do we search?
@@ -242,7 +242,7 @@ class PlornAdvancedSearch(Toplevel):
         super().__init__(parent)
         module_logger.debug('started PlornAdvancedSearch')
         self.tfont = font.nametofont('TkDefaultFont')
-        self.db = plorn_db.open()
+        self.db = plorn.db.open()
 
         self.geometry('1200x600')
         self.title('Advanced Search')
@@ -433,12 +433,14 @@ class PlornSearchResults(Toplevel):
         self.fieldstr = fieldstr
         self.regex = regex
         self.tfont = font.nametofont('TkDefaultFont')
-        self.db = plorn_db.open()
+        self.db = plorn.db.open()
 
-        with pilImage.open('checkbox.png') as img:
+        found = os.path.join(os.path.dirname(__file__), 'checkbox.png')
+        with pilImage.open(found) as img:
             img.thumbnail((25,25), pilImage.Resampling.LANCZOS)
             self.found_icon = ImageTk.PhotoImage(image=img)
-        with pilImage.open('red-x.png') as img:
+        not_found = os.path.join(os.path.dirname(__file__), 'red-x.png')
+        with pilImage.open(not_found) as img:
             img.thumbnail((25,25), pilImage.Resampling.LANCZOS)
             self.notfound_icon = ImageTk.PhotoImage(image=img)
 
@@ -602,7 +604,7 @@ class PlornSearchResults(Toplevel):
         obj_id = self.tview_info[entry]['id']
 
         if is_album:
-            win = plorn_album.PlornEditAlbum(self, obj_id)
+            win = plorn.album.PlornEditAlbum(self, obj_id)
             self.wait_window(win)
             album = win.get_updated_album()
             for ii in self.albums:
@@ -614,7 +616,7 @@ class PlornSearchResults(Toplevel):
                     break
 
         else:
-            win = plorn_photo.PlornEditPhoto(self, obj_id)
+            win = plorn.photo.PlornEditPhoto(self, obj_id)
             self.wait_window(win)
             photo = win.get_updated_photo()
             for ii in self.photos:

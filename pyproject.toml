@@ -1,0 +1,45 @@
+#######################################################################
+# Copyright (c) 2025, Albert H. Stone, III <ahs3@ahs3.net>
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2025 Albert H. Stone, III <ahs3@ahs3.net>
+#######################################################################
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[project]
+name = "plorn"
+dynamic = ["version"]
+authors = [
+	{ name="Al Stone", email="ahs3@ahs3.net" },
+]
+description = "Build catalogs of albums and photos"
+readme = "README.md"
+requires-python = ">=3.14"
+classifiers = [
+	"Programming Language :: Python :: 3",
+	"Operating System :: OS Independent",
+]
+license = "GPL-3.0-or-later"
+license-files = [ "COPYING", "COPYRIGHT", "LICENSES", ]
+dependencies = [
+	"filetype >= 1.2",
+	"pillow >= 11.3",
+	"tkinter",
+]
+
+[project.scripts]
+plorn = "plorn:__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/ahs3/plorn"
+Documentation = "https://github.com/ahs3/plorn/README.md"
+Repository = "https://github.com/ahs3/plorn.git"
+Issues = "https://github.com/ahs3/plorn/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.setuptools-git-versioning]
+enabled = true
+

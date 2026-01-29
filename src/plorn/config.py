@@ -12,7 +12,7 @@ import os
 import pwd
 import sys
 
-version = '0.20.2'
+version = '0.21.1'
 config = None
 
 FONTSIZE = 16
@@ -31,15 +31,17 @@ class PlornConfig:
         config_home=os.path.join(os.environ['HOME'], '.config', 'plorn')
         data_home=os.path.join(os.environ['HOME'], '.local', 'share', 'plorn')
         self.config = configparser.ConfigParser()
-        if os.path.exists(name):
+        if name and os.path.exists(name):
             self.filename = name
             self.config.read(self.filename)
             module_logger.debug(f'reusing ./{self.filename}')
-        elif os.path.exists(os.path.join(config_home, name)):
+        elif name and os.path.exists(os.path.join(config_home, name)):
             self.filename = os.path.join(config_home, name)
             self.config.read(self.filename)
             module_logger.debug(f'reusing $cfg/{self.filename}')
         else:
+            if not name:
+                name = 'plorn.cfg'
             module_logger.debug('config file not found, creating one')
             self.config['plorn'] = {}
             uname = getpass.getuser()
@@ -137,5 +139,6 @@ def close():
     config = None
 
 def plorn_photo_path():
-    return PLORN_PHOTO_PATH
+    path = os.path.join(os.path.dirname(__file__), PLORN_PHOTO_PATH)
+    return path
 
