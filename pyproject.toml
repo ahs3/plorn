@@ -37,9 +37,6 @@ Documentation = "https://github.com/ahs3/plorn/README.md"
 Repository = "https://github.com/ahs3/plorn.git"
 Issues = "https://github.com/ahs3/plorn/issues"
 
-[tool.setuptools.packages.find]
-where = ["."]
-
-[tool.setuptools-git-versioning]
-enabled = true
+[tool.pdm.version]
+source = "scm"
 
