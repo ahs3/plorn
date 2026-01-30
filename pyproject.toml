@@ -15,7 +15,7 @@ authors = [
 ]
 description = "Build catalogs of albums and photos"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.13"
 classifiers = [
 	"Programming Language :: Python :: 3",
 	"Operating System :: OS Independent",
@@ -23,13 +23,12 @@ classifiers = [
 license = "GPL-3.0-or-later"
 license-files = [ "COPYING", "COPYRIGHT", "LICENSES", ]
 dependencies = [
-	"filetype >= 1.2",
-	"pillow >= 11.3",
-	"tkinter",
+	"filetype",
+	"pillow",
 ]
 
 [project.scripts]
-plorn = "plorn:__main__:main"
+plorn = "plorn.gui:user_interface"
 
 [project.urls]
 Homepage = "https://github.com/ahs3/plorn"
@@ -38,5 +37,6 @@ Repository = "https://github.com/ahs3/plorn.git"
 Issues = "https://github.com/ahs3/plorn/issues"
 
 [tool.pdm.version]
-source = "scm"
+source = "file"
+path = "src/plorn/config.py"
 
