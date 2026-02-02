@@ -15,7 +15,6 @@ from PIL import Image as pilImage
 from PIL import ImageTk
 
 from tkinter import *
-from tkinter import ttk
 from tkinter import font
 from tkinter import messagebox
 
@@ -26,7 +25,6 @@ from plorn.common import SearchDomains, SearchDomainStrings
 from plorn.common import SearchFields, SearchFieldStrings
 from plorn.common import AlbumSearchInfo, PhotoSearchInfo
 from plorn.config import get_config
-from plorn.config import FONTSIZE
 import plorn.db
 import plorn.photo
 import plorn.search
@@ -44,15 +42,20 @@ root_logger.addHandler(fh)
 module_logger = logging.getLogger('plorn.gui')
 module_logger.setLevel(logging.INFO)
 
+import ttkbootstrap as ttk
+from ttkbootstrap.constants import *
+from plorn.widgets import *
+
+root_window = None
+
 #-- the application
-class Plorn(Tk):
+class Plorn(ttk.Window):
     def __init__(self):
-        super().__init__()
-        self.geometry('800x600')
+        super().__init__(themename='darkly')
+        self.geometry('1280x1024')
         self.title('plorn')
         self.columnconfigure(0, weight=1)
         self.rowconfigure(0, weight=1)
-        font.nametofont('TkDefaultFont').configure(size=FONTSIZE)
         
         #-- get the config file
         config_name = None
@@ -60,6 +63,8 @@ class Plorn(Tk):
             config_name = sys.argv[1]
         self.config = get_config(config_name)
         self.db = plorn.db.open(self.config.get_dbname())
+        self.font = font.nametofont('TkDefaultFont')
+        self.font.configure(size=self.config.get_fontsize())
 
         #-- create the main app frame
         self.mainframe = ttk.Frame(self, padding='10 10 10 10')
@@ -147,24 +152,26 @@ class Plorn(Tk):
         #-- header for the application
         header = ttk.Frame(parent, padding='10 10 10 10')
         header.columnconfigure(0, weight=1)
-        header.columnconfigure(1, weight=4)
+        header.columnconfigure(1, weight=8)
         header.columnconfigure(2, weight=1)
         header.rowconfigure(0, weight=4)
         header.rowconfigure(1, weight=1)
         header.rowconfigure(2, weight=1)
 
         label_text = 'plorn: photo catalog'
-        lheader = ttk.Label(header, width=30, text=f'{label_text:<30}')
+        lheader = make_header_label(header, width=30, text=f'{label_text:<30}',
+                                    size=self.config.get_fontsize())
         lheader.grid(column=0, row=0, sticky=(W))
         self.static_widgets['header.left'] = lheader
 
-        blanks = '      '
-        mheader = ttk.Label(header, width=30, text=f'{blanks:^30}')
+        mheader = ttk.Label(header, width=30, text=' ', state='hidden')
         mheader.grid(column=1, row=0)
         self.static_widgets['header.middle'] = mheader
 
-        value = f'version {plorn.config.version}'
-        rheader = ttk.Label(header, width=30, text=f'{value:>30}')
+        msg = f'version {self.config.get_version()}'
+        value = f'{msg: >50}'
+        rheader = make_header_label(header, width=30, text=value,
+                                    size=self.config.get_fontsize())
         rheader.grid(column=2, row=0, sticky=(E))
         self.static_widgets['header.right'] = rheader
 
@@ -306,8 +313,8 @@ class Plorn(Tk):
         sep4.grid(column=0, row=2, columnspan=3, sticky=(W+E))
         self.static_widgets['footer.sep4'] = sep4
 
-        b = ttk.Button(footer, text='Quit', command=self.destroy)
-        b.grid(column=2, row=3)
+        b = make_button(footer, text='Quit', command=self.destroy)
+        b.grid(column=2, row=3, padx=10, pady=10)
         self.static_widgets['footer.exit_button'] = b
 
         return footer
@@ -572,11 +579,11 @@ class Plorn(Tk):
                 ]})
             ])
         style.configure('plorn.Treeview',
-                        font=('TkDefaultFont', FONTSIZE),
+                        font=('TkDefaultFont', self.config.get_fontsize()),
                         rowheight=30,
                        )
         style.configure('plorn.Treeview.Heading',
-                        font=('TkDefaultFont', FONTSIZE))
+                        font=('TkDefaultFont', self.config.get_fontsize()))
         module_logger.debug(f'style: {str(style)}')
         aview = ttk.Treeview(lframe,
                              columns=('photos', 'name'),
@@ -611,7 +618,7 @@ class Plorn(Tk):
             ttk.Button(rframe, text='import', command=self.import_photos),
         ]
         for n in range(0, len(self.album_buttons)):
-            self.album_buttons[n].grid(column=0, row=n+1)
+            self.album_buttons[n].grid(column=0, row=n+1, padx=10, pady=10)
 
     def build_album_selector(self, parent):
         global module_logger 
@@ -703,11 +710,11 @@ class Plorn(Tk):
                 ]})
             ])
         style.configure('plorn.Treeview',
-                        font=('TkDefaultFont', FONTSIZE),
+                        font=('TkDefaultFont', self.config.get_fontsize()),
                         rowheight=30,
                        )
         style.configure('plorn.Treeview.Heading',
-                        font=('TkDefaultFont', FONTSIZE))
+                        font=('TkDefaultFont', self.config.get_fontsize()))
         pview = ttk.Treeview(lframe,
                              columns=('name', 'path', 'thumb'),
                              selectmode='browse',
@@ -1138,7 +1145,7 @@ class Plorn(Tk):
 
         text = 'Simple Search:'
         header1 = ttk.Label(parent, width=len(text), text=text)
-        header1.config(font=(tfont, FONTSIZE+4, 'bold'))
+        header1.config(font=(tfont, self.config.get_fontsize()+4, 'bold'))
         header1.grid(column=0, row=0, sticky=W, columnspan=2)
 
         lab1 = ttk.Label(parent, width=20, text='What to Search:')
@@ -1226,15 +1233,17 @@ class Plorn(Tk):
         return plorn.search.PlornAdvancedSearch(self)
 
     def build_settings(self, parent):
-        config = plorn.config.get_config()
         tfont = font.nametofont('TkDefaultFont')
 
+        plorn_label = make_header_label(parent, width=20,
+                                        text='Global Settings:')
+        plorn_label.grid(column=0, row=0, pady=10)
         items = [
-            ['User Name:',        0, config.get_username()],
-            ['Full Name:',        1, config.get_fullname()],
-            ['Config Directory:', 2, config.get_configdir()],
-            ['Data Directory:',   3, config.get_datadir()],
-            ['SQLite Database:',  4, config.get_dbname()],
+            ['User Name:',        1, self.config.get_username()],
+            ['Full Name:',        2, self.config.get_fullname()],
+            ['Config Directory:', 3, self.config.get_configdir()],
+            ['Data Directory:',   4, self.config.get_datadir()],
+            ['SQLite Database:',  5, self.config.get_dbname()],
         ]
 
         num = 0
@@ -1242,15 +1251,59 @@ class Plorn(Tk):
         entries = {}
         for label_text, row, value in items:
             labels[row] = ttk.Label(parent, width=20, text=label_text)
-            labels[row].grid(column=0, row=row)
+            labels[row].grid(column=0, row=row, pady=5)
             entries[row] = ttk.Entry(parent, width=30, font=tfont)
             entries[row].insert(0, value)
-            entries[row].grid(column=1, row=row)
+            entries[row].grid(column=1, row=row, pady=5)
             entries[row].configure(state='readonly')
 
+        #-- allow for some user interface adjustments
+        row = len(labels) + 1
+        spacing_label = ttk.Label(parent, width=20, state='hidden')
+        spacing_label.grid(column=0, row=row, pady=5)
+        row += 1
+        gui_label = make_header_label(parent, width=20, text='User Interface:')
+        gui_label.grid(column=0, row=row, pady=5)
+        row += 1
+
+        themel = ttk.Label(parent, width=20, text='Theme')
+        themel.grid(column=0, row=row, pady=5)
+        current_theme = ttk.Label(master=parent, text=self.config.get_theme(),
+                                  font=tfont)
+        current_theme.grid(column=1, row=row, pady=5)
+        themecb = ttk.Combobox(master=current_theme, width=29,
+                               values=self.style.theme_names(),
+                               font=tfont)
+        themecb.grid(column=1, row=row, pady=5)
+        themecb.current(self.style.theme_names().index(self.style.theme.name))
+
+        def change_theme(e):
+            t = themecb.get()
+            self.style.theme_use(t)
+            current_them.configure(text=t)
+            themecb.selection_clear()
+
+        themecb.bind("<<ComboboxSelected>>", change_theme)
+        row += 1
+
+        def change_fontsize():
+            default = font.nametofont('TkDefaultFont')
+            default.configure(size=current_size.get())
+
+        fsl = ttk.Label(parent, width=20, text='Font Size')
+        fsl.grid(column=0, row=row, pady=5)
+        current_size = IntVar(value=self.config.get_fontsize())
+        fse = ttk.Spinbox(master=parent, from_=0, to=100,
+                          width=28, font=tfont,
+                          textvariable=current_size,
+                          command=change_fontsize)
+        fse.grid(column=1, row=row, pady=5)
+        row += 1
 
 #-- the plorn GUI
 def user_interface():
-    plorn = Plorn()
-    plorn.mainloop()
+    global root_window
+
+    root_window = Plorn()
+    root_window.mainloop()
 

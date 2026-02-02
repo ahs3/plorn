@@ -12,8 +12,7 @@ import os
 import pwd
 import sys
 
-__version__ = '0.21.5'
-version = __version__
+__version__ = '0.22.1'
 config = None
 
 FONTSIZE = 16
@@ -52,6 +51,12 @@ class PlornConfig:
             self.config['plorn']['config_dir'] = config_home
             self.config['plorn']['data_dir'] = data_home
             self.config['plorn']['dbname'] = name.replace('.cfg', '.db')
+
+            self.config['gui'] = {}
+            self.config['gui']['theme'] = 'darkly'
+            self.config['gui']['fontsize'] = '16'
+            self.config['gui']['default_photo'] = "plorn_app.png"
+
             self.filename = os.path.join(config_home, name)
 
             if not os.path.exists(self.config['plorn']['config_dir']):
@@ -118,9 +123,27 @@ class PlornConfig:
         self.make_db = False
 
     def get_version(self):
-        global version
-        return version
+        global __version__
+        return __version__
 
+    def get_theme(self):
+        return self.config['gui']['theme']
+
+    def set_theme(self, themename):
+        self.config['gui']['theme'] = themename
+        
+    def get_fontsize(self):
+        return int(self.config['gui']['fontsize'])
+
+    def set_theme(self, fontsize):
+        self.config['gui']['fontsize'] = str(fontsize)
+        
+    def get_default_photo(self):
+        return self.config['gui']['default_photo']
+
+    def set_theme(self, default_photo):
+        self.config['gui']['default_photo'] = default_photo
+        
     def __str__(self):
         return self.filename
 
