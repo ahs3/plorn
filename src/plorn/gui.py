@@ -14,9 +14,10 @@ import time
 from PIL import Image as pilImage
 from PIL import ImageTk
 
-from tkinter import *
-from tkinter import font
-from tkinter import messagebox
+import ttkbootstrap as ttk
+from ttkbootstrap.constants import *
+from ttkbootstrap.tableview import Tableview, TableRow
+from plorn.widgets import *
 
 import plorn.album
 import plorn.attr
@@ -42,10 +43,6 @@ root_logger.addHandler(fh)
 module_logger = logging.getLogger('plorn.gui')
 module_logger.setLevel(logging.INFO)
 
-import ttkbootstrap as ttk
-from ttkbootstrap.constants import *
-from plorn.widgets import *
-
 root_window = None
 
 #-- the application
@@ -65,6 +62,8 @@ class Plorn(ttk.Window):
         self.db = plorn.db.open(self.config.get_dbname())
         self.font = font.nametofont('TkDefaultFont')
         self.font.configure(size=self.config.get_fontsize())
+        style = ttk.Style()
+        style.configure('TEntry', font=self.font)
 
         #-- create the main app frame
         self.mainframe = ttk.Frame(self, padding='10 10 10 10')
@@ -90,7 +89,6 @@ class Plorn(ttk.Window):
         #-- create these as placeholders
         self.albums_tab = 0
         self.aview = None
-        self.album_list = []
         self.album_name_list = []
         self.album_count = 0
         self.current_album = None
@@ -196,7 +194,7 @@ class Plorn(ttk.Window):
         self.album_frame['relief'] = 'groove'
         self.album_buttons = []
         self.album_selected.set('')
-        self.build_album_list(self.album_frame)
+        self.build_album_view(self.album_frame)
         notebook.add(self.album_frame, text=' Albums ', sticky='nwes')
         self.albums_tab = 0
 
@@ -339,17 +337,24 @@ class Plorn(ttk.Window):
         result.sort(key=lambda x: int(x['id']))
         return result
 
+    def get_all_album_data(self):
+        data = []
+        album_list = self.get_albums()
+        for ii in album_list:
+            data.append((f'{ii['id']:04}', ii['photo_count'], ii['name']))
+        return data
+
     def update_albumview(self):
         global module_logger
 
         for ii in self.aview.get_children():
             self.aview.delete(ii)
-        self.album_list.clear()
-        self.album_list = self.get_albums()
-        for ii in self.album_list:
-            self.aview.insert('', END,
-                              text=f'{ii['id']:04}',
-                              values=(ii['photo_count'], ii['name']))
+        #self.album_list.clear()
+        #self.album_list = self.get_albums()
+        #for ii in self.album_list:
+        #    self.aview.insert('', END,
+        #                      text=f'{ii['id']:04}',
+        #                      values=(ii['photo_count'], ii['name']))
         self.aview.focus_set()
         kids = self.aview.get_children()
         if len(kids) > 0:
@@ -373,19 +378,19 @@ class Plorn(ttk.Window):
         album = addone.get_new_album()
         
         if album != None and album.get_id() != None:
-            self.current_album = album
-            self.update_albumview()
+            self.current_album = album.get_id()
+            self.current_album_name = album.get_name()
+            self.aview.insert_row(self.current_album,
+                                  (f'{self.current_album:04}',
+                                   album.get_photo_count(),
+                                   self.current_album_name))
 
     def remove_album(self):
-        row = self.aview.focus()
-        if row != '':
-            album = self.aview.item(row)
-            album_id = album['text']
-            module_logger.debug(f'remove album {album['values'][0]}')
-            rmone = plorn.album.PlornRemoveAlbum(self, album_id)
+        if self.current_album:
+            rmone = plorn.album.PlornRemoveAlbum(self, self.current_album)
             rmone.grab_set()
             self.wait_window(rmone)
-            self.update_albumview()
+            self.aview.delete_row(iid=f'{self.current_album:04}')
         else:
             messagebox.showerror(parent=self,
                                  title='Select an Album',
@@ -394,12 +399,9 @@ class Plorn(ttk.Window):
     def album_info(self):
         global module_logger
 
-        row = self.aview.focus()
-        if row != '':
-            album = self.aview.item(row)
-            album_name = album['values'][0]
-            module_logger.debug(f'show info for {album_name}')
-            showone = plorn.album.PlornShowAlbum(self, album['text'])
+        if self.current_album:
+            module_logger.debug(f'show info for {self.current_album_name}')
+            showone = plorn.album.PlornShowAlbum(self, self.current_album)
             showone.grab_set()
             self.wait_window(showone)
         else:
@@ -410,21 +412,25 @@ class Plorn(ttk.Window):
     def import_photos(self):
         global module_logger
 
-        row = self.aview.focus()
-        if row != '':
-            album = self.aview.item(row)
-            album_name = album['values'][1]
-            module_logger.debug(f'show info for {album_name}')
-            added = plorn.album.PlornImportToAlbum(self, album['text'])
+        if self.current_album:
+            module_logger.debug(f'show info for {self.current_album_name}')
+            added = plorn.album.PlornImportToAlbum(self, self.current_album)    
             count = added.get_photo_count()
+            album_row = self.db.get_album_row_by_id(self.current_album)
+            module_logger.debug(f'import_photos updated: {album_row}')
+            album_id = album_row['id']
+            name = album_row['name']
+            total = album_row['photo_count']
             suffix=''
             if count != 1:
                 suffix = 's'
-            detail = f'Added {count} photo{suffix} to album \"{album_name}\"'
+            detail  = f'Added {count} photo{suffix} to album \"{name}\"'
             messagebox.showinfo(parent=self,
                                 title='Import Photos to Album',
                                 detail=detail)
-            self.update_albumview()
+            trow = self.aview.iidmap[f'{album_id:04}']
+            trow.values = [f'{album_id:04}', total, name]
+            trow.refresh()
         else:
             messagebox.showerror(parent=self,
                                  title='Select an Album',
@@ -536,24 +542,18 @@ class Plorn(ttk.Window):
     def edit_album(self):
         global module_logger
 
-        row = self.aview.focus()
-        if row != '':
-            album = self.aview.item(row)
-            album_name = album['values'][0]
-            module_logger.debug(f'edit album {album_name}')
-            showone = plorn.album.PlornEditAlbum(self, album['text'])
+        if self.current_album:
+            module_logger.debug(f'edit album {self.current_album_name}')
+            showone = plorn.album.PlornEditAlbum(self, self.current_album)
             showone.grab_set()
             self.wait_window(showone)
-            self.update_albumview()
         else:
             messagebox.showerror(parent=self,
                                  title='Select an Album',
                                  detail='Please select an album to edit')
 
-    def build_album_list(self, parent):
+    def build_album_view(self, parent):
         global module_logger
-
-        tfont = font.nametofont('TkDefaultFont')
 
         parent.columnconfigure(0, weight=1)
         parent.rowconfigure(0, weight=1)
@@ -566,59 +566,79 @@ class Plorn(ttk.Window):
 
         rframe = ttk.Frame(parent, padding=(5, 5, 5, 5))
         rframe.columnconfigure(0, weight=1)
-        rframe.rowconfigure(0, weight=1)
         rframe.grid(column=1, row=0, sticky=(N,W,E,S))
         self.static_widgets['album.rframe'] = rframe
 
-        style = ttk.Style()
-        style.layout('plorn.Treeview',
-            [('Treeview.field', {'sticky': 'nwes', 'border': 1, 'children': [
-                ('Treeview.padding', {'sticky': 'nwes', 'children': [
-                    ('Treeview.treearea', {'sticky': 'nwes'})
-                    ]})
-                ]})
-            ])
-        style.configure('plorn.Treeview',
-                        font=('TkDefaultFont', self.config.get_fontsize()),
-                        rowheight=30,
-                       )
-        style.configure('plorn.Treeview.Heading',
-                        font=('TkDefaultFont', self.config.get_fontsize()))
-        module_logger.debug(f'style: {str(style)}')
-        aview = ttk.Treeview(lframe,
-                             columns=('photos', 'name'),
-                             selectmode='browse',
-                             style='plorn.Treeview',
-                            )
-        aview.column('#0', anchor='center', width=100, stretch=False)
-        aview.heading('#0', text='ID')
-        aview.column('photos', anchor='center', minwidth=100)
-        aview.heading('photos', text='Photos')
-        aview.column('name', anchor='w', minwidth=400, stretch=True)
-        aview.heading('name', text='Name')
-        aview.grid(column=0, row=0, sticky=(N,W,E,S))
-        xscrollbar = ttk.Scrollbar(lframe, orient='vertical',
-                                  command=aview.yview)
-        xscrollbar.grid(column=1, row=0, sticky=(N,S,E,W))
-        yscrollbar = ttk.Scrollbar(lframe, orient='horizontal',
-                                  command=aview.xview)
-        yscrollbar.grid(column=0, row=1, sticky=(N,S,E,W))
-        aview.configure(xscrollcommand=yscrollbar.set)
-        aview.configure(yscrollcommand=xscrollbar.set)
-        self.static_widgets['album.xscrollbar'] = xscrollbar
-        self.static_widgets['album.yscrollbar'] = yscrollbar
-        self.aview = aview
-        self.update_albumview()
+        #style = ttk.Style()
+        #style.layout('plorn.Treeview',
+        #    [('Treeview.field', {'sticky': 'nwes', 'border': 1, 'children': [
+        #        ('Treeview.padding', {'sticky': 'nwes', 'children': [
+        #            ('Treeview.treearea', {'sticky': 'nwes'})
+        #            ]})
+        #        ]})
+        #    ])
+        #style.configure('plorn.Treeview',
+        #                font=('TkDefaultFont', self.config.get_fontsize()),
+        #                rowheight=30,
+        #               )
+        #style.configure('plorn.Treeview.Heading',
+        #                font=('TkDefaultFont', self.config.get_fontsize()))
+        #module_logger.debug(f'style: {str(style)}')
 
-        self.album_buttons = [
-            ttk.Button(rframe, text='info', command=self.album_info),
-            ttk.Button(rframe, text='add', command=self.add_album),
-            ttk.Button(rframe, text='remove', command=self.remove_album),
-            ttk.Button(rframe, text='edit', command=self.edit_album),
-            ttk.Button(rframe, text='import', command=self.import_photos),
+        def album_selected(rows):
+            if len(rows) > 0:
+                album_id, photo_count, album_name = rows[0].values
+                self.current_album = album_id
+                self.current_album_name = album_name
+
+        coldata = [
+            {'text': 'ID', 'stretch': False},
+            {'text': 'Photos', 'stretch': False},
+            {'text': 'Name', 'stretch': True},
         ]
-        for n in range(0, len(self.album_buttons)):
-            self.album_buttons[n].grid(column=0, row=n+1, padx=10, pady=10)
+        rowdata = self.get_all_album_data()
+        module_logger.debug(f'rowdata: {rowdata}')
+        #
+        # foa reasons unknown, i cannot change the font size in the
+        # search entry box to something readable by human eyes
+        #
+        # leaving this chunk o' code as a TODO reminder to fix it,
+        # and then turn searchable back on
+        #
+        #style = ttk.Style()
+        #style.configure('TEntry',
+        #                font=('TkDefaultFont', self.config.get_fontsize()))
+        #module_logger.info(f'TEntry: {ttk.Style().map("TEntry")}')
+
+        aview = Tableview(master=lframe, coldata=coldata, rowdata=rowdata,
+                          paginated=True,
+                          searchable=True, bootstyle=PRIMARY,
+                          autofit=True,
+                          pagesize=20,
+                          iid_field=0,      # first col as iid
+                          on_select=album_selected,
+                         )
+        aview.align_heading_center(cid=0)
+        aview.align_heading_center(cid=1)
+        aview.align_column_center(cid=0)
+        aview.align_column_center(cid=1)
+        aview.align_column_left(cid=2)
+        aview.grid(column=0, row=0, sticky=(N,W,E,S))
+        self.aview = aview
+
+        button_info = [
+            (0, 'info',   self.album_info),
+            (1, 'add',    self.add_album),
+            (2, 'remove', self.remove_album),
+            (3, 'edit',   self.edit_album),
+            (4, 'import', self.import_photos),
+        ]
+        self.album_buttons = []
+        for row, txt, cmd in button_info:
+            rframe.rowconfigure(row, weight=1)
+            b = make_button(rframe, text=txt, command=cmd)
+            b.grid(column=0, row=row, pady=10)
+            self.album_buttons.append(b)
 
     def build_album_selector(self, parent):
         global module_logger 
@@ -659,12 +679,12 @@ class Plorn(ttk.Window):
         self.update_photoview(album_id)
 
     def update_album_selections(self):
-        self.album_list.clear()
-        self.album_list = self.get_albums()
+        #self.album_list.clear()
+        #self.album_list = self.get_albums()
         self.album_name_list.clear()
         self.album_name_list.append('')
-        for ii in self.album_list:
-            self.album_name_list.append(ii['name'])
+        #for ii in self.album_list:
+        #    self.album_name_list.append(ii['name'])
 
     def build_photo_list(self, parent):
         tfont = font.nametofont('TkDefaultFont')

@@ -35,8 +35,8 @@ module_logger.setLevel(logging.INFO)
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 
-def make_button(parent, text='Button', command=None, **kwargs):
-    return ttk.Button(parent, text=text, command=command,
+def make_button(parent, text='Button', command=None, width=10, **kwargs):
+    return ttk.Button(parent, text=text, command=command, width=width,
                       bootstyle="outline-primary", **kwargs)
 
 def make_header_label(parent, width=20, text='', size=None):

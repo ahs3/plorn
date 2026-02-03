@@ -622,6 +622,7 @@ class PlornImportToAlbum:
                                         )
             photo = self.db.add_photo(tmp)
             self.added_count += 1
+            self.db.increment_photo_count(self.album)
 
     def get_photo_count(self):
         return self.added_count
