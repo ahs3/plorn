@@ -569,22 +569,6 @@ class Plorn(ttk.Window):
         rframe.grid(column=1, row=0, sticky=(N,W,E,S))
         self.static_widgets['album.rframe'] = rframe
 
-        #style = ttk.Style()
-        #style.layout('plorn.Treeview',
-        #    [('Treeview.field', {'sticky': 'nwes', 'border': 1, 'children': [
-        #        ('Treeview.padding', {'sticky': 'nwes', 'children': [
-        #            ('Treeview.treearea', {'sticky': 'nwes'})
-        #            ]})
-        #        ]})
-        #    ])
-        #style.configure('plorn.Treeview',
-        #                font=('TkDefaultFont', self.config.get_fontsize()),
-        #                rowheight=30,
-        #               )
-        #style.configure('plorn.Treeview.Heading',
-        #                font=('TkDefaultFont', self.config.get_fontsize()))
-        #module_logger.debug(f'style: {str(style)}')
-
         def album_selected(rows):
             if len(rows) > 0:
                 album_id, photo_count, album_name = rows[0].values
@@ -599,7 +583,7 @@ class Plorn(ttk.Window):
         rowdata = self.get_all_album_data()
         module_logger.debug(f'rowdata: {rowdata}')
         #
-        # foa reasons unknown, i cannot change the font size in the
+        # for reasons unknown, i cannot change the font size in the
         # search entry box to something readable by human eyes
         #
         # leaving this chunk o' code as a TODO reminder to fix it,
