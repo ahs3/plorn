@@ -32,11 +32,10 @@ module_logger.setLevel(logging.INFO)
 
 class PlornPhoto(plorn.base_obj.PlornBaseObj):
     def __init__(self, name, id=None, album_id=None,
-                 path='', dated='', notes='', thumbnail='',
+                 path='', dated='', notes='', 
                  names=[], places=[], tags=[]):
         self.album_id = album_id
         self.path = path
-        self.thumbnail = thumbnail
         super().__init__(name, id, dated, notes, names, places, tags)
         module_logger.debug('initializing photo object: ' + str(self))
 
@@ -52,19 +51,12 @@ class PlornPhoto(plorn.base_obj.PlornBaseObj):
     def get_album_id(self):
         return self.album_id
 
-    def set_thumbnail(self, thumbnail):
-        self.thumbnail = thumbnail
-
-    def get_thumbnail(self):
-        return self.thumbnail
-
     def __str__(self):
         val  = f'id: \'{self.id}\''
         val += f', name: \'{self.name}\''
         val += f', path: \'{self.path}\''
         val += f', dated: \'{self.dated}\''
         val += f', notes: \'{self.notes}\''
-        val += f', thumbnail: \'{self.thumbnail}\''
         return val
 
 class PlornPhotoLeftFrame:

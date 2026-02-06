@@ -119,7 +119,6 @@ class PlornDb:
                 path TEXT NOT NULL,
                 dated TEXT,
                 notes TEXT,
-                thumbnail TEXT,
                 FOREIGN KEY (album_id)
                 REFERENCES albums (id)
                     ON DELETE CASCADE
@@ -539,8 +538,10 @@ class PlornDb:
     def get_photo_cursor(self, album_id=None):
         cursor = self.db.cursor()
         sql  = 'SELECT * FROM photos'
-        if album_id:
+        if album_id != None:
             sql += f' WHERE album_id = \'{album_id}\''
+        module_logger.info(f'DBG> photo_cursor sql: "{sql}"')
+        module_logger.info(f'DBG> photo_cursor album_id: "{album_id}"')
         res = cursor.execute(sql)
         return cursor
 
@@ -667,37 +668,13 @@ class PlornDb:
         album_copy.set_photo_count(album.get_photo_count() - 1)
         self.update_album(album, album_copy)
 
-    def get_thumbnails_dir(self, album_id):
-        dirname = os.path.join(self.config.get_datadir(),
-                               'thumbnails',
-                               f'album{album_id:04}')
-        if not (os.path.exists(dirname) and os.path.isdir(dirname)):
-            module_logger.debug(f'make thumbnail dir {dirname}')
-            os.makedirs(dirname, exist_ok=True)
-        return dirname
-
-    def make_thumbnail(self, photo, album):
-        fullpath = os.path.expandvars(os.path.expanduser(photo.get_path()))
-        base = os.path.basename(fullpath)
-        thumbpath = os.path.join(self.get_thumbnails_dir(album.get_id()), base)
-        #raw_img = pilImage.open(fullpath)
-        #small_img = raw_img.resize((100,100))
-        small_img = pilImage.open(fullpath)
-        small_img.thumbnail((100,100), pilImage.Resampling.LANCZOS)
-        small_img.save(thumbpath)
-        small_img.close()
-        return thumbpath
-
     def add_photo(self, photo):
         album = self.get_album(photo.get_album_id())
-        thumb = self.make_thumbnail(photo, album)
-        photo.set_thumbnail(thumb)
         sql  = 'INSERT INTO photos '
-        sql += f'(album_id,name,path,dated,notes,thumbnail) VALUES '
+        sql += f'(album_id,name,path,dated,notes) VALUES '
         sql += f'(\'{photo.get_album_id()}\','
         sql += f' \'{photo.get_name()}\', \'{photo.get_path()}\','
-        sql += f' \'{photo.get_dated()}\', \'{photo.get_notes()}\','
-        sql += f' \'{photo.get_thumbnail()}\')'
+        sql += f' \'{photo.get_dated()}\', \'{photo.get_notes()}\')'
         res = self.cursor.execute(sql)
         self.increment_photo_count(album)
         self.db.commit()
@@ -708,8 +685,7 @@ class PlornDb:
         return plorn.photo.PlornPhoto(row['name'],
                                       id=row['id'], album_id=row['album_id'],
                                       path=row['path'],
-                                      dated=row['dated'], notes=row['notes'],
-                                      thumbnail=row['thumbnail'])
+                                      dated=row['dated'], notes=row['notes'])
 
     def remove_photo_by_id(self, photo_id):
         sql = f'SELECT * FROM photos WHERE id = \'{photo_id}\''

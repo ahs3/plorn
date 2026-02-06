@@ -605,7 +605,7 @@ class PlornEditAlbum(Toplevel):
 
 class PlornImportToAlbum:
     def __init__(self, parent, album_id):
-        module_logger.debug('started PlornImportAlbum')
+        module_logger.debug('started PlornImportToAlbum')
         self.parent = parent
         self.album_id = album_id
         self.added_count = 0
