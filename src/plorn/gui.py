@@ -282,7 +282,7 @@ class Plorn(ttk.Window):
 
         current = self.notebook.index('current')
         if current == self.photos_tab:
-            module_logger.info(f'DBG> tab_changed: {current}')
+            module_logger.debug(f'tab_changed: {current}')
             self.reset_album_selector()
 
     def setup_footer(self, parent):
@@ -341,8 +341,8 @@ class Plorn(ttk.Window):
                 album_id, photo_count, album_name = rows[0].values
                 self.current_album = album_id
                 self.current_album_name.set(album_name)
-                module_logger.info(f'DBG> album_selected: {self.current_album} [{album_id}]')
-                module_logger.info(f'DBG> album_selected: {self.current_album_name.get()} [{album_name}]')
+                module_logger.debug(f'album_selected: {self.current_album} [{album_id}]')
+                module_logger.debug(f'album_selected: {self.current_album_name.get()} [{album_name}]')
 
         self.album_coldata = [
             {'text': 'ID', 'stretch': False, 'width': 120},
@@ -535,7 +535,7 @@ class Plorn(ttk.Window):
 
         for iid, count, name in self.album_rowdata:
             if name == album_name:
-                module_logger.info(f'DBG> build_album_selector: found {name}')
+                module_logger.debug(f'build_album_selector: found {name}')
                 self.current_album = iid
                 self.current_album_name.set(name)
                 break
@@ -560,7 +560,7 @@ class Plorn(ttk.Window):
         aframe.rowconfigure(0, weight=1)
         self.album_selector = aframe
 
-        module_logger.info(f'DBG> build_album_selector: {self.current_album}, {self.current_album_name.get()}')
+        module_logger.debug(f'build_album_selector: {self.current_album}, {self.current_album_name.get()}')
         albuml = ttk.Label(aframe, text='Album:')
         albuml.grid(column=0, row=0, pady=5)
         current_album = ttk.Label(master=aframe,
@@ -568,9 +568,12 @@ class Plorn(ttk.Window):
                                   font=self.font,
                                   width=40)
         current_album.grid(column=1, row=0, pady=5)
-        self.album_selector_label = current_album
+        if self.current_album_name.get() != '':
+            self.album_selector_label = current_album
+            album_names = self.get_album_view_names()
+        else:
+            album_names = []
 
-        album_names = self.get_album_view_names()
         albumcb = ttk.Combobox(master=current_album,
                                values=album_names,
                                font=self.font,
@@ -584,10 +587,9 @@ class Plorn(ttk.Window):
     def reset_album_selector(self):
         global module_logger
 
-        module_logger.info('DBG> reset_album_selector started')
         album_names = self.get_album_view_names()
-        module_logger.info(f'DBG> reset_album_selector names: {str(album_names)}')
-        module_logger.info(f'DBG> reset_album_selector current: {self.current_album_name.get()}')
+        module_logger.debug(f'reset_album_selector names: {str(album_names)}')
+        module_logger.debug(f'reset_album_selector current: {self.current_album_name.get()}')
         self.album_selector_label.config(text=self.current_album_name.get())
         self.album_selector_cbox.config(values=album_names)
         self.album_selector_cbox.set(self.current_album_name.get())
@@ -605,7 +607,7 @@ class Plorn(ttk.Window):
         self.album_selector.grid(column=0, row=0, columnspan=2,
                                  sticky=(N,W,E,S))
         self.selected_album.set(self.current_album_name.get())
-        module_logger.info(f'DBG> build photo album "{self.selected_album.get()}"')
+        module_logger.debug(f'build photo album "{self.selected_album.get()}"')
         self.static_widgets['photo.sframe'] = self.album_selector
 
         tframe = ttk.Frame(parent, padding=(5,5,5,5))
@@ -632,7 +634,6 @@ class Plorn(ttk.Window):
             {'text': 'Name', 'stretch': True, 'width': 400},
             {'text': 'Path', 'stretch': True, 'width': 400},
         ]
-        module_logger.info(f'DBG> current_album: "{self.current_album}"')
         self.photo_rowdata, self.thumbnails = self.get_all_photo_data()
         thumbnail = None
         bname = 'Plorn'
