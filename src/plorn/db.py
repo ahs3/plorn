@@ -540,8 +540,8 @@ class PlornDb:
         sql  = 'SELECT * FROM photos'
         if album_id != None:
             sql += f' WHERE album_id = \'{album_id}\''
-        module_logger.info(f'DBG> photo_cursor sql: "{sql}"')
-        module_logger.info(f'DBG> photo_cursor album_id: "{album_id}"')
+        module_logger.debug(f'photo_cursor sql: "{sql}"')
+        module_logger.debug(f'photo_cursor album_id: "{album_id}"')
         res = cursor.execute(sql)
         return cursor
 

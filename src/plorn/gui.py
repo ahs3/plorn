@@ -49,8 +49,8 @@ root_window = None
 
 #-- the application
 class Plorn(ttk.Window):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self.geometry('1280x1024')
         self.title('plorn')
         self.columnconfigure(0, weight=1)
@@ -102,19 +102,27 @@ class Plorn(ttk.Window):
 
         self.photos_tab = 1
         self.pview = None
-        self.photo_list = []
-        self.button_imgs = {}
-        self.last_button_img = None
-        self.photo_count = 0
         self.current_photo = None
-        self.current_photo_button = None
         self.current_photo_name = StringVar()
-        self.photo_label = StringVar()
+        self.current_photo_button = None
         self.album_selector = None
+        self.album_selector_cbox = None
+        self.album_selector_label = None
         self.selected_album = StringVar()
         self.photo_coldata = []
         self.photo_rowdata = []
         self.thumbnails = {}
+        self.plorn_thumbnail = None
+        img = pilImage.open(plorn.config.plorn_photo_path())
+        img.thumbnail((125,125), pilImage.Resampling.LANCZOS)
+        self.plorn_thumbnail = ImageTk.PhotoImage(image=img)
+
+        # TODO: removable?
+        self.photo_count = 0
+        self.photo_label = StringVar()
+        self.photo_list = []
+        self.button_imgs = {}
+        self.last_button_img = None
 
         self.names_tab  = 2
         self.nview = None
@@ -150,6 +158,7 @@ class Plorn(ttk.Window):
         #   and so on
         self.notebook = self.setup_notebook()
         self.notebook.grid(column=0, row=1, sticky=(N, W, E, S))
+        self.current_tab = self.notebook.index('current')
 
         #-- add in footer info, including an exit button
         self.footer = self.setup_footer(self.mainframe)
@@ -265,7 +274,16 @@ class Plorn(ttk.Window):
         notebook.add(self.settings, text=' Settings ')
         self.settings_tab = 6
 
+        notebook.bind('<<NotebookTabChanged>>', self.tab_changed)
         return notebook
+
+    def tab_changed(self, e):
+        global module_logger
+
+        current = self.notebook.index('current')
+        if current == self.photos_tab:
+            module_logger.info(f'DBG> tab_changed: {current}')
+            self.reset_album_selector()
 
     def setup_footer(self, parent):
         #-- footer for the main app
@@ -323,6 +341,8 @@ class Plorn(ttk.Window):
                 album_id, photo_count, album_name = rows[0].values
                 self.current_album = album_id
                 self.current_album_name.set(album_name)
+                module_logger.info(f'DBG> album_selected: {self.current_album} [{album_id}]')
+                module_logger.info(f'DBG> album_selected: {self.current_album_name.get()} [{album_name}]')
 
         self.album_coldata = [
             {'text': 'ID', 'stretch': False, 'width': 120},
@@ -394,6 +414,8 @@ class Plorn(ttk.Window):
                                    album.get_photo_count(),
                                    self.current_album_name.get()))
             self.update_counts()
+            album_names = self.get_album_view_names()
+            self.album_selector['values'] = album_names
 
     def remove_album(self):
         if self.current_album:
@@ -402,6 +424,8 @@ class Plorn(ttk.Window):
             self.wait_window(rmone)
             self.aview.delete_row(iid=f'{self.current_album:04}')
             self.update_counts()
+            album_names = self.get_album_view_names()
+            self.album_selector['values'] = album_names
         else:
             messagebox.showerror(parent=self,
                                  title='Select an Album',
@@ -448,51 +472,6 @@ class Plorn(ttk.Window):
                                  title='Select an Album',
                                  detail='Please select an album to import into')
 
-    def up_photo(self, event):
-        global module_logger
-
-        cur = self.last_button_img
-        child = self.pview.prev(cur)
-        if not child:
-            child = cur
-        module_logger.debug(f'up_photo selection: {str(cur)} -> {str(child)}')
-        self.pview.selection_set(child)
-        self.set_button_img(child)
-        self.last_button_img = child
-
-    def down_photo(self, event):
-        global module_logger
-
-        cur = self.last_button_img
-        child = self.pview.next(cur)
-        if not child:
-            child = cur
-        module_logger.debug(f'down_photo selection: {str(cur)} -> {str(child)}')
-        self.pview.selection_set(child)
-        self.set_button_img(child)
-        self.last_button_img = child
-
-    def select_photo(self, event):
-        global module_logger
-
-        child = self.pview.identify_row(event.y)
-        if not self.last_button_img:
-            return
-        if not child:
-            child = self.last_button_img
-        module_logger.debug(f'select_photo selection: {str(child)}')
-        self.pview.selection_set(child)
-        self.set_button_img(child)
-        self.last_button_img = child
-
-    def set_button_img(self, child):
-        global module_logger
-
-        module_logger.debug(f'set_button_img entry: {str(child)}')
-        if child != '':
-            module_logger.debug(f'set_button_img: [{len(self.button_imgs)}] {str(child)}')
-            self.current_photo_button.config(image=self.button_imgs[child])
-
     def open_album(self):
         global module_logger
 
@@ -518,6 +497,8 @@ class Plorn(ttk.Window):
             showone = plorn.album.PlornEditAlbum(self, self.current_album)
             showone.grab_set()
             self.wait_window(showone)
+            album_names = self.get_album_view_names()
+            self.album_selector['values'] = album_names
         else:
             messagebox.showerror(parent=self,
                                  title='Select an Album',
@@ -545,6 +526,31 @@ class Plorn(ttk.Window):
                 thumbnails[iid] = thumb
         return data, thumbnails
 
+    def change_albums(self, e):
+        album_name = self.album_selector_cbox.get()
+        self.current_album_name.set(album_name)
+        album_names = self.get_album_view_names()
+        current = album_names.index(self.current_album_name.get())
+        self.album_selector_cbox.current(current)
+
+        for iid, count, name in self.album_rowdata:
+            if name == album_name:
+                module_logger.info(f'DBG> build_album_selector: found {name}')
+                self.current_album = iid
+                self.current_album_name.set(name)
+                break
+        self.pview.delete_rows()
+        self.thumbnails.clear()
+        self.photo_rowdata, self.thumbnails = self.get_all_photo_data()
+        if len(self.photo_rowdata) > 0:
+            self.pview.insert_rows('end', self.photo_rowdata)
+            iid, pname, ppath = self.photo_rowdata[0]
+            self.current_photo = iid
+            self.current_photo_name.set(pname)
+            self.current_photo_button.config(image=self.thumbnails[iid])
+        else:
+            self.current_photo_button.config(image=self.plorn_thumbnail)
+
     def build_album_selector(self, parent):
         global module_logger
 
@@ -552,7 +558,9 @@ class Plorn(ttk.Window):
         aframe.columnconfigure(0, weight=1)
         aframe.columnconfigure(1, weight=5)
         aframe.rowconfigure(0, weight=1)
+        self.album_selector = aframe
 
+        module_logger.info(f'DBG> build_album_selector: {self.current_album}, {self.current_album_name.get()}')
         albuml = ttk.Label(aframe, text='Album:')
         albuml.grid(column=0, row=0, pady=5)
         current_album = ttk.Label(master=aframe,
@@ -560,6 +568,8 @@ class Plorn(ttk.Window):
                                   font=self.font,
                                   width=40)
         current_album.grid(column=1, row=0, pady=5)
+        self.album_selector_label = current_album
+
         album_names = self.get_album_view_names()
         albumcb = ttk.Combobox(master=current_album,
                                values=album_names,
@@ -568,30 +578,20 @@ class Plorn(ttk.Window):
         albumcb.grid(column=1, row=0, pady=5)
         if self.current_album != None:
             albumcb.current(album_names.index(self.current_album_name.get()))
+        albumcb.bind("<<ComboboxSelected>>", self.change_albums)
+        self.album_selector_cbox = albumcb
 
-        def change_albums(e):
-            album_name = albumcb.get()
-            self.current_album_name.set(album_name)
-            album_names = self.get_album_view_names()
-            albumcb.current(album_names.index(self.current_album_name.get()))
+    def reset_album_selector(self):
+        global module_logger
 
-            for iid, count, name in self.album_rowdata:
-                if name == album_name:
-                    self.current_album = iid
-                    break
-            self.pview.delete_rows()
-            self.thumbnails.clear()
-            self.photo_rowdata, self.thumbnails = self.get_all_photo_data()
-            if len(self.photo_rowdata) > 0:
-                self.pview.insert_rows('end', self.photo_rowdata)
-                iid, pname, ppath = self.photo_rowdata[0]
-                self.current_photo = iid
-                self.current_photo_name.set(pname)
-                self.current_photo_button.config(image=self.thumbnails[iid])
-
-        albumcb.bind("<<ComboboxSelected>>", change_albums)
-
-        return aframe
+        module_logger.info('DBG> reset_album_selector started')
+        album_names = self.get_album_view_names()
+        module_logger.info(f'DBG> reset_album_selector names: {str(album_names)}')
+        module_logger.info(f'DBG> reset_album_selector current: {self.current_album_name.get()}')
+        self.album_selector_label.config(text=self.current_album_name.get())
+        self.album_selector_cbox.config(values=album_names)
+        self.album_selector_cbox.set(self.current_album_name.get())
+        self.change_albums(None)
 
     def build_photo_view(self, parent):
         global module_logger
@@ -601,11 +601,12 @@ class Plorn(ttk.Window):
         parent.rowconfigure(1, weight=4)
         parent.rowconfigure(2, weight=1)
 
+        self.build_album_selector(parent)
+        self.album_selector.grid(column=0, row=0, columnspan=2,
+                                 sticky=(N,W,E,S))
         self.selected_album.set(self.current_album_name.get())
         module_logger.info(f'DBG> build photo album "{self.selected_album.get()}"')
-        sframe = self.build_album_selector(parent)
-        sframe.grid(column=0, row=0, columnspan=2, sticky=(N,W,E,S))
-        self.static_widgets['photo.sframe'] = sframe
+        self.static_widgets['photo.sframe'] = self.album_selector
 
         tframe = ttk.Frame(parent, padding=(5,5,5,5))
         tframe.columnconfigure(0, weight=4)
@@ -1234,6 +1235,6 @@ class Plorn(ttk.Window):
 def user_interface():
     global root_window
 
-    root_window = Plorn()
+    root_window = Plorn(iconphoto=plorn.config.plorn_photo_path())
     root_window.mainloop()
 
