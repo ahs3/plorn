@@ -9,10 +9,10 @@ import copy
 import logging
 import os
 
-from tkinter import *
-from tkinter import ttk
-from tkinter import font
-from tkinter import messagebox
+import ttkbootstrap as ttk
+from ttkbootstrap.constants import *
+from ttkbootstrap.widgets.tableview import Tableview, TableRow
+from ttkbootstrap.dialogs.message import Messagebox
 
 import plorn.config
 from plorn.config import FONTSIZE
@@ -91,7 +91,6 @@ class PlornAttrTreeview:
         self.heading = heading
         self.table_name = table_name
         self.selectmode = selectmode
-        self.tfont = font.nametofont('TkDefaultFont')
         self.attr_open = False
 
         self.tframe = ttk.Frame(self.parent, padding=(5,5,5,5))
@@ -108,24 +107,9 @@ class PlornAttrTreeview:
         self.rframe.rowconfigure(0, weight=1)
         self.rframe.grid(column=1, row=0, sticky=(N,W,E,S))
 
-        self.style = ttk.Style()
-        self.style.layout('plorn.Treeview',
-            [('Treeview.field', {'sticky': 'nwes', 'border': 1, 'children': [
-                ('Treeview.padding', {'sticky': 'nwes', 'children': [
-                    ('Treeview.treearea', {'sticky': 'nwes'})
-                    ]})
-                ]})
-            ])
-        self.style.configure('plorn.Treeview',
-                             font=('TkDefaultFont', FONTSIZE),
-                             rowheight=30,
-                            )
-        self.style.configure('plorn.Treeview.Heading',
-                             font=('TkDefaultFont', FONTSIZE))
         self.tview = ttk.Treeview(self.lframe,
                                   columns=('id', 'parent'),
-                                  selectmode=self.selectmode,
-                                  style='plorn.Treeview')
+                                  selectmode=self.selectmode)
         self.tview.column('#0', anchor='w', minwidth=0, width=500)
         self.tview.heading('#0', text=self.heading)
         self.tview.column('id', anchor='w', minwidth=0, width=100)
@@ -144,10 +128,6 @@ class PlornAttrTreeview:
                                         command=self.tview.xview)
         self.yscrollbar.grid(column=0, row=1, sticky=(N,W,E,S))
         self.tview.configure(yscrollcommand=self.yscrollbar.set)
-
-        #self.tview.bind('<Up>', self.up_attr)
-        #self.tview.bind('<Down>', self.down_attr)
-        #self.tview.bind('<ButtonRelease-1>', self.select_attr)
 
         return
 
@@ -216,7 +196,7 @@ class PlornAttrTreeview:
             self.tview.item(ii, open=toggle)
 
 
-class PlornAddAttr(Toplevel):
+class PlornAddAttr(ttk.Toplevel):
     def __init__(self, parent, parent_id=0,
                  attr_name='Attribute', table_name=''):
         super().__init__(parent)
@@ -226,9 +206,6 @@ class PlornAddAttr(Toplevel):
         self.attr_name = attr_name
         self.table_name = table_name
 
-        self.tfont = font.nametofont('TkDefaultFont')
-        style = ttk.Style()
-        style.configure('TCombobox', font=self.tfont)
         self.value = ''
         self.db = plorn.db.open()
         self.new_attr = None
@@ -245,7 +222,6 @@ class PlornAddAttr(Toplevel):
 
         container_frame = ttk.Frame(self.frame, padding='10 10 10 10')
         container_frame.grid(column=0, row=0, sticky=(N, W, E, S))
-        container_frame.option_add('*TCombobox*Listbox.font', self.tfont)
 
         self.container_list = {}
         self.container_list[''] = 0
@@ -260,7 +236,7 @@ class PlornAddAttr(Toplevel):
             if self.parent_id == ii['id']:
                 self.container_selected.set(ii['value'])
         module_logger.debug(f'attrs: {str(self.container_list)}')
-        self.container_selector = ttk.Combobox(container_frame, font=self.tfont,
+        self.container_selector = ttk.Combobox(container_frame,
                                         textvariable=self.container_selected)
         entry_keys = list(self.container_list.keys())
         entry_keys.sort()
@@ -274,8 +250,7 @@ class PlornAddAttr(Toplevel):
         lab2.grid(column=0, row=0, sticky=W)
         self.attr_entered = StringVar(self.frame)
         self.attr_entry = ttk.Entry(entry_frame, width=40,
-                                    textvariable=self.attr_entered,
-                                    font=self.tfont)
+                                    textvariable=self.attr_entered)
         self.attr_entry.grid(column=1, row=0, sticky=W)
 
         self.container_selector.focus_set()
@@ -294,17 +269,16 @@ class PlornAddAttr(Toplevel):
         new_attr = self.attr_entered.get()
         container_attr = self.container_selected.get()
         if new_attr == '':
-            messagebox.showerror(parent=self,
-                                 title=f'Add {self.attr_name}',
-                                 detail=f'{self.attr_name} cannot be blank')
+            Messagebox.show_error(f'{self.attr_name} cannot be blank',
+                                  parent=self, title=f'Add {self.attr_name}')
             return
 
         pid = self.container_list[container_attr]
         attr = PlornAttr(new_attr, parent_id=pid, table_name=self.table_name)
         if self.db.attr_exists(attr):
-            messagebox.showerror(parent=self,
-                    title=f'Add {self.attr_name}',
-                    detail=f'{self.attr_name} already exists with same parent')
+            Messagebox.show_error(
+                        f'{self.attr_name} already exists with same parent',
+                        parent=self, title=f'Add {self.attr_name}')
             return
 
         self.new_attr = self.db.add_attr(attr)
@@ -317,7 +291,7 @@ class PlornAddAttr(Toplevel):
         return self.new_attr
 
 
-class PlornRemoveAttr(Toplevel):
+class PlornRemoveAttr(ttk.Toplevel):
     def __init__(self, parent, attr, attr_name='Attribute'):
         super().__init__(parent)
         module_logger.debug('started PlornRemoveAttr')
@@ -327,9 +301,6 @@ class PlornRemoveAttr(Toplevel):
         self.parent_id = attr.get_parent_id()
         self.attr_name = attr_name
         self.db = plorn.db.open()
-        self.tfont = font.nametofont('TkDefaultFont')
-        style = ttk.Style()
-        style.configure('TCombobox', font=self.tfont)
 
         self.geometry('600x200')
         self.title(f'Remove {self.attr_name}')
@@ -353,7 +324,7 @@ class PlornRemoveAttr(Toplevel):
         self.attr_entered.set(fullattr)
         self.attr_entry = ttk.Entry(self.entry_frame, width=40,
                                     textvariable=self.attr_entered,
-                                    font=self.tfont, state='readonly')
+                                    state='readonly')
         self.attr_entry.grid(column=1, row=0, sticky=W)
 
         bframe = ttk.Frame(self.frame, padding='10 10 10 10')
@@ -371,9 +342,8 @@ class PlornRemoveAttr(Toplevel):
         if len(kids) > 0:
             msg  = f'Cannot remove a {self.attr_name}'
             msg += f' that still contains another {self.attr_name}'
-            messagebox.showerror(parent=self,
-                                 title=f'Remove {self.attr_name}',
-                                 detail=msg)
+            Messagebox.show_error(msg, parent=self,
+                                  title=f'Remove {self.attr_name}')
         else:
             self.db.remove_attr(self.attr)
             msg = f'removed: {self.attr.get_value()} from {self.parent_id}'
@@ -381,16 +351,13 @@ class PlornRemoveAttr(Toplevel):
         self.destroy()
 
 
-class PlornEditAttr(Toplevel):
+class PlornEditAttr(ttk.Toplevel):
     def __init__(self, parent, attr, attr_name='Attribute', table_name=''):
         super().__init__(parent)
         module_logger.debug('started PlornEditAttr')
         self.attr = attr
         self.attr_name = attr_name
         self.table_name = table_name
-        self.tfont = font.nametofont('TkDefaultFont')
-        self.style = ttk.Style()
-        self.style.configure('TCombobox', font=self.tfont)
         self.attr_id = attr.get_id()
         self.parent_id = attr.get_parent_id()
         self.parent_row = {}
@@ -408,7 +375,6 @@ class PlornEditAttr(Toplevel):
 
         container_frame = ttk.Frame(self.frame, padding='10 10 10 10')
         container_frame.grid(column=0, row=0, sticky=(N, W, E, S))
-        container_frame.option_add('*TCombobox*Listbox.font', self.tfont)
 
         self.container_list = {}
         self.container_list[''] = 0
@@ -423,7 +389,7 @@ class PlornEditAttr(Toplevel):
         for ii in entries:
             self.container_list[ii['value']] = ii['id']
         module_logger.debug(f'entries: {str(self.container_list)}')
-        self.container_selector = ttk.Combobox(container_frame, font=self.tfont,
+        self.container_selector = ttk.Combobox(container_frame,
                                         textvariable=self.container_selected)
         entry_keys = list(self.container_list.keys())
         entry_keys.sort()
@@ -446,8 +412,7 @@ class PlornEditAttr(Toplevel):
         lab2.grid(column=0, row=0, sticky=W)
         self.attr_entered = StringVar(self.frame)
         self.attr_entry = ttk.Entry(entry_frame, width=40,
-                                    textvariable=self.attr_entered,
-                                    font=self.tfont)
+                                    textvariable=self.attr_entered)
         self.attr_entry.grid(column=1, row=0, sticky=W)
         self.attr_entered.set(self.attr.get_value())
         self.attr_entry.focus_set()
@@ -473,9 +438,8 @@ class PlornEditAttr(Toplevel):
         new_value = self.attr_entered.get()
         container_value = self.container_selector.get()
         if new_value == '':
-            messagebox.showerror(parent=self,
-                                 title=f'Edit {self.attr_name}',
-                                 detail=f'{self.attr_name} cannot be blank')
+            Messagebox.show_error(f'{self.attr_name} cannot be blank',
+                                  parent=self, title=f'Edit {self.attr_name}')
             return
 
         if container_value == '':
@@ -487,16 +451,16 @@ class PlornEditAttr(Toplevel):
         attr_copy.set_value(new_value)
         attr_copy.set_parent_id(pid)
         if self.db.attr_exists(attr_copy):
-            messagebox.showerror(parent=self,
-                     title=f'Edit {self.attr_name}',
-                     detail=f'{self.attr_name} already exists with same parent')
+            Messagebox.show_error(
+                     f'{self.attr_name} already exists with same parent',
+                     parent=self, title=f'Edit {self.attr_name}')
             return
 
         id = self.db.update_attr(self.attr, attr_copy)
         self.destroy()
 
 
-class PlornSelectAttr(Toplevel):
+class PlornSelectAttr(ttk.Toplevel):
     def __init__(self, attr_name='Attribute', table_name='',
                  attr_list=[]):
         super().__init__()
@@ -507,7 +471,6 @@ class PlornSelectAttr(Toplevel):
         self.attr_list = attr_list
         module_logger.debug(f'PlornSelectAttr attr_list: {str(attr_list)}')
         self.db = plorn.db.open()
-        self.tfont = font.nametofont('TkDefaultFont')
 
         self.geometry('600x450')
         self.title(f'Select {self.attr_name}')

@@ -117,13 +117,6 @@ class Plorn(ttk.Window):
         img.thumbnail((125,125), pilImage.Resampling.LANCZOS)
         self.plorn_thumbnail = ImageTk.PhotoImage(image=img)
 
-        # TODO: removable?
-        self.photo_count = 0
-        self.photo_label = StringVar()
-        self.photo_list = []
-        self.button_imgs = {}
-        self.last_button_img = None
-
         self.names_tab  = 2
         self.nview = None
         self.name_list = []
@@ -673,7 +666,7 @@ class Plorn(ttk.Window):
 
         self.photo_buttons = [
             make_button(rframe, text='info', command=self.photo_info),
-            make_button(rframe, text='add', command=self.add_photo),
+            make_button(rframe, text='add photo', command=self.add_photo),
             make_button(rframe, text='remove', command=self.remove_photo),
             make_button(rframe, text='edit', command=self.edit_photo),
         ]
@@ -722,20 +715,21 @@ class Plorn(ttk.Window):
         global module_logger
 
         module_logger.debug('adding photo')
-        album_id = self.current_album.get_id()
+        album_id = self.current_album
         addone = plorn.photo.PlornAddPhoto(self, album_id)
         addone.grab_set()
         self.wait_window(addone)
         photo = addone.get_new_photo()
         
         if photo != None and photo.get_id() != None:
-            module_logger.debug(f'add a photo to {self.current_album.get_name()}')
-            self.photo_list.clear()
-            self.button_imgs.clear()
-            module_logger.debug(f'add photo {photo.get_name()} with album_id {album_id}')
-            for ii in self.get_photos(album_id):
-                self.photo_list.append(ii)
-            self.update_photoview(album_id)
+            self.photo_rowdata.clear()
+            self.thumbnails.clear()
+            self.photo_rowdata, self.thumbnails = self.get_all_photo_data()
+            self.pview.insert_row(self.current_photo,
+                                  (f'{self.current_photo:04}',
+                                   self.current_photo_name.get(),
+                                   photo.get_path()))
+            self.update_counts()
 
     def build_name_list(self, parent):
         self.name_tree = plorn.attr.PlornAttrTreeview(parent, heading='Name')
@@ -743,17 +737,17 @@ class Plorn(ttk.Window):
 
         bframe = ttk.Frame(parent, padding=(5,5,5,5))
         bframe.columnconfigure(0, weight=1)
-        bframe.rowconfigure(0, weight=8)
+        bframe.rowconfigure(0, weight=1)
         self.name_buttons = [
-            ttk.Button(bframe, text='expand', command=self.toggle_names),
-            ttk.Button(bframe, text='add', command=self.add_name),
-            ttk.Button(bframe, text='remove', command=self.remove_name),
-            ttk.Button(bframe, text='edit', command=self.edit_name),
+            make_button(bframe, text='expand', command=self.toggle_names),
+            make_button(bframe, text='add', command=self.add_name),
+            make_button(bframe, text='remove', command=self.remove_name),
+            make_button(bframe, text='edit', command=self.edit_name),
         ]
         for n in range(0, len(self.name_buttons)):
-            bframe.rowconfigure(n, weight=1)
-            self.name_buttons[n].grid(column=1, row=n+1, sticky=(S))
-        bframe.grid(column=1, row=0, sticky=(S))
+            bframe.rowconfigure(n+1, weight=1)
+            self.name_buttons[n].grid(column=0, row=n+1, pady=10)
+        bframe.grid(column=1, row=0, sticky=(N,S))
 
         self.update_nameview()
 
@@ -844,17 +838,17 @@ class Plorn(ttk.Window):
 
         bframe = ttk.Frame(parent, padding=(5,5,5,5))
         bframe.columnconfigure(0, weight=1)
-        bframe.rowconfigure(0, weight=8)
+        bframe.rowconfigure(0, weight=1)
         self.place_buttons = [
-            ttk.Button(bframe, text='expand', command=self.toggle_places),
-            ttk.Button(bframe, text='add', command=self.add_place),
-            ttk.Button(bframe, text='remove', command=self.remove_place),
-            ttk.Button(bframe, text='edit', command=self.edit_place),
+            make_button(bframe, text='expand', command=self.toggle_places),
+            make_button(bframe, text='add', command=self.add_place),
+            make_button(bframe, text='remove', command=self.remove_place),
+            make_button(bframe, text='edit', command=self.edit_place),
         ]
         for n in range(0, len(self.place_buttons)):
-            bframe.rowconfigure(n, weight=1)
-            self.place_buttons[n].grid(column=1, row=n+1, sticky=(S))
-        bframe.grid(column=1, row=0, sticky=(S))
+            bframe.rowconfigure(n+1, weight=1)
+            self.place_buttons[n].grid(column=1, row=n+1, pady=10)
+        bframe.grid(column=1, row=0, sticky=(N,S))
 
         self.update_placeview()
 
@@ -945,17 +939,17 @@ class Plorn(ttk.Window):
 
         bframe = ttk.Frame(parent, padding=(5,5,5,5))
         bframe.columnconfigure(0, weight=1)
-        bframe.rowconfigure(0, weight=8)
+        bframe.rowconfigure(0, weight=1)
         self.tag_buttons = [
-            ttk.Button(bframe, text='expand', command=self.toggle_tags),
-            ttk.Button(bframe, text='add', command=self.add_tag),
-            ttk.Button(bframe, text='remove', command=self.remove_tag),
-            ttk.Button(bframe, text='edit', command=self.edit_tag),
+            make_button(bframe, text='expand', command=self.toggle_tags),
+            make_button(bframe, text='add', command=self.add_tag),
+            make_button(bframe, text='remove', command=self.remove_tag),
+            make_button(bframe, text='edit', command=self.edit_tag),
         ]
         for n in range(0, len(self.tag_buttons)):
-            bframe.rowconfigure(n, weight=1)
-            self.tag_buttons[n].grid(column=1, row=n+1, sticky=(S))
-        bframe.grid(column=1, row=0, sticky=(S))
+            bframe.rowconfigure(n+1, weight=1)
+            self.tag_buttons[n].grid(column=1, row=n+1, pady=10)
+        bframe.grid(column=1, row=0, sticky=(N,S))
 
         self.update_tagview()
 
