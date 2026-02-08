@@ -16,7 +16,7 @@ from PIL import ImageTk
 
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
-from ttkbootstrap.tableview import Tableview, TableRow
+from ttkbootstrap.widgets.tableview import Tableview, TableRow
 from ttkbootstrap.dialogs.message import Messagebox
 
 import plorn.album
@@ -34,7 +34,7 @@ from plorn.widgets import *
 
 #-- set up logging
 root_logger = logging.getLogger('')
-root_logger.setLevel(logging.DEBUG)
+root_logger.setLevel(logging.INFO)
 fh = logging.FileHandler('plorn.log')
 fh.setLevel(logging.DEBUG)
 fhformat = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -345,7 +345,7 @@ class Plorn(ttk.Window):
                 module_logger.debug(f'album_selected: {self.current_album_name.get()} [{album_name}]')
 
         self.album_coldata = [
-            {'text': 'ID', 'stretch': False, 'width': 120},
+            {'text': 'ID', 'stretch': False, 'width': 120,},
             {'text': 'Photos', 'stretch': False},
             {'text': 'Name', 'stretch': True},
         ]
@@ -363,6 +363,7 @@ class Plorn(ttk.Window):
                           pagesize=20,
                           iid_field=0,      # first col as iid
                           on_select=album_selected,
+                          disable_right_click=True,
                          )
         aview.align_heading_center(cid=0)
         aview.align_heading_center(cid=1)
@@ -370,6 +371,7 @@ class Plorn(ttk.Window):
         aview.align_column_center(cid=1)
         aview.align_column_left(cid=2)
         aview.grid(column=0, row=0, sticky=(N,W,E,S))
+        aview.focus()
         self.aview = aview
 
         button_info = [
@@ -391,11 +393,15 @@ class Plorn(ttk.Window):
         self.photo_count_str.set(f'Photos: {self.db.photo_count()}')
 
     def get_all_album_data(self):
+        global module_logger
+
         cursor = self.db.get_album_cursor()
         data = []
         for ii in cursor:
             data.append((f'{ii['id']:04}', ii['photo_count'], ii['name']))
-        return data
+        rows = sorted(data, key=lambda x: x[0])
+        module_logger.debug(f'get all albums: {str(rows)}')
+        return rows
 
     def add_album(self):
         global module_logger
@@ -427,9 +433,8 @@ class Plorn(ttk.Window):
             album_names = self.get_album_view_names()
             self.album_selector['values'] = album_names
         else:
-            messagebox.showerror(parent=self,
-                                 title='Select an Album',
-                                 detail='Please select an album to remove')
+            Messagebox.show_error('Please select an album to remove',
+                                  parent=self, title='Select an Album')
 
     def album_info(self):
         global module_logger
@@ -440,9 +445,8 @@ class Plorn(ttk.Window):
             showone.grab_set()
             self.wait_window(showone)
         else:
-            messagebox.showerror(parent=self,
-                                 title='Select an Album',
-                                 detail='Please select an album to show')
+            Messagebox.show_error('Please select an album to show',
+                                  parent=self, title='Select an Album')
 
     def import_photos(self):
         global module_logger
@@ -460,34 +464,15 @@ class Plorn(ttk.Window):
             if count != 1:
                 suffix = 's'
             detail  = f'Added {count} photo{suffix} to album \"{name}\"'
-            messagebox.showinfo(parent=self,
-                                title='Import Photos to Album',
-                                detail=detail)
+            Messagebox.show_info(detail,
+                                 parent=self, title='Import Photos to Album')
             trow = self.aview.iidmap[f'{album_id:04}']
             trow.values = [f'{album_id:04}', total, name]
             trow.refresh()
             self.update_counts()
         else:
-            messagebox.showerror(parent=self,
-                                 title='Select an Album',
-                                 detail='Please select an album to import into')
-
-    def open_album(self):
-        global module_logger
-
-        row = self.aview.focus()
-        if row != '':
-            album_info = self.aview.item(row)
-            album_id = album_info['text']
-            album_name = album_info['values'][0]
-            self.current_album = self.db.get_album(album_id)
-            module_logger.debug(f'open album {album_name}')
-            self.notebook.select(self.photos_tab)
-            self.update_photoview(album_id)
-        else:
-            messagebox.showerror(parent=self,
-                                 title='Select an Album',
-                                 detail='Please select an album to open')
+            Messagebox.show_error('Please select an album to import into',
+                                  parent=self, title='Select an Album')
 
     def edit_album(self):
         global module_logger
@@ -500,9 +485,8 @@ class Plorn(ttk.Window):
             album_names = self.get_album_view_names()
             self.album_selector['values'] = album_names
         else:
-            messagebox.showerror(parent=self,
-                                 title='Select an Album',
-                                 detail='Please select an album to edit')
+            Messagebox.show_error('Please select an album to edit',
+                                  parent=self, title='Select an Album')
 
 
     def get_album_view_names(self):
@@ -513,18 +497,21 @@ class Plorn(ttk.Window):
         return all_names
 
     def get_all_photo_data(self):
+        global module_logger
+
         cursor = self.db.get_photo_cursor(album_id=self.current_album)
         data = []
         thumbnails = {}
         for ii in cursor:
-            iid = f'{ii["id"]:04}'
-            data.append((iid, ii['name'], ii['path']))
+            data.append((f'{ii['id']:04}', ii['name'], ii['path']))
             fullpath = os.path.expandvars(os.path.expanduser(ii['path']))
             with pilImage.open(fullpath) as img:
                 img.thumbnail((125,125), pilImage.Resampling.LANCZOS)
                 thumb = ImageTk.PhotoImage(image=img)
-                thumbnails[iid] = thumb
-        return data, thumbnails
+                thumbnails[int(ii['id'])] = thumb
+        rows = sorted(data, key=lambda x: x[0])
+        module_logger.debug(f'get all photos: {str(rows)}')
+        return rows, thumbnails
 
     def change_albums(self, e):
         album_name = self.album_selector_cbox.get()
@@ -543,13 +530,15 @@ class Plorn(ttk.Window):
         self.thumbnails.clear()
         self.photo_rowdata, self.thumbnails = self.get_all_photo_data()
         if len(self.photo_rowdata) > 0:
-            self.pview.insert_rows('end', self.photo_rowdata)
+            self.pview.insert_rows(0, self.photo_rowdata)
             iid, pname, ppath = self.photo_rowdata[0]
             self.current_photo = iid
             self.current_photo_name.set(pname)
-            self.current_photo_button.config(image=self.thumbnails[iid])
+            self.current_photo_button.config(image=self.thumbnails[int(iid)])
+            self.pview._select_first_visible_item()
         else:
             self.current_photo_button.config(image=self.plorn_thumbnail)
+            self.pview._select_first_visible_item()
 
     def build_album_selector(self, parent):
         global module_logger
@@ -630,7 +619,7 @@ class Plorn(ttk.Window):
         self.static_widgets['photo.rframe'] = rframe
 
         self.photo_coldata = [
-            {'text': 'ID', 'stretch': False, 'width': 120},
+            {'text': 'ID', 'stretch': False, 'width': 120,},
             {'text': 'Name', 'stretch': True, 'width': 400},
             {'text': 'Path', 'stretch': True, 'width': 400},
         ]
@@ -642,7 +631,7 @@ class Plorn(ttk.Window):
             bname = os.path.basename(ppath)
             self.current_photo = iid
             self.current_photo_name.set(pname)
-            thumbnail = self.thumbnails[iid]
+            thumbnail = self.thumbnails[int(iid)]
         else:
             img = pilImage.open(plorn.config.plorn_photo_path())
             img.thumbnail((125,125), pilImage.Resampling.LANCZOS)
@@ -659,7 +648,7 @@ class Plorn(ttk.Window):
                 iid, pname, ppath = rows[0].values
                 self.current_photo = iid
                 self.current_photo_name.set(pname)
-                self.current_photo_button.configure(image=self.thumbnails[iid])
+                self.current_photo_button.configure(image=self.thumbnails[int(iid)])
 
         pview = Tableview(master=lframe,
                           coldata=self.photo_coldata, 
@@ -670,6 +659,7 @@ class Plorn(ttk.Window):
                           pagesize=20,
                           iid_field=0,      # first col as iid
                           on_select=photo_selected,
+                          disable_right_click=True,
                          )
         pview.align_heading_center(cid=0)
         pview.align_heading_left(cid=1)
@@ -678,6 +668,7 @@ class Plorn(ttk.Window):
         pview.align_column_left(cid=1)
         pview.align_column_left(cid=2)
         pview.grid(column=0, row=0, sticky=(N,W,E,S))
+        pview._select_first_visible_item()
         self.pview = pview
 
         self.photo_buttons = [
@@ -693,52 +684,39 @@ class Plorn(ttk.Window):
     def photo_info(self):
         global module_logger
 
-        row = self.pview.focus()
-        if row != '':
-            photo = self.pview.item(row)
-            photo_id = photo['text']
-            module_logger.debug(f'show info for {photo_id}')
-            showone = plorn.photo.PlornShowPhoto(self, photo_id)
+        if self.current_photo:
+            showone = plorn.photo.PlornShowPhoto(self, self.current_photo)
             showone.grab_set()
             self.wait_window(showone)
         else:
-            messagebox.showerror(parent=self,
-                                 title='Select a Photo',
-                                 detail='Please select a photo to show')
+            Messagebox.show_error('Please select a photo to show',
+                                  parent=self, title='Select a Photo')
 
     def remove_photo(self):
         global module_logger
 
-        row = self.pview.focus()
-        if row != '':
-            photo_entry = self.pview.item(row)
-            photo_id = photo_entry['text']
-            photo = self.db.get_photo(photo_id)
-            module_logger.debug(f'remove_photo: row {row}, id {photo_id}, photo {str(photo)}')
-            rmone = plorn.photo.PlornRemovePhoto(self, photo_id)
+        if self.current_photo:
+            photo = self.db.get_photo(self.current_photo)
+            module_logger.debug(f'remove_photo: id {photo.get_id()}')
+            rmone = plorn.photo.PlornRemovePhoto(self, self.current_photo)
             rmone.grab_set()
             self.wait_window(rmone)
-            del self.button_imgs[row]
-            self.update_photoview(photo.get_album_id())
+            if rmone.was_removed():
+                self.pview.delete_row(iid=f'{self.current_photo:04}')
+                self.update_counts()
         else:
-            messagebox.showerror(parent=self,
-                                 title='Select a Photo',
-                                 detail='Please select a photo to remove')
+            Messagebox.show_error('Please select a photo to remove',
+                                  parent=self, title='Select a Photo')
 
     def edit_photo(self):
-        row = self.pview.focus()
-        if row != '':
-            photo_entry = self.pview.item(row)
-            photo_id = photo_entry['text']
-            photo = self.db.get_photo(photo_id)
-            rmone = plorn.photo.PlornEditPhoto(self, photo_id)
+        if self.current_photo:
+            rmone = plorn.photo.PlornEditPhoto(self, self.current_photo)
             rmone.grab_set()
             self.wait_window(rmone)
             self.update_photoview(photo.get_album_id())
         else:
-            messagebox.showerror(parent=self,
-                                 title='Select a Photo',
-                                 detail='Please select a photo to edit')
+            Messagebox.show_error('Please select a photo to edit',
+                                  parent=self, title='Select a Photo')
 
     def add_photo(self):
         global module_logger
@@ -820,9 +798,8 @@ class Plorn(ttk.Window):
 
         entry_id = self.name_tree.focus()
         if entry_id == '':
-            messagebox.showerror(parent=self,
-                                 title='Remove Name',
-                                 detail='Please select a name to remove')
+            Messagebox.show_error('Please select a name to remove',
+                                  parent=self, title='Remove Name')
             return
         entry = self.name_tree.item(entry_id)
         module_logger.debug(f'entry: {str(entry)}')
@@ -833,7 +810,7 @@ class Plorn(ttk.Window):
         kids = self.db.get_name_children(name)
         if len(kids) > 0:
             msg = 'Cannot remove a name that still contains other names'
-            messagebox.showerror(parent=self, title='Remove Name', detail=msg)
+            Messagebox.show_error(msg, parent=self, title='Remove Name')
             return
 
         name = self.db.get_name(entry['values'][0])
@@ -858,9 +835,8 @@ class Plorn(ttk.Window):
             self.wait_window(showone)
             self.update_nameview()
         else:
-            messagebox.showerror(parent=self,
-                                 title='Select a Name',
-                                 detail='Please select a name to edit')
+            Messagebox.show_error('Please select a name to edit',
+                                  parent=self, title='Select a Name')
 
     def build_place_list(self, parent):
         self.place_tree = plorn.attr.PlornAttrTreeview(parent, heading='Place')
@@ -923,9 +899,8 @@ class Plorn(ttk.Window):
 
         entry_id = self.place_tree.focus()
         if entry_id == '':
-            messagebox.showerror(parent=self,
-                                 title='Remove Place',
-                                 detail='Please select a place to remove')
+            Messagebox.show_error('Please select a place to remove',
+                                  parent=self, title='Remove Place')
             return
         entry = self.place_tree.item(entry_id)
         module_logger.debug(f'entry: {str(entry)}')
@@ -936,7 +911,7 @@ class Plorn(ttk.Window):
         kids = self.db.get_place_children(place)
         if len(kids) > 0:
             msg = 'Cannot remove a place that still contains other places'
-            messagebox.showerror(parent=self, title='Remove Place', detail=msg)
+            Messagebox.show_error(msg, parent=self, title='Remove Place')
             return
 
         place = self.db.get_place(entry['values'][0])
@@ -961,9 +936,8 @@ class Plorn(ttk.Window):
             self.wait_window(showone)
             self.update_placeview()
         else:
-            messagebox.showerror(parent=self,
-                                 title='Select a Place',
-                                 detail='Please select a place to edit')
+            Messagebox.show_error('Please select a place to edit',
+                                  parent=self, title='Select a Place')
 
     def build_tag_list(self, parent):
         self.tag_tree = plorn.attr.PlornAttrTreeview(parent, heading='Tag')
@@ -1026,9 +1000,8 @@ class Plorn(ttk.Window):
 
         entry_id = self.tag_tree.focus()
         if entry_id == '':
-            messagebox.showerror(parent=self,
-                                 title='Remove Tag',
-                                 detail='Please select a tag to remove')
+            Messagebox.show_error('Please select a tag to remove',
+                                  parent=self, title='Remove Tag')
             return
         entry = self.tag_tree.item(entry_id)
         module_logger.debug(f'entry: {str(entry)}')
@@ -1039,7 +1012,7 @@ class Plorn(ttk.Window):
         kids = self.db.get_tag_children(tag)
         if len(kids) > 0:
             msg = 'Cannot remove a tag that still contains other tags'
-            messagebox.showerror(parent=self, title='Remove Tag', detail=msg)
+            Messagebox.show_error(msg, parent=self, title='Remove Tag')
             return
 
         tag = self.db.get_tag(entry['values'][0])
@@ -1064,9 +1037,8 @@ class Plorn(ttk.Window):
             self.wait_window(showone)
             self.update_tagview()
         else:
-            messagebox.showerror(parent=self,
-                                 title='Select a Tag',
-                                 detail='Please select a tag to edit')
+            Messagebox.show_error('Please select a tag to edit',
+                                  parent=self, title='Select a Tag')
 
     def build_search_options(self, parent):
         tfont = font.nametofont('TkDefaultFont')
@@ -1158,9 +1130,7 @@ class Plorn(ttk.Window):
                                                   self.s_regex.get())
 
         except plorn.search.SearchException as se:
-            messagebox.showerror(parent=self,
-                                 title='Invalid Search',
-                                 detail=f'{se}')
+            Messagebox.show_error(f'{se}', parent=self, title='Invalid Search')
 
     def adv_search(self):
         return plorn.search.PlornAdvancedSearch(self)

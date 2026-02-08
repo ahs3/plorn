@@ -16,7 +16,6 @@ import tkinter as tk
 from tkinter import *
 from tkinter import ttk
 from tkinter import font
-from tkinter import messagebox
 
 import plorn.attr
 import plorn.db

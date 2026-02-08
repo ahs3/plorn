@@ -401,23 +401,16 @@ class PlornRemoveAlbum(Toplevel):
         sep2.grid(column=0, row=2, columnspan=2, sticky=(W+E))
 
         self.do_remove = ttk.Button(self, text='Remove',
-                                    command=self.confirm_remove)
+                                    command=self.remove_album)
         self.do_remove.grid(column=0, row=3, sticky=(E))
         self.cancel = ttk.Button(self, text='Cancel',
                                  command=self.destroy)
         self.cancel.grid(column=1, row=3, sticky=(W))
 
-    def confirm_remove(self):
+    def remove_album(self):
         album_name = self.lframe.get_album_name()
-        result = messagebox.askyesnocancel('Confirm Removal',
-                    message=f'Remove album {album_name}?',
-                    detail='Removes only the catalog entries, not the files.',
-                    parent=self,
-                 )
-        if result is True:
-            idx = 0
-            self.db.remove_album(self.album)
-            self.destroy()
+        self.db.remove_album(self.album)
+        self.destroy()
 
 
 class PlornEditAlbum(Toplevel):

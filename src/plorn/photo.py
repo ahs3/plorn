@@ -468,23 +468,23 @@ class PlornRemovePhoto(Toplevel):
         sep2 = ttk.Separator(self, orient=HORIZONTAL)
         sep2.grid(column=0, row=2, columnspan=3, sticky=(W+E))
 
+        self.photo_removed = False
         self.bcancel = ttk.Button(self, text='Cancel', command=self.destroy)
         self.bcancel.grid(column=0, row=3)
         self.bremove = ttk.Button(self, text='Remove',
-                                  command=self.confirm_remove)
+                                  command=self.remove_photo)
         self.bremove.grid(column=1, row=3)
 
-    def confirm_remove(self):
+    def remove_photo(self):
         photo_name = self.photo.get_name()
         photo_path = self.photo.get_path()
-        result = messagebox.askyesnocancel('Confirm Removal',
-                    message=f'Remove photo {photo_name}?',
-                    detail='Only removes the catalog entry, not the file.',
-                    parent=self,
-                 )
-        if result is True:
-            self.db.remove_photo_by_id(self.photo.get_id())
-            self.destroy()
+        self.db.remove_photo_by_id(self.photo.get_id())
+        self.photo_removed = True
+        self.destroy()
+
+    def was_removed(self):
+        return self.photo_removed
+
 
 class PlornEditPhoto(Toplevel):
     def __init__(self, parent, photo_id):
