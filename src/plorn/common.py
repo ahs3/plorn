@@ -13,10 +13,11 @@ import os
 import shutil
 from enum import IntEnum
 
-import tkinter as tk
-from tkinter import *
-from tkinter import ttk
 from tkinter import font
+import ttkbootstrap as ttk
+from ttkbootstrap.constants import *
+from ttkbootstrap.widgets.tableview import Tableview, TableRow
+from ttkbootstrap.dialogs.message import Messagebox
 
 import plorn.db
 import plorn.config
