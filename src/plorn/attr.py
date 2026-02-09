@@ -10,6 +10,7 @@ import logging
 import os
 
 import ttkbootstrap as ttk
+from ttkbootstrap import StringVar
 from ttkbootstrap.constants import *
 from ttkbootstrap.widgets.tableview import Tableview, TableRow
 from ttkbootstrap.dialogs.message import Messagebox

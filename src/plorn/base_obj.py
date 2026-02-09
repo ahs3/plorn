@@ -12,17 +12,7 @@ import logging
 import os
 import shutil
 
-import tkinter as tk
-from tkinter import *
-from tkinter import ttk
-from tkinter import font
-
 import plorn.attr
-import plorn.db
-import plorn.common
-import plorn.config
-from plorn.config import FONTSIZE
-import plorn.photo
 
 module_logger = logging.getLogger('plorn.base_obj')
 module_logger.setLevel(logging.INFO)
@@ -39,7 +29,6 @@ class PlornBaseObj:
         self.name_list = names
         self.place_list = places
         self.tag_list = tags
-        self.tk_parent = None
 
         module_logger.debug('initializing base object: ' + str(self))
 
