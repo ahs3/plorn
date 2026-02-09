@@ -14,26 +14,15 @@ import time
 from PIL import Image as pilImage
 from PIL import ImageTk
 
-from tkinter import *
 from tkinter import font
-from tkinter import messagebox
+import ttkbootstrap as ttk
+from ttkbootstrap import StringVar, IntVar
+from ttkbootstrap.constants import *
 
-import plorn.album
-import plorn.attr
-import plorn.common
-from plorn.common import SearchDomains, SearchDomainStrings
-from plorn.common import SearchFields, SearchFieldStrings
-from plorn.common import AlbumSearchInfo, PhotoSearchInfo
 from plorn.config import get_config
-import plorn.db
-import plorn.photo
-import plorn.search
 
 module_logger = logging.getLogger('plorn.widgets')
 module_logger.setLevel(logging.INFO)
-
-import ttkbootstrap as ttk
-from ttkbootstrap.constants import *
 
 def make_button(parent, text='Button', command=None, width=10, **kwargs):
     return ttk.Button(parent, text=text, command=command, width=width,
