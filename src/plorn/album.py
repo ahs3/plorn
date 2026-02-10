@@ -30,6 +30,7 @@ import plorn.common
 import plorn.config
 from plorn.config import FONTSIZE
 import plorn.photo
+import plorn.widgets
 
 module_logger = logging.getLogger('plorn.album')
 module_logger.setLevel(logging.INFO)
@@ -623,13 +624,15 @@ class PlornImportToAlbum:
     def collect_images(self):
         home = os.path.expanduser('~/Pictures')
         startdir = os.path.expandvars(home)
-        filelist = filedialog.askopenfilenames(parent=self.parent,
-                                    initialdir=startdir,
-                                    title='Select Images to Import',
-                                    multiple=True,
-                                   )
-        
+        #filelist = filedialog.askopenfilenames(parent=self.parent,
+        #                            initialdir=startdir,
+        #                            title='Select Images to Import',
+        #                            multiple=True,
+        #                           )
+        #
         image_list = []
+        filelist = plorn.widgets.get_many_file_names(self.parent)
+        
         for ii in filelist:
             module_logger.debug(f'checking file type of {ii}')
             if os.path.isfile(ii):
