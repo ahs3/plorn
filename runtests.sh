@@ -19,6 +19,10 @@ fi
 
 
 echo
+echo "=== module tests ==="
+python -m unittest tests/base_obj_tests.py
+
+echo
 echo "=== config tests ==="
 python -m unittest tests/config_tests.py
 
