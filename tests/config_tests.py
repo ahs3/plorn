@@ -8,11 +8,23 @@
 import getpass
 import os
 import pwd
+import sys
 import unittest
 
 import plorn.config
+import tests.reporting
+
+sys.stderr = open(os.devnull, 'w')
+
 
 class TestConfigMethods(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        tests.reporting.start(cls)
+
+    @classmethod
+    def tearDownClass(cls):
+        tests.reporting.stop(cls)
 
     def write_test_config(self, name):
         data = [
@@ -45,6 +57,7 @@ class TestConfigMethods(unittest.TestCase):
         self.write_test_config(cfg_file)
 
     def tearDown(self):
+        tests.reporting.echo_result(self)
         cfg_file = os.path.expanduser("~/.config/plorn/.bogus_test.cfg")
         if os.path.exists(cfg_file):
             os.remove(cfg_file)

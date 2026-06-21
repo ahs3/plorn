@@ -15,7 +15,19 @@ import plorn.config
 import plorn.db
 import plorn.photo
 
+import tests.reporting
+
+sys.stderr = open(os.devnull, 'w')
+
+
 class TestDbBasics(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        tests.reporting.start(cls)
+
+    @classmethod
+    def tearDownClass(cls):
+        tests.reporting.stop(cls)
 
     def write_test_config(self, name):
         data = [
@@ -49,6 +61,7 @@ class TestDbBasics(unittest.TestCase):
         self.write_test_config(self.get_test_cfgname())
 
     def tearDown(self):
+        tests.reporting.echo_result(self)
         plorn.db.close()
         plorn.config.close()
         dbname = self.get_test_dbname()

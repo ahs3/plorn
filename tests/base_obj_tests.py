@@ -11,16 +11,23 @@ import unittest
 
 import plorn.base_obj
 
-sys.stderr = open(os.devnull, 'w')
+#sys.stderr = open(os.devnull, 'w')
+import tests.reporting
 
 class TestBaseObjMethods(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        tests.reporting.start(cls)
+
+    @classmethod
+    def tearDownClass(cls):
+        tests.reporting.stop(cls)
 
     def setUp(self):
-        name = self.id().split('.')[-1].replace('.','')
-        print('   ', name)
+        pass
 
     def tearDown(self):
-        pass
+        tests.reporting.echo_result(self)
 
     def test_init(self):
         """
