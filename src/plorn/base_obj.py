@@ -12,7 +12,7 @@ import logging
 import os
 import shutil
 
-import plorn.attr
+#import plorn.attr
 
 module_logger = logging.getLogger('plorn.base_obj')
 module_logger.setLevel(logging.INFO)
@@ -107,6 +107,7 @@ class PlornBaseObj:
     def __str__(self):
         val  = f'id: \'{self.id}\''
         val += f', name: \'{self.name}\''
+        val += f', id: \'{self.id}\''
         val += f', dated: \'{self.dated}\''
         val += f', notes: \'{self.notes}\''
         val += f', name_list: \'{str(self.name_list)}\''
