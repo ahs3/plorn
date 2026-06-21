@@ -1,10 +1,37 @@
-Unless otherwise specified, source code in this repository is licensed
-under the GNU General Public License, Version 3 or later (GPL-3.0-or-later).
-A copy is included in the COPYING file.
+All Python code for the Plorn project is:
 
-Other licenses may be specified as well for certain files for purposes of
-illustration or where third-party components are used.
+    Copyright (c) 2026, Albert H. Stone, III <ahs3@ahs3.net>
+
+Unless otherwise specified, application source code in this repository is
+licensed under the GNU General Public License, Version 3 or later (i.e.,
+GPL-3.0-or-later).  A copy of the license is included in the COPYING file.
 
 Documentation in this repository is licensed under the Creative Commons
 Attribution 4.0 International license (CC-BY-4.0), available at
 https://creativecommons.org/licenses/by/4.0/.
+
+The file plorn_app.png is a copy of a photograph owned by the Charles
+Dickens Museum, 48-49 Doughty Street, London WC1N 2LX, England (see
+https://www.dickensmuseum.com).  This is a colorized version of a
+portrait of Edward Bullwer Lytton "Plorn" Dickens from their curated
+archives.  The image has been licensed to the Plorn project only for
+non-commercial use and distribution.  If you wish to re-use the
+photograph, you may do so as part of the Plorn application or a copy
+of it; any other use must be approved by the Charles Dickens Museum.
+
+The red X icon used in the search results (checkbox.png) is from:
+	
+	https://www.flaticon.com/free-icons/incorrect
+	Incorrect icons created by heisenberg_jr - Flaticon
+
+The green check mark (tick mark) in the search results (red-x.png) is
+borrowed from the Linux Mint desktop icons and is distributed under
+the terms of GPL-3.0-or later, as is this project.
+
+The plus and minus icons used when adding or removing attributes (files
+list-add.png and list-remove.png) are borrowed from the GNOME project,
+and are re-used under the terms of GPL-3.0-or-later, as is this project.
+
+Other licenses may be specified as well for certain files for purposes of
+illustration or where third-party components are used.
+
