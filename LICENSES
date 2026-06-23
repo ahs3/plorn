@@ -12,12 +12,24 @@ https://creativecommons.org/licenses/by/4.0/.
 
 The file plorn_app.png is a copy of a photograph owned by the Charles
 Dickens Museum, 48-49 Doughty Street, London WC1N 2LX, England (see
-https://www.dickensmuseum.com).  This is a colorized version of a
+https://www.dickensmuseum.com).  This was a colorized version of a
 portrait of Edward Bullwer Lytton "Plorn" Dickens from their curated
-archives.  The image has been licensed to the Plorn project only for
+archives, which I have converted back to a sepia tone (because I like
+it) and shrunk to make it more usable with X11 (the original was far
+too large).  The image has been licensed to the Plorn project only for
 non-commercial use and distribution.  If you wish to re-use the
 photograph, you may do so as part of the Plorn application or a copy
 of it; any other use must be approved by the Charles Dickens Museum.
+
+When re-using the image of Plorn with this project, the following text
+must be included:
+
+   The image of Edward "Plorn" Dickens contained in the file plorn_app.png
+   is provided with the express permission of the Charles Dickens Museum,
+   London, England.  Any redistribution of this image within the context
+   of this application must also include this notice of the Museum's
+   permission.  Any other use of this image must be granted explicit
+   approval by the Charles Dickens Museum, London.
 
 The red X icon used in the search results (checkbox.png) is from:
 	
