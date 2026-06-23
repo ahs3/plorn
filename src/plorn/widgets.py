@@ -146,9 +146,9 @@ class PlornFileDialog(ttk.Toplevel):
     def file_selected(self, rows):
         global module_logger
 
-        n = 0
-        for ii in rows:
-            module_logger.info(f'DBG> file_selected: [{n}] {ii.values}')
+        #n = 0
+        #for ii in rows:
+        #    module_logger.info(f'DBG> file_selected: [{n}] {ii.values}')
 
     def build_table(self, parent):
         global module_logger
