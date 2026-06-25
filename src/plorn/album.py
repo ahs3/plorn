@@ -12,12 +12,7 @@ import logging
 import os
 import shutil
 
-#import tkinter as tk
-#from tkinter import *
-#from tkinter import ttk
 from tkinter import font
-#from tkinter import filedialog
-#from tkinter import messagebox
 
 from PIL import Image as pilImage
 from PIL.ExifTags import TAGS as pilTAGS
@@ -26,6 +21,7 @@ from PIL.ExifTags import GPSTAGS as pilGPSTAGS
 import ttkbootstrap as ttk
 from ttkbootstrap import StringVar, IntVar
 from ttkbootstrap.constants import *
+from ttkbootstrap.dialogs.message import Messagebox
 
 import plorn.attr
 import plorn.base_obj
@@ -216,11 +212,8 @@ class PlornAddAlbum(ttk.Toplevel):
         name = self.rframe.get_name_listbox_value()
         module_logger.debug(f'remove_name: {str(name)}')
         if name == None:
-            messagebox.showinfo(parent=self,
-                                title='Remove Name from Album',
-                                message='No name selected',
-                                detail='Please select a name to remove',
-                               )
+            Messagebox.show_error('Please select a name to remove',
+                                  parent=self, title='Remove Name from Album')
         else:
             self.new_album.remove_name_from_list(name)
             self.rframe.set_name_listbox_values(self.new_album.get_name_list())
@@ -245,11 +238,8 @@ class PlornAddAlbum(ttk.Toplevel):
         place = self.rframe.get_place_listbox_value()
         module_logger.debug(f'remove_place: {str(place)}')
         if place == None:
-            messagebox.showinfo(parent=self,
-                                title='Remove Place from Album',
-                                message='No place selected',
-                                detail='Please select a place to remove',
-                               )
+            Messagebox.show_error('Please select a place to remove',
+                                  parent=self, title='Remove Place from Album')
         else:
             self.new_album.remove_place_from_list(place)
             self.rframe.set_place_listbox_values(self.new_album.get_place_list())
@@ -274,11 +264,8 @@ class PlornAddAlbum(ttk.Toplevel):
         tag = self.rframe.get_tag_listbox_value()
         module_logger.debug(f'remove_tag: {str(tag)}')
         if tag == None:
-            messagebox.showinfo(parent=self,
-                                title='Remove Tag from Album',
-                                message='No tag selected',
-                                detail='Please select a tag to remove',
-                               )
+            Messagebox.show_error('Please select a tag to remove',
+                                  parent=self, title='Remove Tag from Album')
         else:
             self.new_album.remove_tag_from_list(place)
             self.rframe.set_tag_listbox_values(self.new_album.get_tag_list())
@@ -287,11 +274,8 @@ class PlornAddAlbum(ttk.Toplevel):
         module_logger.debug('entered add_album')
         self.name = self.lframe.get_album_name()
         if self.name == '':
-            messagebox.showerror(parent=self,
-                                 title='Adding an Album',
-                                 message='Album must have non-blank name',
-                                 detail='Please provide a name',
-                                )
+            Messagebox.show_error('An album name cannot be blank',
+                                  parent=self, title='Adding an Album')
             return
 
         module_logger.debug(f'add album name: {self.name}')
@@ -304,16 +288,12 @@ class PlornAddAlbum(ttk.Toplevel):
         self.new_album.set_tag_list(self.rframe.get_listbox_tags())
 
         if self.db.album_exists(self.new_album):
-            messagebox.showerror(parent=self,
-                                 title='Adding an Album',
-                                 message='Album already exists',
-                                 detail='Please use another name',
-                                )
+            Messagebox.show_error('An album with that name already exists',
+                                  parent=self, title='Adding an Album')
         else:
             # now it's reasonable to add the album ....
             self.new_album = self.db.add_album(self.new_album)
             msg = f'Added Album \'{self.new_album.get_name()}\''
-            messagebox.showinfo(message=msg, parent=self)
 
     def clear_entries(self):
         self.name = ''
@@ -488,11 +468,8 @@ class PlornEditAlbum(ttk.Toplevel):
         name = self.rframe.get_name_listbox_value()
         module_logger.debug(f'remove_name: {str(name)}')
         if name == None:
-            messagebox.showinfo(parent=self,
-                                title='Remove Name from Album',
-                                message='No name selected',
-                                detail='Please select a name to remove',
-                               )
+            Messagebox.show_error('Please select a name to remove',
+                                  parent=self, title='Remove Name from Album')
         else:
             self.album.remove_name_from_list(name)
             self.rframe.set_name_listbox_values(self.album.get_name_list())
@@ -517,11 +494,8 @@ class PlornEditAlbum(ttk.Toplevel):
         place = self.rframe.get_place_listbox_value()
         module_logger.debug(f'remove_place: {str(place)}')
         if place == None:
-            messagebox.showinfo(parent=self,
-                                title='Remove Place from Album',
-                                message='No place selected',
-                                detail='Please select a place to remove',
-                               )
+            Messagebox.show_error('Please select a place to remove',
+                                  parent=self, title='Remove Place from Album')
         else:
             self.album.remove_place_from_list(place)
             self.rframe.set_place_listbox_values(self.album.get_place_list())
@@ -546,11 +520,8 @@ class PlornEditAlbum(ttk.Toplevel):
         tag = self.rframe.get_tag_listbox_value()
         module_logger.debug(f'remove_tag: {str(tag)}')
         if tag == None:
-            messagebox.showinfo(parent=self,
-                                title='Remove Tag from Album',
-                                message='No tag selected',
-                                detail='Please select a tag to remove',
-                               )
+            Messagebox.show_error('Please select a tag to remove',
+                                  parent=self, title='Remove Tag from Album')
         else:
             self.album.remove_tag_from_list(tag)
             self.rframe.set_tag_listbox_values(self.album.get_tag_list())
@@ -578,11 +549,10 @@ class PlornEditAlbum(ttk.Toplevel):
         album_copy = copy.deepcopy(self.album)
         if self.lframe.get_album_name() != self.album.get_name():
             if self.db.album_exists(self.lframe.get_album_name()):
-                messagebox.showerror(parent=self,
-                                     title='Updating an Album',
-                                     message='Album already exists',
-                                     detail='Please use another name',
-                                    )
+                msg  = 'Cannot change the album name '
+                msg += 'to one that already exists'
+                Messagebox.show_error(msg,
+                                      parent=self, title='Updating an Album')
                 return
 
         album_copy.set_name(self.lframe.get_album_name())
