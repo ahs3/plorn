@@ -13,7 +13,6 @@ import os
 import shutil
 from enum import IntEnum
 
-from tkinter import font
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 from ttkbootstrap.widgets.tableview import Tableview, TableRow

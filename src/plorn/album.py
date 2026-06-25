@@ -12,8 +12,6 @@ import logging
 import os
 import shutil
 
-from tkinter import font
-
 from PIL import Image as pilImage
 from PIL.ExifTags import TAGS as pilTAGS
 from PIL.ExifTags import GPSTAGS as pilGPSTAGS
@@ -70,7 +68,6 @@ class PlornAlbumLeftFrame:
         self.parent = parent
         self.album = album
         self.default_state = default_state
-        self.tfont=font.nametofont('TkDefaultFont')
         self.lframe = ttk.Frame(self.parent, padding='10 10 10 10')
         self.lframe.columnconfigure(0, weight=1)
         self.lframe.columnconfigure(1, weight=2)
@@ -84,7 +81,7 @@ class PlornAlbumLeftFrame:
             self.album_name.set(self.album.get_name())
         self.album_entry = ttk.Entry(self.lframe, width=40,
                                      textvariable=self.album_name,
-                                     font=self.tfont, state=self.default_state)
+                                     state=self.default_state)
         self.album_entry.grid(column=1, row=0, sticky=(W))
         self.album_entry.focus_set()
 
@@ -95,12 +92,12 @@ class PlornAlbumLeftFrame:
             self.dated.set(self.album.get_dated())
         self.date_entry = ttk.Entry(self.lframe, width=40,
                                     textvariable=self.dated,
-                                    font=self.tfont, state=self.default_state)
+                                    state=self.default_state)
         self.date_entry.grid(column=1, row=1, sticky=(W))
 
         self.lab3 = ttk.Label(self.lframe, width=10, text='Notes:')
         self.lab3.grid(column=0, row=2, sticky=(N, W))
-        self.notes = ttk.Text(self.lframe, height=10, width=40, font=self.tfont)
+        self.notes = ttk.Text(self.lframe, height=10, width=40)
         if self.album != None:
             self.notes.insert('1.0', self.album.get_notes())
         self.note_state = 'normal'
@@ -116,7 +113,7 @@ class PlornAlbumLeftFrame:
             self.photo_count.set(self.album.get_photo_count())
         self.photos = ttk.Entry(self.lframe, width=40,
                                 textvariable=self.photo_count,
-                                font=self.tfont, state='readonly')
+                                state='readonly')
         self.photos.grid(column=1, row=3, sticky=(W))
 
     def get_frame(self):
@@ -142,7 +139,6 @@ class PlornAddAlbum(ttk.Toplevel):
     def __init__(self, parent):
         super().__init__(parent)
         module_logger.debug('started PlornAddAlbum')
-        tfont = font.nametofont('TkDefaultFont')
         self.name = ''
         self.new_album = PlornAlbum('')
         self.db = plorn.db.open()
@@ -311,7 +307,6 @@ class PlornShowAlbum(ttk.Toplevel):
     def __init__(self, parent, album_id):
         super().__init__(parent)
         module_logger.debug('started PlornShowAlbum')
-        self.tfont = font.nametofont('TkDefaultFont')
         self.db = plorn.db.open()
         self.album = self.db.get_album(album_id)
 
@@ -351,7 +346,6 @@ class PlornRemoveAlbum(ttk.Toplevel):
     def __init__(self, parent, album_id):
         super().__init__(parent)
         module_logger.debug('started PlornRemoveAlbum')
-        tfont = font.nametofont('TkDefaultFont')
         self.db = plorn.db.open()
         self.album_id = album_id
         self.album = self.db.get_album(album_id)
@@ -402,7 +396,6 @@ class PlornEditAlbum(ttk.Toplevel):
     def __init__(self, parent, album_id):
         super().__init__(parent)
         module_logger.debug('started PlornEditAlbum')
-        tfont = font.nametofont('TkDefaultFont')
         self.db = plorn.db.open()
         self.album = self.db.get_album(album_id)
         self.name_listbox = {}
@@ -578,7 +571,6 @@ class PlornImportToAlbum:
         self.parent = parent
         self.album_id = album_id
         self.added_count = 0
-        tfont = font.nametofont('TkDefaultFont')
         self.db = plorn.db.open()
         self.album = self.db.get_album(self.album_id)
 
