@@ -92,7 +92,9 @@ class PlornAttrListbox:
         self.listbox = ttk.Treeview(self.lsframe,
                                     yscrollcommand=self.listscroll.set,
                                     show='tree',
-                                    height=4)
+                                    height=4,
+                                    selectmode='browse',
+                                    selecttype='item')
         self.listscroll.configure(command=self.listbox.yview)
         self.listbox.grid(column=0, row=1, sticky=(N,W,E,S))
         self.listscroll.grid(column=1, row=1, sticky=(N,W,E,S))
@@ -101,6 +103,9 @@ class PlornAttrListbox:
         return self.lsframe
 
     def get_listvar(self):
+        self.listvar.clear()
+        for ii in self.listbox.get_children():
+            self.listvar.append(self.listbox.item(ii)['text'])
         return self.listvar
 
     def set_listvar(self, value_list):
@@ -112,7 +117,11 @@ class PlornAttrListbox:
             self.listbox.insert('', 'end', text=ii)
 
     def curselection(self):
-        return self.listbox.curselection()
+        result = ''
+        item = self.listbox.focus()
+        if item != '':
+            result = item[1]
+        return result
 
     def get(self, idx):
         return self.listbox.get(idx)
@@ -215,8 +224,7 @@ class PlornAttrFrame:
     def get_name_listbox_value(self):
         global module_logger
 
-        idx = self.name_listbox.curselection()
-        value = self.name_listbox.get(idx)
+        value = self.name_listbox.curselection()
         module_logger.debug(f'get_name_listbox_value: {str(value)}')
         if value in self.names_dict:
             return self.names_dict[value]
@@ -246,8 +254,7 @@ class PlornAttrFrame:
     def get_place_listbox_value(self):
         global module_logger
 
-        idx = self.place_listbox.curselection()
-        value = self.place_listbox.get(idx)
+        value = self.place_listbox.curselection()
         module_logger.debug(f'get_place_listbox_value: {str(value)}')
         if value in self.places_dict:
             return self.places_dict[value]
@@ -275,8 +282,7 @@ class PlornAttrFrame:
     def get_tag_listbox_value(self):
         global module_logger
 
-        idx = self.tag_listbox.curselection()
-        value = self.tag_listbox.get(idx)
+        value = self.tag_listbox.curselection()
         module_logger.debug(f'get_tag_listbox_value: {str(value)}')
         if value in self.tags_dict:
             return self.tags_dict[value]
