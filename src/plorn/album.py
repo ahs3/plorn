@@ -12,16 +12,20 @@ import logging
 import os
 import shutil
 
-import tkinter as tk
-from tkinter import *
-from tkinter import ttk
+#import tkinter as tk
+#from tkinter import *
+#from tkinter import ttk
 from tkinter import font
-from tkinter import filedialog
-from tkinter import messagebox
+#from tkinter import filedialog
+#from tkinter import messagebox
 
 from PIL import Image as pilImage
 from PIL.ExifTags import TAGS as pilTAGS
 from PIL.ExifTags import GPSTAGS as pilGPSTAGS
+
+import ttkbootstrap as ttk
+from ttkbootstrap import StringVar, IntVar
+from ttkbootstrap.constants import *
 
 import plorn.attr
 import plorn.base_obj
@@ -100,7 +104,7 @@ class PlornAlbumLeftFrame:
 
         self.lab3 = ttk.Label(self.lframe, width=10, text='Notes:')
         self.lab3.grid(column=0, row=2, sticky=(N, W))
-        self.notes = Text(self.lframe, height=10, width=40, font=self.tfont)
+        self.notes = ttk.Text(self.lframe, height=10, width=40, font=self.tfont)
         if self.album != None:
             self.notes.insert('1.0', self.album.get_notes())
         self.note_state = 'normal'
@@ -138,7 +142,7 @@ class PlornAlbumLeftFrame:
         return self.photo_count.get()
 
 
-class PlornAddAlbum(Toplevel):
+class PlornAddAlbum(ttk.Toplevel):
     def __init__(self, parent):
         super().__init__(parent)
         module_logger.debug('started PlornAddAlbum')
@@ -323,7 +327,7 @@ class PlornAddAlbum(Toplevel):
         return self.new_album
 
 
-class PlornShowAlbum(Toplevel):
+class PlornShowAlbum(ttk.Toplevel):
     def __init__(self, parent, album_id):
         super().__init__(parent)
         module_logger.debug('started PlornShowAlbum')
@@ -363,7 +367,7 @@ class PlornShowAlbum(Toplevel):
         self.bdone.grid(column=1, row=3)
 
 
-class PlornRemoveAlbum(Toplevel):
+class PlornRemoveAlbum(ttk.Toplevel):
     def __init__(self, parent, album_id):
         super().__init__(parent)
         module_logger.debug('started PlornRemoveAlbum')
@@ -414,7 +418,7 @@ class PlornRemoveAlbum(Toplevel):
         self.destroy()
 
 
-class PlornEditAlbum(Toplevel):
+class PlornEditAlbum(ttk.Toplevel):
     def __init__(self, parent, album_id):
         super().__init__(parent)
         module_logger.debug('started PlornEditAlbum')
@@ -433,6 +437,7 @@ class PlornEditAlbum(Toplevel):
         self.rowconfigure(1, weight=1)
         self.rowconfigure(2, weight=1)
         self.rowconfigure(3, weight=1)
+        self.rowconfigure(4, weight=1)
 
         self.lframe = PlornAlbumLeftFrame(self.db, self, album=self.album,
                                           default_state='normal')

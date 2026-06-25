@@ -81,28 +81,35 @@ class PlornAttrListbox:
         self.lsframe = ttk.Frame(self.parent, padding='5 5 5 5')
         self.lsframe.columnconfigure(0, weight=9)
         self.lsframe.columnconfigure(1, weight=1)
-        self.lsframe.rowconfigure(0, weight=1)
+        self.lsframe.rowconfigure(0, weight=2)
         self.lsframe.rowconfigure(1, weight=8)
 
         self.lab1 = ttk.Label(self.lsframe, text=f'Associated {title}:')
         self.lab1.grid(column=0, row=0, sticky=(W))
 
-        self.listvar = tk.Variable(value=[])
-        self.listbox = tk.Listbox(self.lsframe,
-                                  listvariable=self.listvar,
-                                  height=2,
-                                  selectmode=tk.BROWSE,
-                                 )
+        self.listvar = []
+        self.listscroll = ttk.Scrollbar(self.lsframe)
+        self.listbox = ttk.Treeview(self.lsframe,
+                                    yscrollcommand=self.listscroll.set,
+                                    show='tree',
+                                    height=4)
+        self.listscroll.configure(command=self.listbox.yview)
         self.listbox.grid(column=0, row=1, sticky=(N,W,E,S))
+        self.listscroll.grid(column=1, row=1, sticky=(N,W,E,S))
 
     def get_frame(self):
         return self.lsframe
 
     def get_listvar(self):
-        return list(self.listvar.get())
+        return self.listvar
 
     def set_listvar(self, value_list):
-        self.listvar.set(value_list)
+        self.listvar.clear()
+        self.listvar = value_list
+        for ii in self.listbox.get_children():
+            self.listbox.delete(ii)
+        for ii in self.listvar:
+            self.listbox.insert('', 'end', text=ii)
 
     def curselection(self):
         return self.listbox.curselection()
@@ -139,8 +146,8 @@ class PlornAttrFrame:
 
         plus = os.path.join(os.path.dirname(__file__), 'list-add.png')
         minus = os.path.join(os.path.dirname(__file__), 'list-remove.png')
-        self.add_icon = tk.PhotoImage(file=plus)
-        self.rm_icon = tk.PhotoImage(file=minus)
+        self.add_icon = ttk.PhotoImage(file=plus)
+        self.rm_icon = ttk.PhotoImage(file=minus)
 
         self.name_listbox = PlornAttrListbox(self.rframe, title='Names')
         self.name_listbox.get_frame().grid(column=0, row=0, sticky=(N,W,E,S))
