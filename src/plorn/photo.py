@@ -14,11 +14,10 @@ from PIL import ImageTk
 from PIL.ExifTags import TAGS as pilTAGS
 from PIL.ExifTags import GPSTAGS as pilGPSTAGS
 
-from tkinter import *
-from tkinter import ttk
-from tkinter import font
-from tkinter import filedialog
-from tkinter import messagebox
+import ttkbootstrap as ttk
+from ttkbootstrap import StringVar, IntVar
+from ttkbootstrap.constants import *
+from ttkbootstrap.dialogs.message import Messagebox
 
 import plorn.attr
 import plorn.base_obj
@@ -71,7 +70,6 @@ class PlornPhotoLeftFrame:
         self.album = album
         self.photo = photo
         self.default_state = default_state
-        self.tfont=font.nametofont('TkDefaultFont')
         self.lframe = ttk.Frame(self.parent, padding='10 10 10 10')
         self.lframe.columnconfigure(0, weight=1)
         self.lframe.columnconfigure(1, weight=2)
@@ -87,7 +85,7 @@ class PlornPhotoLeftFrame:
             self.album_name.set(self.album.get_name())
         self.album_entry = ttk.Entry(self.lframe, width=40,
                                      textvariable=self.album_name,
-                                     font=self.tfont, state='readonly')
+                                     state='readonly')
         self.album_entry.grid(column=1, row=0, sticky=(W))
         self.album_entry.focus_set()
 
@@ -98,7 +96,7 @@ class PlornPhotoLeftFrame:
             self.photo_name.set(self.photo.get_name())
         self.name_entry = ttk.Entry(self.lframe, width=40,
                                     textvariable=self.photo_name,
-                                    font=self.tfont, state=self.default_state)
+                                    state=self.default_state)
         self.name_entry.grid(column=1, row=1, sticky=(W))
 
         self.lab3 = ttk.Label(self.lframe, width=10, text='Path:')
@@ -112,7 +110,6 @@ class PlornPhotoLeftFrame:
             edit_state = 'readonly'
         self.path_entry = ttk.Entry(self.lframe, width=40,
                                     textvariable=self.photo_path,
-                                    font=self.tfont,
                                     state=edit_state)
         self.path_entry.grid(column=1, row=2, sticky=(W))
 
@@ -128,12 +125,12 @@ class PlornPhotoLeftFrame:
             self.dated.set(self.photo.get_dated())
         self.date_entry = ttk.Entry(self.lframe, width=40,
                                     textvariable=self.dated,
-                                    font=self.tfont, state=self.default_state)
+                                    state=self.default_state)
         self.date_entry.grid(column=1, row=3, sticky=(W))
 
         self.lab5 = ttk.Label(self.lframe, width=10, text='Notes:')
         self.lab5.grid(column=0, row=4, sticky=(N, W))
-        self.notes = Text(self.lframe, height=10, width=40, font=self.tfont)
+        self.notes = ttk.Text(self.lframe, height=10, width=40)
         if self.photo != None:
             self.notes.insert('1.0', self.photo.get_notes())
         self.note_state = 'normal'
@@ -260,7 +257,7 @@ class PlornPhotoLeftFrame:
 
 class PhotoCanvas:
     def __init__(self, parent, path, width=600, height=500):
-        self.canvas = Canvas(parent, width=width, height=height)
+        self.canvas = ttk.Canvas(parent, width=width, height=height)
         self.parent = parent
         self.width = width
         self.height = height
@@ -290,11 +287,10 @@ class PhotoCanvas:
                                             image=self.canvas_img)
 
 
-class PlornShowPhoto(Toplevel):
+class PlornShowPhoto(ttk.Toplevel):
     def __init__(self, parent, photo_id):
         super().__init__(parent)
         module_logger.debug('started PlornShowPhoto')
-        tfont = font.nametofont('TkDefaultFont')
         self.db = plorn.db.open()
         self.photo = self.db.get_photo(photo_id)
         self.album = self.db.get_album(self.photo.get_album_id())
@@ -358,11 +354,8 @@ class PlornShowPhoto(Toplevel):
         name = self.rframe.get_name_listbox_value()
         module_logger.debug(f'remove_name: {str(name)}')
         if name == None:
-            messagebox.showinfo(parent=self,
-                                title='Remove Name from Photo',
-                                message='No name selected',
-                                detail='Please select a name to remove',
-                               )
+            Messagebox.show_error('Please select a name to remove',
+                                  parent=self, title='Remove Name from Photo')
         else:
             self.photo.remove_name_from_list(name)
             self.rframe.set_name_listbox_values(self.photo.get_name_list())
@@ -387,11 +380,8 @@ class PlornShowPhoto(Toplevel):
         place = self.rframe.get_place_listbox_value()
         module_logger.debug(f'remove_place: {str(place)}')
         if place == None:
-            messagebox.showinfo(parent=self,
-                                title='Remove Place from Photo',
-                                message='No place selected',
-                                detail='Please select a place to remove',
-                               )
+            Messagebox.show_error('Please select a place to remove',
+                                  parent=self, title='Remove Place from Photo')
         else:
             self.photo.remove_place_from_list(place)
             self.rframe.set_place_listbox_values(self.photo.get_place_list())
@@ -416,21 +406,17 @@ class PlornShowPhoto(Toplevel):
         tag = self.rframe.get_tag_listbox_value()
         module_logger.debug(f'remove_tag: {str(tag)}')
         if tag == None:
-            messagebox.showinfo(parent=self,
-                                title='Remove Tag from Photo',
-                                message='No tag selected',
-                                detail='Please select a tag to remove',
-                               )
+            Messagebox.show_error('Please select a tag to remove',
+                                  parent=self, title='Remove Tag from Photo')
         else:
             self.photo.remove_tag_from_list(tag)
             self.rframe.set_tag_listbox_values(self.photo.get_tag_list())
 
 
-class PlornRemovePhoto(Toplevel):
+class PlornRemovePhoto(ttk.Toplevel):
     def __init__(self, parent, photo_id):
         super().__init__(parent)
         module_logger.debug('started PlornRemovePhoto')
-        tfont = font.nametofont('TkDefaultFont')
         self.db = plorn.db.open()
         self.photo = self.db.get_photo(photo_id)
         self.album = self.db.get_album(self.photo.get_album_id())
@@ -486,11 +472,10 @@ class PlornRemovePhoto(Toplevel):
         return self.photo_removed
 
 
-class PlornEditPhoto(Toplevel):
+class PlornEditPhoto(ttk.Toplevel):
     def __init__(self, parent, photo_id):
         super().__init__(parent)
         module_logger.debug('started PlornEditPhoto')
-        tfont = font.nametofont('TkDefaultFont')
         self.db = plorn.db.open()
         self.photo_id = photo_id
         self.photo = self.db.get_photo(photo_id)
@@ -540,11 +525,10 @@ class PlornEditPhoto(Toplevel):
             if filetype.is_image(fullpath):
                 if self.lframe.get_photo_name() != self.photo.get_name():
                         if self.db.album_exists(self.lframe.get_album_name()):
-                            messagebox.showerror(parent=self,
-                                              title='Updating an Album',
-                                              message='Album already exists',
-                                              detail='Please use another name',
-                            )
+                            msg  = 'Cannot change album name '
+                            msg += 'to one that already exists'
+                            Messagebox.show_error(msg,
+                                      parent=self, title='Updating an Album')
                             return
 
                 photo_copy = copy.deepcopy(self.photo)
@@ -559,16 +543,11 @@ class PlornEditPhoto(Toplevel):
                 self.photo = self.db.update_photo(self.photo, photo_copy)
 
             else:
-                messagebox.showerror(parent=self,
-                                    title='Update a Photo',
-                                    message='File is not a known image type',
-                                    detail='Please choose another path.')
+                Messagebox.show_error('File is not a known image type',
+                                      parent=self, title='Update a Photo')
         else:
-            messagebox.showerror(parent=self,
-                                 title='Update a Photo',
-                                 message='Image is not a regular file',
-                                 detail='Please choose another path.')
-
+            Messagebox.show_error('Image is not a regular file',
+                                  parent=self, title='Update a Photo')
         self.destroy()
 
     def add_name(self):
@@ -591,11 +570,8 @@ class PlornEditPhoto(Toplevel):
         name = self.rframe.get_name_listbox_value()
         module_logger.debug(f'remove_name: {str(name)}')
         if name == None:
-            messagebox.showinfo(parent=self,
-                                title='Remove Name from Photo',
-                                message='No name selected',
-                                detail='Please select a name to remove',
-                               )
+            Messagebox.show_error('Please select a name to remove',
+                                  parent=self, title='Remove Name from Photo')
         else:
             self.photo.remove_name_from_list(name)
             self.rframe.set_name_listbox_values(self.photo.get_name_list())
@@ -620,11 +596,8 @@ class PlornEditPhoto(Toplevel):
         place = self.rframe.get_place_listbox_value()
         module_logger.debug(f'remove_place: {str(place)}')
         if place == None:
-            messagebox.showinfo(parent=self,
-                                title='Remove Place from Photo',
-                                message='No place selected',
-                                detail='Please select a place to remove',
-                               )
+            Messagebox.show_error('Please select a place to remove',
+                                  parent=self, title='Remove Place from Photo')
         else:
             self.photo.remove_place_from_list(place)
             self.rframe.set_place_listbox_values(self.photo.get_place_list())
@@ -649,11 +622,8 @@ class PlornEditPhoto(Toplevel):
         tag = self.rframe.get_tag_listbox_value()
         module_logger.debug(f'remove_tag: {str(tag)}')
         if tag == None:
-            messagebox.showinfo(parent=self,
-                                title='Remove Tag from Photo',
-                                message='No tag selected',
-                                detail='Please select a tag to remove',
-                               )
+            Messagebox.show_error('Please select a tag to remove',
+                                  parent=self, title='Remove Tag from Photo')
         else:
             self.photo.remove_tag_from_list(tag)
             self.rframe.set_tag_listbox_values(self.photo.get_tag_list())
@@ -662,11 +632,10 @@ class PlornEditPhoto(Toplevel):
         return self.photo
 
 
-class PlornAddPhoto(Toplevel):
+class PlornAddPhoto(ttk.Toplevel):
     def __init__(self, parent, album_id):
         super().__init__(parent)
         module_logger.debug('started PlornAddPhoto')
-        tfont = font.nametofont('TkDefaultFont')
         self.db = plorn.db.open()
         self.photo = PlornPhoto('')         # create place holder
         self.photo_written = False
@@ -744,15 +713,11 @@ class PlornAddPhoto(Toplevel):
                 else:
                     self._add_photo()
             else:
-                messagebox.showerror(parent=self,
-                                    title='Add a Photo',
-                                    message='File is not a known image type',
-                                    detail='Please choose another path.')
+                Messagebox.show_error('File is not a known image type',
+                                      parent=self, title='Add a Photo')
         else:
-            messagebox.showerror(parent=self,
-                                 title='Add a Photo',
-                                 message='Image is not a regular file',
-                                 detail='Please choose another path.')
+            Messagebox.show_error('Image is not a regular file',
+                                  parent=self, title='Add a Photo')
 
     def _add_photo(self):
         new_photo = PlornPhoto(self.lframe.get_photo_name(),
@@ -768,7 +733,6 @@ class PlornAddPhoto(Toplevel):
         self.photo_written = True
         self.bupdate.configure(text='Update')
         msg = f'Added Photo \'{self.lframe.get_photo_name()}\''
-        messagebox.showinfo(parent=self, message=msg)
 
     def _update_photo(self):
         photo_copy = copy.deepcopy(self.photo)
@@ -816,11 +780,8 @@ class PlornAddPhoto(Toplevel):
         name = self.rframe.get_name_listbox_value()
         module_logger.debug(f'remove_name: {str(name)}')
         if name == None:
-            messagebox.showinfo(parent=self,
-                                title='Remove Name from Photo',
-                                message='No name selected',
-                                detail='Please select a name to remove',
-                               )
+            Messagebox.show_error('Please select a name to remove',
+                                  parent=self, title='Remove Name from Photo')
         else:
             self.photo.remove_name_from_list(name)
             self.rframe.set_name_listbox_values(self.photo.get_name_list())
@@ -845,11 +806,8 @@ class PlornAddPhoto(Toplevel):
         place = self.rframe.get_place_listbox_value()
         module_logger.debug(f'remove_place: {str(place)}')
         if place == None:
-            messagebox.showinfo(parent=self,
-                                title='Remove Place from Photo',
-                                message='No place selected',
-                                detail='Please select a place to remove',
-                               )
+            Messagebox.show_error('Please select a place to remove',
+                                  parent=self, title='Remove Place from Photo')
         else:
             self.photo.remove_place_from_list(place)
             self.rframe.set_place_listbox_values(self.photo.get_place_list())
@@ -874,11 +832,8 @@ class PlornAddPhoto(Toplevel):
         tag = self.rframe.get_tag_listbox_value()
         module_logger.debug(f'remove_tag: {str(tag)}')
         if tag == None:
-            messagebox.showinfo(parent=self,
-                                title='Remove Tag from Photo',
-                                message='No tag selected',
-                                detail='Please select a tag to remove',
-                               )
+            Messagebox.show_error('Please select a tag to remove',
+                                  parent=self, title='Remove Tag from Photo')
         else:
             self.photo.remove_tag_from_list(tag)
             self.rframe.set_tag_listbox_values(self.photo.get_tag_list())
