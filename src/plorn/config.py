@@ -12,7 +12,10 @@ import os
 import pwd
 import sys
 
-__version__ = '0.23.16'
+MAJOR = 0
+MINOR = 23
+BUGFIX = 18
+__version__ = str(MAJOR) + ',' + str(MINOR) + '.' + str(BUGFIX)
 config = None
 
 FONTSIZE = 16

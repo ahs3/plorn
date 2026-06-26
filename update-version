@@ -1,0 +1,69 @@
+#!/usr/bin/env python3
+
+import argparse
+import os
+import sys
+
+argparser = argparse.ArgumentParser(prog='update-version',
+    description='update the project version number')
+argparser.add_argument('-M', '--major',  help='increment major number',
+                       action='store_true', default=False)
+argparser.add_argument('-m', '--minor',  help='increment minor number',
+                       action='store_true', default=False)
+argparser.add_argument('-b', '--bugfix', help='increment bugfix number',
+                       action='store_true', default=False)
+args = argparser.parse_args(sys.argv[1:])
+if args.major == False and args.minor == False and args.bugfix == False:
+    argparser.print_help()
+    sys.exit(1)
+
+with open('src/plorn/config.py', 'r') as fd:
+    lines = fd.readlines()
+fd.close()
+
+major  = -1
+minor  = -1
+bugfix = -1
+
+majidx = -1
+minidx = -1
+bugidx = -1
+idx = 0
+for ii in lines:
+    if len(ii) > 0:
+        data = ii.split('=')
+        if len(data) == 2:
+            if data[0].strip() == 'MAJOR' and major < 0:
+                major = int(data[1].strip())
+                majidx = idx
+            if data[0].strip() == 'MINOR' and minor < 0:
+                minor = int(data[1].strip())
+                minidx = idx
+            if data[0].strip() == 'BUGFIX' and bugfix < 0:
+                bugfix = int(data[1].strip())
+                bugidx = idx
+    idx += 1
+
+print('Current: ' + str(major) + '.' + str(minor) + '.' + str(bugfix))
+if args.major:
+    major += 1
+    minor = 0
+    bugfix = 0
+if args.minor:
+    minor += 1
+    bugfix = 0
+if args.bugfix:
+    bugfix += 1
+print('Incremented: ' + str(major) + '.' + str(minor) + '.' + str(bugfix))
+
+if majidx >= 0:
+    lines[majidx] = f'MAJOR = {major}\n'
+if minidx >= 0:
+    lines[minidx] = f'MINOR = {minor}\n'
+if bugidx >= 0:
+    lines[bugidx] = f'BUGFIX = {bugfix}\n'
+
+with open('src/plorn/config.py', 'w') as fd:
+    for ii in lines:
+        print(ii, end='', file=fd)
+
