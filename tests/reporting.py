@@ -63,8 +63,10 @@ def echo_result(utest):
 
     # python > 3.10
     res = utest._outcome.result
-    ok = all(tst.id() != utest.id() \
-             for tst, txt in ((res.errors) + (res.failures)))
+    ok = True
+    if res.errors:
+    	ok = all(tst.id() != utest.id() \
+             	for tst, txt in ((res.errors) + (res.failures)))
 
     _count += 1
     if ok:

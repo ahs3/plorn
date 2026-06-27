@@ -13,11 +13,11 @@ from PIL import Image as pilImage
 from PIL import ImageTk
 import re
 
-import tkinter as tk
-from tkinter import *
-from tkinter import ttk
 from tkinter import font
-from tkinter import messagebox
+import ttkbootstrap as ttk
+from ttkbootstrap import StringVar, IntVar
+from ttkbootstrap.constants import *
+from ttkbootstrap.dialogs.message import Messagebox
 
 import plorn.attr
 import plorn.base_obj
@@ -233,7 +233,7 @@ class PlornSearch:
         return (albums, photos)
 
 
-class PlornAdvancedSearch(Toplevel):
+class PlornAdvancedSearch(ttk.Toplevel):
     '''
     Allow for more complicated searchs
     '''
@@ -409,7 +409,7 @@ class PlornAdvancedSearch(Toplevel):
                                  detail=f'{se}')
         
 
-class PlornSearchResults(Toplevel):
+class PlornSearchResults(ttk.Toplevel):
     '''
     Show what we found searchs
     '''

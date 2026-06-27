@@ -14,7 +14,7 @@ import sys
 
 MAJOR = 0
 MINOR = 23
-BUGFIX = 19
+BUGFIX = 20
 __version__ = str(MAJOR) + ',' + str(MINOR) + '.' + str(BUGFIX)
 config = None
 
