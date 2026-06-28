@@ -9,31 +9,28 @@
 #  it's the best idea for day-to-day use, however
 #
 
-SITEPKGS=$(python3 -c \
-   'import sysconfig; print(sysconfig.get_paths()["purelib"])' 1>/dev/null)
+#SITEPKGS=$(python3 -c \
+#   'import sysconfig; print(sysconfig.get_paths()["purelib"])' 1>/dev/null)
+#
+#if [ ! -d ${SITEPKGS}/plorn ]
+#then
+#	export PYTHONPATH=./src:${PYTHONPATH}
+#fi
 
-if [ ! -d ${SITEPKGS}/plorn ]
-then
-	export PYTHONPATH=./src:${PYTHONPATH}
-fi
+pytest tests
 
-rm -f test_stats
+#echo "=== module tests ==="
+#python -m unittest tests/base_obj_tests.py
 
-echo "=== module tests ==="
-python -m unittest tests/base_obj_tests.py
+#echo "=== db tests ==="
+#python -m unittest tests/basic_db_tests.py
+#python -m unittest tests/album_db_tests.py
+#python -m unittest tests/photo_db_tests.py
 
-echo "=== config tests ==="
-python -m unittest tests/config_tests.py
+#echo "=== attr tests ==="
+#python -m unittest tests/name_db_tests.py
+#python -m unittest tests/place_db_tests.py
+#python -m unittest tests/tag_db_tests.py
 
-echo "=== db tests ==="
-python -m unittest tests/basic_db_tests.py
-python -m unittest tests/album_db_tests.py
-python -m unittest tests/photo_db_tests.py
-
-echo "=== attr tests ==="
-python -m unittest tests/name_db_tests.py
-python -m unittest tests/place_db_tests.py
-python -m unittest tests/tag_db_tests.py
-
-echo "=== test summary ==="
-python tests/totals.py
+#echo "=== test summary ==="
+#python tests/totals.py
