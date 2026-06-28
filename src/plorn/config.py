@@ -1,6 +1,6 @@
 
 #######################################################################
-# Copyright (c) 2025, Albert H. Stone, III <ahs3@ahs3.net>
+# Copyright (c) 2026, Albert H. Stone, III <ahs3@ahs3.net>
 # SPDX-License-Identifier: GPL-3.0-or-later
 # SPDX-FileCopyrightText: 2025 Albert H. Stone, III <ahs3@ahs3.net>
 #######################################################################
@@ -13,23 +13,17 @@ import pwd
 import sys
 
 MAJOR = 0
-MINOR = 23
-BUGFIX = 20
+MINOR = 24
+BUGFIX = 1
 __version__ = str(MAJOR) + ',' + str(MINOR) + '.' + str(BUGFIX)
-config = None
-
-FONTSIZE = 16
-PLORN_PHOTO_PATH = "plorn_app.png"
 
 module_logger = logging.getLogger('plorn.config')
 module_logger.setLevel(logging.INFO)
 
 class PlornConfig:
-
     def __init__(self, name='plorn.cfg'):
         global module_logger, config
 
-        self.make_db = False
         module_logger.debug('looking for config file')
         config_home=os.path.join(os.environ['HOME'], '.config', 'plorn')
         data_home=os.path.join(os.environ['HOME'], '.local', 'share', 'plorn')
@@ -76,7 +70,6 @@ class PlornConfig:
 
             module_logger.debug(f'creating {self.filename}')
             self.write_config()
-            self.make_db = True
 
         config = self.config
         module_logger.debug('config initialized')
@@ -119,12 +112,6 @@ class PlornConfig:
     def set_dbname(self, dbname):
         self.config['plorn']['dbname'] = dbname
 
-    def needs_db(self):
-        return self.make_db
-
-    def db_done(self):
-        self.make_db = False
-
     def get_version(self):
         global __version__
         return __version__
@@ -138,34 +125,19 @@ class PlornConfig:
     def get_fontsize(self):
         return int(self.config['gui']['fontsize'])
 
-    def set_theme(self, fontsize):
+    def set_fontsize(self, fontsize):
+        if not isinstance(fontsize, int):
+            raise TypeError('fontsize must be an integer')
         self.config['gui']['fontsize'] = str(fontsize)
         
     def get_default_photo(self):
         return self.config['gui']['default_photo']
 
-    def set_theme(self, default_photo):
+    def set_default_photo(self, default_photo):
         self.config['gui']['default_photo'] = default_photo
         
     def __str__(self):
         return self.filename
 
-def get_config(config_name='plorn.cfg'):
-    global config
-
-    module_logger.debug(f'getting config {config_name}')
-    if config == None:
-        config = PlornConfig(config_name)
-    return config
-
-def close():
-    global config
-
-    if config != None:
-        config.write_config()
-    config = None
-
-def plorn_photo_path():
-    path = os.path.join(os.path.dirname(__file__), PLORN_PHOTO_PATH)
-    return path
+config = PlornConfig()
 
