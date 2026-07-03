@@ -13,10 +13,6 @@ argparser.add_argument('-m', '--minor',  help='increment minor number',
 argparser.add_argument('-b', '--bugfix', help='increment bugfix number',
                        action='store_true', default=False)
 args = argparser.parse_args(sys.argv[1:])
-if args.major == False and args.minor == False and args.bugfix == False:
-    argparser.print_help()
-    sys.exit(1)
-
 with open('src/plorn/config.py', 'r') as fd:
     lines = fd.readlines()
 fd.close()
@@ -54,6 +50,11 @@ if args.minor:
     bugfix = 0
 if args.bugfix:
     bugfix += 1
+
+if args.major == False and args.minor == False and args.bugfix == False:
+    argparser.print_help()
+    sys.exit(1)
+
 print('Incremented: ' + str(major) + '.' + str(minor) + '.' + str(bugfix))
 
 if majidx >= 0:
