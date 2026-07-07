@@ -1,17 +1,32 @@
 #######################################################################
-# Copyright (c) 2025, Albert H. Stone, III <ahs3@ahs3.net>
+# Copyright (c) 2026, Albert H. Stone, III <ahs3@ahs3.net>
 # SPDX-License-Identifier: GPL-3.0-or-later
 # SPDX-FileCopyrightText: 2025 Albert H. Stone, III <ahs3@ahs3.net>
 #######################################################################
 
-import os
+#-- global imports
+import logging
 import sys
+
+#-- plorn specific imports
+import plorn.config
 from plorn.gui import user_interface
 
-if not __package__:
-    current_path = os.path.dirname(os.path.dirname(__file__))
-    package_source_path = os.path.join(current_path, 'src')
-    sys.path.insert(0, package_source_path)
+#-- set up logging
+root_logger = logging.getLogger('')
+root_logger.setLevel(logging.INFO)
+fh = logging.FileHandler('plorn.log')
+fh.setLevel(logging.DEBUG)
+fhformat = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+formatter = logging.Formatter(fhformat)
+fh.setFormatter(formatter)
+root_logger.addHandler(fh)
 
+module_logger = logging.getLogger('plorn')
+module_logger.setLevel(logging.INFO)
+
+#-- the plorn GUI
 if __name__ == '__main__':
-    user_interface()
+    config = plorn.config.config
+    plorn_app, plorn_root = user_interface()
+    sys.exit(plorn_app.exec())
