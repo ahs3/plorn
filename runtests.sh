@@ -1,6 +1,6 @@
 #!/bin/env sh
 #######################################################################
-# Copyright (c) 2025, Albert H. Stone, III <ahs3@ahs3.net>
+# Copyright (c) 2026, Albert H. Stone, III <ahs3@ahs3.net>
 # SPDX-License-Identifier: GPL-3.0-or-later
 # SPDX-FileCopyrightText: 2025 Albert H. Stone, III <ahs3@ahs3.net>
 #######################################################################
@@ -8,14 +8,6 @@
 #  this script was originally created for development use; not sure
 #  it's the best idea for day-to-day use, however
 #
-
-#SITEPKGS=$(python3 -c \
-#   'import sysconfig; print(sysconfig.get_paths()["purelib"])' 1>/dev/null)
-#
-#if [ ! -d ${SITEPKGS}/plorn ]
-#then
-#	export PYTHONPATH=./src:${PYTHONPATH}
-#fi
 
 pytest tests
 

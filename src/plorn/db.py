@@ -1,6 +1,6 @@
 
 #######################################################################
-# Copyright (c) 2025, Albert H. Stone, III <ahs3@ahs3.net>
+# Copyright (c) 2026, Albert H. Stone, III <ahs3@ahs3.net>
 # SPDX-License-Identifier: GPL-3.0-or-later
 # SPDX-FileCopyrightText: 2025 Albert H. Stone, III <ahs3@ahs3.net>
 #######################################################################
@@ -14,16 +14,15 @@ import sys
 from PIL import Image as pilImage
 from PIL import ImageTk
 
-import plorn.album
-import plorn.attr
-import plorn.config
-import plorn.photo
+#import plorn.album
+#import plorn.attr
+#import plorn.config
+#import plorn.photo
 
 module_logger = logging.getLogger('plorn.db')
 module_logger.setLevel(logging.INFO)
 
 config = None
-current_db = None
 
 def dict_factory(cursor, row):
     fields = [column[0] for column in cursor.description]
@@ -31,7 +30,7 @@ def dict_factory(cursor, row):
 
 class PlornDb:
     def __init__(self, dbname, config):
-        global module_logger, current_db
+        global module_logger
 
         self.dbname = dbname
         self.config = config
@@ -78,7 +77,6 @@ class PlornDb:
         sql = f'SELECT name FROM sqlite_master WHERE rowid = {rowid}'
         res = self.cursor.execute(sql)
         row = res.fetchone()
-        module_logger.debug('added table: ' + str(row))
 
         cfg = self.config
         sql = 'INSERT INTO config VALUES (\'plorn\', '
@@ -324,6 +322,21 @@ class PlornDb:
         res = self.cursor.execute(sql)
         return res.fetchone()
 
+    def get_album_cursor(self):
+        cursor = self.db.cursor()
+        sql = f'SELECT * FROM albums'
+        res = cursor.execute(sql)
+
+        return cursor
+
+    def get_photo_cursor(self, album_id=None):
+        cursor = self.db.cursor()
+        sql  = 'SELECT * FROM photos'
+        if album_id != None:
+            sql += f' WHERE album_id = \'{album_id}\''
+        res = cursor.execute(sql)
+        return cursor
+
     def album_exists(self, album):
         sql = f'SELECT * FROM albums WHERE name = \'{album.get_name()}\''
         res = self.cursor.execute(sql)
@@ -528,22 +541,6 @@ class PlornDb:
         self.remove_album_by_id(album.get_id())
         module_logger.debug(f'removed album by name: {album.get_name()}')
         return 
-
-    def get_album_cursor(self):
-        cursor = self.db.cursor()
-        sql = f'SELECT * FROM albums'
-        res = cursor.execute(sql)
-        return cursor
-
-    def get_photo_cursor(self, album_id=None):
-        cursor = self.db.cursor()
-        sql  = 'SELECT * FROM photos'
-        if album_id != None:
-            sql += f' WHERE album_id = \'{album_id}\''
-        module_logger.debug(f'photo_cursor sql: "{sql}"')
-        module_logger.debug(f'photo_cursor album_id: "{album_id}"')
-        res = cursor.execute(sql)
-        return cursor
 
     def album_count(self):
         sql = f'SELECT id FROM albums'
@@ -1271,66 +1268,4 @@ class PlornDb:
         res = self.cursor.execute(sql)
         rows = res.fetchall()
         return rows
-
-
-def get_dbname(config):
-    dbpath = config.get_datadir()
-    dbname = config.get_dbname()
-    return os.path.join(dbpath, dbname)
-
-def open(dbname='plorn.db', cfgname='plorn.cfg'):
-    global module_logger, current_db
-
-    module_logger.debug('open db')
-    module_logger.debug(f'config is \'{cfgname}\'')
-
-    config = plorn.config.get_config(cfgname)
-    if config.needs_db():
-        module_logger.debug('need to create tables')
-        current_db = PlornDb(get_dbname(config), config)
-        config.db_done()
-
-    if current_db == None:
-        module_logger.debug(f'open existing db \'{get_dbname(config)}\'')
-        current_db = PlornDb(get_dbname(config), config)
-
-    return current_db
-
-def close():
-    global current_db
-
-    if current_db != None:
-        current_db.close()
-        current_db = None
-
-
-def get_dbname(config):
-    dbpath = config.get_datadir()
-    dbname = config.get_dbname()
-    return os.path.join(dbpath, dbname)
-
-def open(dbname='plorn.db', cfgname='plorn.cfg'):
-    global module_logger, current_db
-
-    module_logger.debug('open db')
-    module_logger.debug(f'config is \'{cfgname}\'')
-
-    config = plorn.config.get_config(cfgname)
-    if config.needs_db():
-        module_logger.debug('need to create tables')
-        current_db = PlornDb(get_dbname(config), config)
-        config.db_done()
-
-    if current_db == None:
-        module_logger.debug(f'open existing db \'{get_dbname(config)}\'')
-        current_db = PlornDb(get_dbname(config), config)
-
-    return current_db
-
-def close():
-    global current_db
-
-    if current_db != None:
-        current_db.close()
-        current_db = None
 
