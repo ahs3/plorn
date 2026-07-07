@@ -17,8 +17,7 @@ if os.path.join(',', 'src', 'plorn') not in sys.path:
     current_path = os.path.dirname(os.path.dirname(__file__))
     package_source_path = os.path.join(current_path, 'src')
     sys.path.insert(0, package_source_path)
-    print(sys.path)
-        
+
 import plorn.config
 
 class TestConfig:
