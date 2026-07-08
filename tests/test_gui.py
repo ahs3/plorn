@@ -84,5 +84,6 @@ def test_controls(GUI):
 def test_statusbar(GUI):
     app, root, qtbot = GUI
     assert root.statusbar != None
-    assert root.statusbar.currentMessage() != 'no album is currently open'
+    assert root.statusbar.currentMessage() != ''
+    assert root.statusbar.currentMessage()[:8] == 'catalog:'
 
