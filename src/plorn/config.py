@@ -2,7 +2,7 @@
 #######################################################################
 # Copyright (c) 2026, Albert H. Stone, III <ahs3@ahs3.net>
 # SPDX-License-Identifier: GPL-3.0-or-later
-# SPDX-FileCopyrightText: 2025 Albert H. Stone, III <ahs3@ahs3.net>
+# SPDX-FileCopyrightText: 2026 Albert H. Stone, III <ahs3@ahs3.net>
 #######################################################################
 
 import configparser
@@ -14,7 +14,7 @@ import sys
 
 MAJOR = 0
 MINOR = 24
-BUGFIX = 4
+BUGFIX = 5
 __version__ = str(MAJOR) + '.' + str(MINOR) + '.' + str(BUGFIX)
 
 module_logger = logging.getLogger('plorn.config')
