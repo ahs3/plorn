@@ -46,11 +46,7 @@ from PyQt6.QtWidgets import (
 
 #from PIL import Image as pilImage
 #from PIL import ImageTk
-#
-#
 
-#import plorn.album
-#import plorn.attr
 #import plorn.common
 #from plorn.common import SearchDomains, SearchDomainStrings
 #from plorn.common import SearchFields, SearchFieldStrings
@@ -58,7 +54,6 @@ from PyQt6.QtWidgets import (
 from plorn.config import config
 #import plorn.db
 from plorn.model import PlornDbModel
-#import plorn.photo
 #import plorn.search
 from plorn.widgets import *
 

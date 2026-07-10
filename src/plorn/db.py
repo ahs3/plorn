@@ -11,10 +11,8 @@ import os
 import sqlite3
 import sys
 
-import plorn.album
-import plorn.attr
+from plorn import PlornAlbum, PlornPhoto, PlornName, PlornPlace, PlornTag
 from plorn.config import config
-import plorn.photo
 
 module_logger = logging.getLogger('plorn.db')
 module_logger.setLevel(logging.INFO)
@@ -457,9 +455,9 @@ class PlornDb:
         res = self.cursor.execute(sql)
         row = res.fetchone()
         module_logger.debug(f'added album {str(row)}')
-        result = plorn.album.PlornAlbum(row['name'], id=row['id'],
-                                        dated=row['dated'], notes=row['notes'],
-                                        photo_count=row['photo_count'])
+        result = PlornAlbum(row['name'], id=row['id'],
+                            dated=row['dated'], notes=row['notes'],
+                            photo_count=row['photo_count'])
 
         album_id = result.get_id()
         result.set_name_list(album.get_name_list())
@@ -498,10 +496,9 @@ class PlornDb:
         row = self.get_album_row_by_id(album_id)
         if row == None:
             return None
-        p = plorn.album.PlornAlbum(row['name'], id=row['id'],
-                                   dated=row['dated'], notes=row['notes'],
-                                   photo_count=row['photo_count'],
-                                  )
+        p = PlornAlbum(row['name'], id=row['id'],
+                       dated=row['dated'], notes=row['notes'],
+                       photo_count=row['photo_count'])
 
         p.set_name_list(row['names'])
         p.set_place_list(row['places'])
@@ -636,10 +633,10 @@ class PlornDb:
 
     def get_photo_by_id(self, photo_id):
         row = self.get_photo_row_by_id(photo_id)
-        p = plorn.photo.PlornPhoto(row['name'], id=row['id'],
-                                   album_id=row['album_id'],
-                                   path=row['path'], dated=row['dated'],
-                                   notes=row['notes'])
+        p = PlornPhoto(row['name'], id=row['id'],
+                       album_id=row['album_id'],
+                       path=row['path'], dated=row['dated'],
+                       notes=row['notes'])
         p.set_name_list(row['names'])
         p.set_place_list(row['places'])
         p.set_tag_list(row['tags'])
@@ -672,10 +669,10 @@ class PlornDb:
         res = self.cursor.execute(sql)
         row = res.fetchone()
         module_logger.debug(f'added photo {str(row)}')
-        return plorn.photo.PlornPhoto(row['name'],
-                                      id=row['id'], album_id=row['album_id'],
-                                      path=row['path'],
-                                      dated=row['dated'], notes=row['notes'])
+        return PlornPhoto(row['name'],
+                          id=row['id'], album_id=row['album_id'],
+                          path=row['path'],
+                          dated=row['dated'], notes=row['notes'])
 
     def remove_photo_by_id(self, photo_id):
         sql = f'SELECT * FROM photos WHERE id = \'{photo_id}\''
@@ -754,16 +751,14 @@ class PlornDb:
         res = self.cursor.execute(sql)
         row = res.fetchone()
         module_logger.debug(f'get_name: {str(row)}')
-        return plorn.attr.PlornName(row['name'], id=row['id'],
-                                    parent_id=row['parent_id'])
+        return PlornName(row['name'], id=row['id'], parent_id=row['parent_id'])
 
     def get_name_by_name(self, name, parent_id=0):
         sql  = f'SELECT * FROM names WHERE name = \'{name}\''
         sql += f' AND parent_id = \'{parent_id}\''
         res = self.cursor.execute(sql)
         row = res.fetchone()
-        return plorn.attr.PlornName(row['name'], id=row['id'],
-                                    parent_id=row['parent_id'])
+        return PlornName(row['name'], id=row['id'], parent_id=row['parent_id'])
 
     def get_name_children(self, name_id):
         sql = f'SELECT * FROM names WHERE parent_id = {name_id}'
@@ -771,8 +766,7 @@ class PlornDb:
         rows = res.fetchall()
         result = []
         for ii in rows:
-            p = plorn.attr.PlornName(ii['name'], id=ii['id'],
-                                     parent_id=ii['parent_id'])
+            p = PlornName(ii['name'], id=ii['id'], parent_id=ii['parent_id'])
             result.append(p)
         return result
 
@@ -781,8 +775,7 @@ class PlornDb:
         sql += ' AND parent_id = {parent_id}'
         res = self.cursor.execute(sql)
         row = res.fetchone()
-        return plorn.attr.PlornName(row['name'], id=row['id'],
-                                    parent_id=row['parent_id'])
+        return PlornName(row['name'], id=row['id'], parent_id=row['parent_id'])
 
     def get_full_name(self, name_id):
         sql = f'SELECT * FROM names WHERE id = \'{name_id}\''
@@ -815,8 +808,7 @@ class PlornDb:
         rows.sort(key=lambda x: x['name'])
         result = []
         for ii in rows:
-            p = plorn.attr.PlornName(ii['name'], id=ii['id'],
-                                     parent_id=ii['parent_id'])
+            p = PlornName(ii['name'], id=ii['id'], parent_id=ii['parent_id'])
             result.append(p)
         return result
 
@@ -835,8 +827,7 @@ class PlornDb:
         msg = f'updated name: from {name.get_name()}'
         msg += f' to {row['name']}'
         module_logger.debug(msg)
-        return plorn.attr.PlornName(row['name'], id=row['id'],
-                                    parent_id=row['parent_id'])
+        return PlornName(row['name'], id=row['id'], parent_id=row['parent_id'])
 
     def place_exists(self, place, parent_id=0):
         sql = f'SELECT * FROM places WHERE place = \'{place}\''
@@ -855,8 +846,7 @@ class PlornDb:
         module_logger.debug(f'get_place_children: found {len(rows)} for {place_id}')
         result = []
         for ii in rows:
-            p = plorn.attr.PlornPlace(ii['place'], id=ii['id'],
-                                      parent_id=ii['parent_id'])
+            p = PlornPlace(ii['place'], id=ii['id'], parent_id=ii['parent_id'])
             result.append(p)
         return result
 
@@ -883,8 +873,7 @@ class PlornDb:
         module_logger.debug(f'get_places: {rows}')
         result = []
         for ii in rows:
-            p = plorn.attr.PlornPlace(ii['place'], id=ii['id'],
-                                       parent_id=ii['parent_id'])
+            p = PlornPlace(ii['place'], id=ii['id'], parent_id=ii['parent_id'])
             result.append(p)
         return result
 
@@ -900,8 +889,8 @@ class PlornDb:
         res = self.cursor.execute(sql)
         row = res.fetchone()
         module_logger.debug(f'place obj by place \'{place}\': {str(row)}')
-        return plorn.attr.PlornPlace(row['place'], id=row['id'],
-                                     parent_id=row['parent_id'])
+        return PlornPlace(row['place'], id=row['id'],
+                          parent_id=row['parent_id'])
 
     def remove_place(self, place_id, parent_id):
         sql  = f'DELETE FROM places WHERE id = \'{place_id}\''
@@ -947,18 +936,16 @@ class PlornDb:
 
     def add_name(self, name):
         row = self.add_attr(name)
-        return plorn.attr.PlornName(row['value'], id=row['id'],
-                                    parent_id=row['parent_id'])
+        return PlornName(row['value'], id=row['id'], parent_id=row['parent_id'])
 
     def add_place(self, place):
         row = self.add_attr(place)
-        return plorn.attr.PlornPlace(row['value'], id=row['id'],
-                                     parent_id=row['parent_id'])
+        return PlornPlace(row['value'], id=row['id'],
+                          parent_id=row['parent_id'])
 
     def add_tag(self, tag):
         row = self.add_attr(tag)
-        return plorn.attr.PlornTag(row['value'], id=row['id'],
-                                   parent_id=row['parent_id'])
+        return PlornTag(row['value'], id=row['id'], parent_id=row['parent_id'])
 
     def attr_exists(self, attr):
         table_name = attr.get_db_table_name()
@@ -986,18 +973,16 @@ class PlornDb:
 
     def get_name(self, name_id):
         row = self.get_attr(name_id, 'names')
-        return plorn.attr.PlornName(row['value'], id=row['id'],
-                                    parent_id=row['parent_id'])
+        return PlornName(row['value'], id=row['id'], parent_id=row['parent_id'])
 
     def get_place(self, place_id):
         row = self.get_attr(place_id, 'places')
-        return plorn.attr.PlornPlace(row['value'], id=row['id'],
-                                     parent_id=row['parent_id'])
+        return PlornPlace(row['value'], id=row['id'],
+                          parent_id=row['parent_id'])
 
     def get_tag(self, tag_id):
         row = self.get_attr(tag_id, 'tags')
-        return plorn.attr.PlornTag(row['value'], id=row['id'],
-                                   parent_id=row['parent_id'])
+        return PlornTag(row['value'], id=row['id'], parent_id=row['parent_id'])
 
     def get_attr_children(self, attr):
         table_name = attr.get_db_table_name()
@@ -1011,8 +996,7 @@ class PlornDb:
         rows = self.get_attr_children(name)
         result = []
         for ii in rows:
-            p = plorn.attr.PlornName(ii['value'], id=ii['id'],
-                                     parent_id=ii['parent_id'])
+            p = PlornName(ii['value'], id=ii['id'], parent_id=ii['parent_id'])
             result.append(p)
         return result
 
@@ -1020,8 +1004,7 @@ class PlornDb:
         rows = self.get_attr_children(place)
         result = []
         for ii in rows:
-            p = plorn.attr.PlornPlace(ii['value'], id=ii['id'],
-                                      parent_id=ii['parent_id'])
+            p = PlornPlace(ii['value'], id=ii['id'], parent_id=ii['parent_id'])
             result.append(p)
         return result
 
@@ -1029,8 +1012,7 @@ class PlornDb:
         rows = self.get_attr_children(tag)
         result = []
         for ii in rows:
-            p = plorn.attr.PlornTag(ii['value'], id=ii['id'],
-                                    parent_id=ii['parent_id'])
+            p = PlornTag(ii['value'], id=ii['id'], parent_id=ii['parent_id'])
             result.append(p)
         return result
 
@@ -1075,8 +1057,7 @@ class PlornDb:
         rows = self.get_all_attrs('names')
         result = []
         for ii in rows:
-            p = plorn.attr.PlornName(ii['value'], id=ii['id'],
-                                     parent_id=ii['parent_id'])
+            p = PlornName(ii['value'], id=ii['id'], parent_id=ii['parent_id'])
             result.append(p)
         return result
 
@@ -1084,8 +1065,7 @@ class PlornDb:
         rows = self.get_all_attrs('places')
         result = []
         for ii in rows:
-            p = plorn.attr.PlornPlace(ii['value'], id=ii['id'],
-                                      parent_id=ii['parent_id'])
+            p = PlornPlace(ii['value'], id=ii['id'], parent_id=ii['parent_id'])
             result.append(p)
         return result
 
@@ -1093,8 +1073,7 @@ class PlornDb:
         rows = self.get_all_attrs('tags')
         result = []
         for ii in rows:
-            p = plorn.attr.PlornTag(ii['value'], id=ii['id'],
-                                    parent_id=ii['parent_id'])
+            p = PlornTag(ii['value'], id=ii['id'], parent_id=ii['parent_id'])
             result.append(p)
         return result
 

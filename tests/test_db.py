@@ -16,10 +16,9 @@ if os.path.join(',', 'src', 'plorn') not in sys.path:
     package_source_path = os.path.join(current_path, 'src')
     sys.path.insert(0, package_source_path)
 
-import plorn.album
+from plorn import PlornAlbum, PlornPhoto, PlornName, PlornPlace, PlornTag
 import plorn.config
 import plorn.db
-import plorn.photo
 
 
 def get_test_dbname():
@@ -83,17 +82,17 @@ def test_config_table(initial_db, test_config):
 
 #-- tests for albums in the db
 def make_album(name, id, dated, notes, nphotos):
-    return plorn.album.PlornAlbum(name, id=id, dated=dated, notes=notes,
-                                  photo_count=nphotos)
+    return PlornAlbum(name, id=id, dated=dated, notes=notes,
+                      photo_count=nphotos)
 
 def make_name(name, parent_id=0):
-    return plorn.attr.PlornName(name)
+    return PlornName(name)
 
 def make_place(place, parent_id=0):
-    return plorn.attr.PlornPlace(place)
+    return PlornPlace(place)
 
 def make_tag(tag, parent_id=0):
-    return plorn.attr.PlornTag(tag)
+    return PlornTag(tag)
 
 def test_album_exists(initial_db, test_config):
     tmp = make_album('fred', None, 'now', 'note1', '1')
@@ -249,8 +248,8 @@ def get_test_photo_path():
     return os.path.join(os.getcwd(), 'tests/photos')
 
 def make_photo(name, path, photo_id, album_id, dated, notes):
-    return plorn.photo.PlornPhoto(name, id=photo_id, album_id=album_id,
-                                  path=path, dated=dated, notes=notes)
+    return PlornPhoto(name, id=photo_id, album_id=album_id,
+                      path=path, dated=dated, notes=notes)
 
 def test_get_all_photos(initial_db, test_config):
     tmp = make_album('fred', None, 'now', 'note1', '0')
@@ -382,7 +381,7 @@ def test_add_photos(initial_db, test_config):
 
 #-- tests for names in the db
 def make_name(name, parent_id=None):
-    return plorn.attr.PlornName(name, parent_id=parent_id)
+    return PlornName(name, parent_id=parent_id)
 
 def test_add_name(initial_db, test_config):
     tmp = make_name('fred')
@@ -495,7 +494,7 @@ def test_update_name(initial_db, test_config):
 
 #-- tests for places in the db
 def make_place(place, parent_id=None):
-    return plorn.attr.PlornPlace(place, parent_id=parent_id)
+    return PlornPlace(place, parent_id=parent_id)
 
 def test_add_place(initial_db, test_config):
     tmp = make_place('fred')
@@ -608,7 +607,7 @@ def test_update_place(initial_db, test_config):
 
 #-- tests for tags in the db
 def make_tag(tag, parent_id=None):
-    return plorn.attr.PlornTag(tag, parent_id=parent_id)
+    return PlornTag(tag, parent_id=parent_id)
 
 def test_add_tag(initial_db, test_config):
     tmp = make_tag('fred')
