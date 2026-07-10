@@ -44,8 +44,6 @@ for ii in lines:
     idx += 1
 
 print('Current: ' + str(major) + '.' + str(minor) + '.' + str(bugfix))
-if args.current:
-    sys.exit(0)
 
 if args.major:
     major += 1
@@ -57,7 +55,8 @@ if args.minor:
 if args.bugfix:
     bugfix += 1
 
-if args.major == False and args.minor == False and args.bugfix == False:
+if args.major == False and args.minor == False and args.bugfix == False and \
+   args.current == True:
     argparser.print_help()
     sys.exit(1)
 
