@@ -6,7 +6,7 @@
 
 #import filetype
 import logging
-#import os
+import os.path
 #import re
 #import shutil
 import sys
@@ -22,6 +22,7 @@ from PyQt6.QtCore import (
 from PyQt6.QtGui import (
     QAction,
     QIcon,
+    QPixmap,
 )
 
 from PyQt6.QtWidgets import (
@@ -35,6 +36,7 @@ from PyQt6.QtWidgets import (
     QMainWindow,
     QMenu,
     QMenuBar,
+    QMessageBox,
     QPushButton,
     QSpacerItem,
     QStatusBar,
@@ -144,6 +146,7 @@ class Plorn(QWidget):
         help_action = QAction('Help', parent=self)
         helpmenu.addAction(help_action)
         about_action = QAction('About', parent=self)
+        about_action.triggered.connect(self.about_action)
         helpmenu.addAction(about_action)
 
         mb.setStyleSheet('''
@@ -258,6 +261,24 @@ class Plorn(QWidget):
 
     def exit_action(self):
         self.close()
+
+    def about_action(self):
+        mbox = QMessageBox(self)
+        photo_path = os.path.join('./src/plorn', config.get_default_photo())
+        pmap = QPixmap(photo_path)
+        icon = pmap.scaledToHeight(300)
+        mbox.setIconPixmap(icon)
+        mbox.setTextFormat(Qt.TextFormat.MarkdownText)
+        mbox.setText(f'***Plorn: version {config.get_version()}***')
+        mbox.setInformativeText('''
+Plorn is a tool to build catalogs of photo albums, without
+requiring specific locations, image types, or indeed using
+specific photo applications.
+  
+  
+Copyright (c) 2026, Albert H. Stone, III <ahs3@ahs3.net>  
+        ''')
+        mbox.exec()
 
 
 #-- the plorn GUI
