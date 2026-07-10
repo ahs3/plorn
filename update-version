@@ -6,6 +6,8 @@ import sys
 
 argparser = argparse.ArgumentParser(prog='update-version',
     description='update the project version number')
+argparser.add_argument('-C', '--current',  help='show current version and exit',
+                       action='store_true', default=True)
 argparser.add_argument('-M', '--major',  help='increment major number',
                        action='store_true', default=False)
 argparser.add_argument('-m', '--minor',  help='increment minor number',
@@ -13,6 +15,7 @@ argparser.add_argument('-m', '--minor',  help='increment minor number',
 argparser.add_argument('-b', '--bugfix', help='increment bugfix number',
                        action='store_true', default=False)
 args = argparser.parse_args(sys.argv[1:])
+
 with open('src/plorn/config.py', 'r') as fd:
     lines = fd.readlines()
 fd.close()
@@ -41,6 +44,9 @@ for ii in lines:
     idx += 1
 
 print('Current: ' + str(major) + '.' + str(minor) + '.' + str(bugfix))
+if args.current:
+    sys.exit(0)
+
 if args.major:
     major += 1
     minor = 0
