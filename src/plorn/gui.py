@@ -108,7 +108,7 @@ class Plorn(QWidget):
         layout.addItem(QWidgetItem(self.statusbar))
         layout.addWidget(self.statusbar, alignment=Qt.AlignmentFlag.AlignBottom)
 
-        self.set_status_message(f'catalog: {config.get_dbname()}')
+        self.set_status_message()
 
     def build_header(self):
         header = QFrame()
@@ -190,7 +190,8 @@ class Plorn(QWidget):
 
         return sb
 
-    def set_status_message(self, msg):
+    def set_status_message(self):
+        msg = self.tree_data.get_sb_msg()
         self.statusbar.showMessage(msg)
 
     def set_expansion_button_state(self):
