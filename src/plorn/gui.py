@@ -33,6 +33,8 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QMainWindow,
+    QMenu,
+    QMenuBar,
     QPushButton,
     QSpacerItem,
     QStatusBar,
@@ -75,18 +77,28 @@ class Plorn(QWidget):
         self.setGeometry(QRect(self.origin, self.size))
         self.setWindowIcon(QIcon(config.get_default_photo()))
         self.setSizePolicy(PlornSizePolicy())
+
+        margin = 20
+        width = self.frameSize().width()
+        self.menubar = self.build_menubar()
+        self.menubar.setMinimumWidth(4*width)
+        self.menubar.setSizePolicy(PlornSizePolicy())
+
+        spacer = QSpacerItem(width+margin, 30)
         layout = QVBoxLayout()
         layout.setObjectName('main')
         layout.setDirection(QBoxLayout.Direction.TopToBottom)
-        #layout.setSpacing(10)
-        layout.setContentsMargins(20,20,20,0)
+        layout.setSpacing(10)
+        layout.setContentsMargins(margin,margin,margin,0)
         self.setLayout(layout)
+        layout.addItem(spacer)
 
         self.header, hlayout, lhdr, mhdr, rhdr = self.build_header()
         self.left_header = lhdr
         self.mid_header = mhdr
         self.right_header = rhdr
         layout.addLayout(hlayout)
+        layout.addWidget(self.header, alignment=Qt.AlignmentFlag.AlignTop)
         layout.addWidget(self.header, alignment=Qt.AlignmentFlag.AlignTop)
         layout.addStretch(1)
 
@@ -100,15 +112,46 @@ class Plorn(QWidget):
         self.tree.expandAll()
         self.expand_all.setEnabled(False)
 
-        self.controls, flayout, qbutton = self.build_controls()
-        layout.addLayout(flayout)
-        layout.addWidget(self.controls, alignment=Qt.AlignmentFlag.AlignCenter)
-
         self.statusbar = self.build_statusbar()
         layout.addItem(QWidgetItem(self.statusbar))
         layout.addWidget(self.statusbar, alignment=Qt.AlignmentFlag.AlignBottom)
 
         self.set_status_message()
+
+    def build_menubar(self):
+        mb = QMenuBar(self)
+        mb.setNativeMenuBar(True)
+
+        catalogs = mb.addMenu('Catalogs')
+        new_action = QAction('New', parent=self)
+        catalogs.addAction(new_action)
+        open_action = QAction('Open', parent=self)
+        catalogs.addAction(open_action)
+        close_action = QAction('Close', parent=self)
+        catalogs.addAction(close_action)
+        quit_action = QAction('Quit', parent=self)
+        quit_action.triggered.connect(self.exit_action)
+        quit_action.setShortcut('Ctrl+Q')
+        catalogs.addAction(quit_action)
+        catalogs.insertSeparator(quit_action)
+
+        editmenu = mb.addMenu('Edit')
+        pref_action = QAction('Preferences', parent=self)
+        editmenu.addAction(pref_action)
+        catalogs.insertSeparator(quit_action)
+
+        helpmenu = mb.addMenu('Help')
+        help_action = QAction('Help', parent=self)
+        helpmenu.addAction(help_action)
+        about_action = QAction('About', parent=self)
+        helpmenu.addAction(about_action)
+
+        mb.setStyleSheet('''
+            QMenuBar {
+                border-bottom: 1px solid rgb(255,255,255);
+            }
+        ''')
+        return mb
 
     def build_header(self):
         header = QFrame()
@@ -213,19 +256,7 @@ class Plorn(QWidget):
             self.expand_all.setEnabled(True)
             self.collapse_all.setEnabled(True)
 
-    def build_controls(self):
-        controls = QFrame()
-        layout = QHBoxLayout()
-        layout.setObjectName('controls')
-        layout.setDirection(QBoxLayout.Direction.LeftToRight)
-        controls.setSizePolicy(PlornSizePolicy())
-        qbutton = PlornPushButton('quit', default=True, parent=controls)
-        qbutton.clicked.connect(self.quit_button)
-        layout.addWidget(qbutton, alignment=Qt.AlignmentFlag.AlignRight)
-
-        return controls, layout, qbutton
-
-    def quit_button(self):
+    def exit_action(self):
         self.close()
 
 
