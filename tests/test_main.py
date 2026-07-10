@@ -15,6 +15,7 @@ if os.path.join(',', 'src', 'plorn') not in sys.path:
 
 import pytest
 from pytestqt.plugin import QtBot
+
 from PyQt6 import QtTest
 from PyQt6.QtWidgets import (
     QLabel,

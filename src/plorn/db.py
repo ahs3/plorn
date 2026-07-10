@@ -11,18 +11,13 @@ import os
 import sqlite3
 import sys
 
-from PIL import Image as pilImage
-from PIL import ImageTk
-
-#import plorn.album
-#import plorn.attr
-#import plorn.config
-#import plorn.photo
+import plorn.album
+import plorn.attr
+from plorn.config import config
+import plorn.photo
 
 module_logger = logging.getLogger('plorn.db')
 module_logger.setLevel(logging.INFO)
-
-config = None
 
 def dict_factory(cursor, row):
     fields = [column[0] for column in cursor.description]
@@ -33,7 +28,7 @@ class PlornDb:
         global module_logger
 
         self.dbname = dbname
-        self.config = config
+        self.cfg = config
         self.db = sqlite3.connect(dbname)
         self.db.row_factory = dict_factory
         self.cursor = self.db.cursor()
@@ -41,7 +36,6 @@ class PlornDb:
 
     def close(self):
         self.db.close()
-        self.config = None
 
     def create_tables(self):
         global module_logger
@@ -78,10 +72,9 @@ class PlornDb:
         res = self.cursor.execute(sql)
         row = res.fetchone()
 
-        cfg = self.config
         sql = 'INSERT INTO config VALUES (\'plorn\', '
-        sql += f'\'{cfg.get_version()}\', \'{cfg.get_username()}\', '
-        sql += f'\'{cfg.get_fullname()}\', \'{cfg.get_datadir()}\')'
+        sql += f'\'{self.cfg.get_version()}\', \'{self.cfg.get_username()}\', '
+        sql += f'\'{self.cfg.get_fullname()}\', \'{self.cfg.get_datadir()}\')'
         self.cursor.execute(sql)
         self.db.commit()
 
