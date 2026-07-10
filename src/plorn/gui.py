@@ -22,6 +22,7 @@ from PyQt6.QtCore import (
 from PyQt6.QtGui import (
     QAction,
     QIcon,
+    QPalette,
     QPixmap,
 )
 
@@ -101,7 +102,6 @@ class Plorn(QWidget):
         self.right_header = rhdr
         layout.addLayout(hlayout)
         layout.addWidget(self.header, alignment=Qt.AlignmentFlag.AlignTop)
-        layout.addWidget(self.header, alignment=Qt.AlignmentFlag.AlignTop)
         layout.addStretch(1)
 
         self.catalog, clayout, self.tree, \
@@ -126,10 +126,13 @@ class Plorn(QWidget):
 
         catalogs = mb.addMenu('Catalogs')
         new_action = QAction('New', parent=self)
+        new_action.setShortcut('Ctrl+N')
         catalogs.addAction(new_action)
         open_action = QAction('Open', parent=self)
+        open_action.setShortcut('Ctrl+O')
         catalogs.addAction(open_action)
         close_action = QAction('Close', parent=self)
+        close_action.setShortcut('Ctrl+C')
         catalogs.addAction(close_action)
         quit_action = QAction('Quit', parent=self)
         quit_action.triggered.connect(self.exit_action)
@@ -149,11 +152,7 @@ class Plorn(QWidget):
         about_action.triggered.connect(self.about_action)
         helpmenu.addAction(about_action)
 
-        mb.setStyleSheet('''
-            QMenuBar {
-                border-bottom: 1px solid rgb(255,255,255);
-            }
-        ''')
+        mb.show()
         return mb
 
     def build_header(self):
