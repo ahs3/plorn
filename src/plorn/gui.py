@@ -21,6 +21,7 @@ from PyQt6.QtCore import (
 
 from PyQt6.QtGui import (
     QAction,
+    QColor,
     QIcon,
     QPalette,
     QPixmap,
@@ -68,33 +69,36 @@ module_logger = logging.getLogger('plorn.gui')
 module_logger.setLevel(logging.DEBUG)
 
 #-- the actual plorn application
-class Plorn(QWidget):
+class Plorn(QMainWindow):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.origin = QPoint(100,100)
-        self.size = QSize(1024,800)
-
         #-- define the primary windows
         self.setWindowTitle('plorn')
+        geometry = self.screen().availableGeometry()
+        self.origin = QPoint(200, 200)
+        self.size = QSize(int(geometry.width()*0.6), int(geometry.height()*0.7))
         self.setGeometry(QRect(self.origin, self.size))
         self.setWindowIcon(QIcon(config.get_default_photo()))
         self.setSizePolicy(PlornSizePolicy())
+        self.build_menubar()
 
+        #-- central window
+        frame = QFrame()
+        palette = frame.palette()
+        color = palette.color(frame.backgroundRole())
+        palette.setColor(frame.backgroundRole(), color.darker(125))
+        frame.setPalette(palette)
+        frame.setAutoFillBackground(True)
         margin = 20
         width = self.frameSize().width()
-        self.menubar = self.build_menubar()
-        self.menubar.setMinimumWidth(4*width)
-        self.menubar.setSizePolicy(PlornSizePolicy())
 
-        spacer = QSpacerItem(width+margin, 30)
         layout = QVBoxLayout()
         layout.setObjectName('main')
         layout.setDirection(QBoxLayout.Direction.TopToBottom)
         layout.setSpacing(10)
         layout.setContentsMargins(margin,margin,margin,0)
-        self.setLayout(layout)
-        layout.addItem(spacer)
+        frame.setLayout(layout)
 
         self.header, hlayout, lhdr, mhdr, rhdr = self.build_header()
         self.left_header = lhdr
@@ -114,17 +118,17 @@ class Plorn(QWidget):
         self.tree.expandAll()
         self.expand_all.setEnabled(False)
 
-        self.statusbar = self.build_statusbar()
-        layout.addItem(QWidgetItem(self.statusbar))
-        layout.addWidget(self.statusbar, alignment=Qt.AlignmentFlag.AlignBottom)
-
+        self.build_statusbar()
+        self.setCentralWidget(frame)
         self.set_status_message()
 
     def build_menubar(self):
-        mb = QMenuBar(self)
+        #mb = QMenuBar(self)
+        mb = self.menuBar()
         mb.setNativeMenuBar(True)
 
-        catalogs = mb.addMenu('Catalogs')
+        #-- catalogs menu
+        catalogs = mb.addMenu('&Catalogs')
         new_action = QAction('New', parent=self)
         new_action.setShortcut('Ctrl+N')
         catalogs.addAction(new_action)
@@ -140,12 +144,14 @@ class Plorn(QWidget):
         catalogs.addAction(quit_action)
         catalogs.insertSeparator(quit_action)
 
-        editmenu = mb.addMenu('Edit')
+        #-- edit menu
+        editmenu = mb.addMenu('&Edit')
         pref_action = QAction('Preferences', parent=self)
         editmenu.addAction(pref_action)
         catalogs.insertSeparator(quit_action)
 
-        helpmenu = mb.addMenu('Help')
+        #-- help menu
+        helpmenu = mb.addMenu('&Help')
         help_action = QAction('Help', parent=self)
         helpmenu.addAction(help_action)
         about_action = QAction('About', parent=self)
@@ -229,7 +235,7 @@ class Plorn(QWidget):
         self.set_expansion_button_state()
 
     def build_statusbar(self):
-        sb = QStatusBar()
+        sb = self.statusBar()
         sb.setSizeGripEnabled(False)
         sb.showMessage('no album currently open')
 
@@ -237,7 +243,7 @@ class Plorn(QWidget):
 
     def set_status_message(self):
         msg = self.tree_data.get_sb_msg()
-        self.statusbar.showMessage(msg)
+        self.statusBar().showMessage(msg)
 
     def set_expansion_button_state(self):
         expanded = 0
