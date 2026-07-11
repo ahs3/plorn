@@ -23,7 +23,7 @@ from PyQt6.QtWidgets import (
 )
 
 module_logger = logging.getLogger('plorn.model')
-module_logger.setLevel(logging.INFO)
+module_logger.setLevel(logging.DEBUG)
 
 class PlornDbModel:                   # sort of a model ...
     def __init__(self, tree):
@@ -59,8 +59,22 @@ class PlornDbModel:                   # sort of a model ...
 
     def add_photos(self, parent_item, album_id):
         global module_logger
-
         module_logger.debug(f'entering {__name__}.PlornDbModel.add_photos')
+
+        def normalize_suffix(val):
+            basic = val.upper()
+            if basic in ['JPG', 'JPEG']:
+                res = 'JPG'
+            elif basic in ['PNG']:
+                res = 'PNG'
+            elif basic in ['HEIC']:
+                res = 'Apple'
+            elif basic in ['RAW']:
+                res = 'Raw'
+            else:
+                res = basic
+            return res
+
         cursor = self.db.get_photo_cursor()
         photo_icon = QIcon('./src/plorn/picture.png')
         photos = []
@@ -74,7 +88,10 @@ class PlornDbModel:                   # sort of a model ...
             item.setIcon(0, photo_icon)
             item.setText(1, '')
             item.setTextAlignment(1, Qt.AlignmentFlag.AlignCenter)
-            item.setText(2, 'photo')
+            suffix = ii['path'].split('.')
+            module_logger.debug(f'photo suffix: {suffix}')
+            kind = normalize_suffix(suffix[len(suffix)-1])
+            item.setText(2, f'{kind} photo')
             item.setText(3, f'{ii['id']:04}')
             photos.append(item)
 
