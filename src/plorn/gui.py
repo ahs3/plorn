@@ -106,7 +106,6 @@ class Plorn(QMainWindow):
         self.right_header = rhdr
         layout.addLayout(hlayout)
         layout.addWidget(self.header, alignment=Qt.AlignmentFlag.AlignTop)
-        layout.addStretch(1)
 
         self.catalog, clayout, self.tree, \
             self.expand_all, self.collapse_all = self.build_catalog()
