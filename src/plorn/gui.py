@@ -116,7 +116,8 @@ class Plorn(QMainWindow):
         self.tree.expandAll()
         self.expand_all.setEnabled(False)
 
-        self.build_statusbar()
+        sb, counts = self.build_statusbar()
+        self.sbcounts = counts                  # so it can be changed later
         self.setCentralWidget(frame)
         self.set_status_message()
 
@@ -235,13 +236,31 @@ class Plorn(QMainWindow):
     def build_statusbar(self):
         sb = self.statusBar()
         sb.setSizeGripEnabled(False)
-        sb.showMessage('no album currently open')
+        sb.setSizeGripEnabled(True)
 
-        return sb
+        counts = QLabel('')
+        sb.addPermanentWidget(counts)
 
-    def set_status_message(self):
-        msg = self.tree_data.get_sb_msg()
-        self.statusBar().showMessage(msg)
+        sb.showMessage('no catalog currently open')
+        return sb, counts
+
+    def set_status_message(self, msg=None):
+        if msg:
+            txt = msg
+        else:
+            catalog, datadir, dbname = config.get_current_catalog()
+            txt = f'catalog: {catalog}'
+            nalbums = self.tree_data.album_count()
+            asuffix = 's'
+            if nalbums == 1:
+                asuffix = ''
+            nphotos = self.tree_data.photo_count()
+            psuffix = 's'
+            if nphotos == 1:
+                psuffix = ''
+            counts = f'{nalbums} album{asuffix}, {nphotos} photo{psuffix}'
+            self.sbcounts.setText(counts)
+        self.statusBar().showMessage(txt)
 
     def set_expansion_button_state(self):
         expanded = 0

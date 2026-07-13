@@ -18,6 +18,10 @@ from PyQt6.QtGui import (
     QIcon,
 )
 
+from PyQt6.QtSql import (
+    QSqlDatabase,
+)
+
 from PyQt6.QtWidgets import (
     QTreeWidgetItem,
 )
@@ -100,16 +104,9 @@ class PlornDbModel:                   # sort of a model ...
     def get_albums(self):
         return self.rows
 
-    def get_sb_msg(self):
-        msg  = f'catalog: {self.dbname} ==> '
-        albums = self.db.album_count()
-        asuffix = 's'
-        if albums == 1:
-            asuffix = ''
-        photos = self.db.photo_count()
-        psuffix = 's'
-        if photos == 1:
-            psuffix = ''
-        msg += f'{albums} album{asuffix}, '
-        msg += f' {photos} photo{psuffix}'
-        return msg
+    def album_count(self):
+        return self.db.album_count()
+
+    def photo_count(self):
+        return self.db.photo_count()
+

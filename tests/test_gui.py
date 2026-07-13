@@ -77,13 +77,21 @@ def test_catalog_headers(GUI):
     assert item.text(2) == 'Type'
     assert item.text(3) == 'ID'
 
-def test_controls(GUI):
-    app, root, qtbot = GUI
-    assert root.controls != None
-
 def test_statusbar(GUI):
     app, root, qtbot = GUI
-    assert root.statusbar != None
-    assert root.statusbar.currentMessage() != ''
-    assert root.statusbar.currentMessage()[:8] == 'catalog:'
+    assert root.statusBar() != None
+    msg = root.statusBar().currentMessage()
+    assert msg != ''
+    assert msg[:8] == 'catalog:'
+    catalog, datadir, dbname = config.get_current_catalog()
+    assert msg == f'catalog: {catalog}'
+    albums = root.tree_data.album_count()
+    photos = root.tree_data.photo_count()
+    asuf = 's'
+    if albums == 1:
+        asuf = ''
+    psuf = 's'
+    if photos == 1:
+        psuf = ''
+    assert root.sbcounts.text() == f'{albums} album{asuf}, {photos} photo{psuf}'
 
