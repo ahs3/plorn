@@ -63,7 +63,6 @@ from plorn.model import PlornDbModel
 #import plorn.search
 from plorn.widgets import *
 
-
 #-- set up logging
 module_logger = logging.getLogger('plorn.gui')
 module_logger.setLevel(logging.DEBUG)
