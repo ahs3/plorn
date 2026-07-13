@@ -33,7 +33,7 @@ def qtbot_session(qapp, request):
     print('=> tearing down qtbot')
 
 @pytest.fixture(scope='module')
-def GUI(request):
+def GUI():
     print('=> setting up GUI')
     app, root = user_interface()
     qtbotbis = QtBot(app)
