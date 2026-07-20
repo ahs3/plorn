@@ -9,7 +9,7 @@ import logging
 import sys
 
 #-- plorn specific imports
-import plorn.config
+from plorn.config import config, PlornConfig
 from plorn.gui import user_interface
 
 #-- set up logging
@@ -27,6 +27,5 @@ module_logger.setLevel(logging.INFO)
 
 #-- the plorn GUI
 if __name__ == '__main__':
-    config = plorn.config.config
     plorn_app, plorn_root = user_interface()
     sys.exit(plorn_app.exec())

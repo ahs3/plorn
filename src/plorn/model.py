@@ -7,7 +7,7 @@
 import logging
 import os.path
 
-from plorn.config import config
+from plorn.config import PlornConfig
 from plorn.db import PlornDb, AlbumFields, PhotoFields
 
 from PyQt6.QtCore import (
@@ -33,10 +33,12 @@ module_logger.setLevel(logging.DEBUG)
 class PlornDbModel:                   # sort of a model ...
     def __init__(self, tree):
         self.tree = tree
-        self.dbname = config.get_dbname()
-        dbpath = os.path.join(config.get_datadir(), config.get_dbname())
+        config = PlornConfig()
+        catalog, datadir, dbname = config.get_current_catalog()
+        self.dbname = dbname
+        dbpath = os.path.join(datadir, dbname)
         if not hasattr(self, 'db'):
-            self.db = PlornDb(dbpath, config)
+            self.db = PlornDb(dbpath)
         self.rows = []
 
     def add_albums(self):

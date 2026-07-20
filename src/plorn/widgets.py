@@ -15,7 +15,7 @@ from PyQt6.QtWidgets import (
     QSizePolicy,
 )
 
-from plorn.config import config
+from plorn.config import PlornConfig
 
 module_logger = logging.getLogger('plorn.widgets')
 module_logger.setLevel(logging.INFO)

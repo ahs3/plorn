@@ -6,41 +6,23 @@
 #######################################################################
 
 import os
-import sys
 
-if os.path.join(',', 'src', 'plorn') not in sys.path:
-    current_path = os.path.dirname(os.path.dirname(__file__))
-    package_source_path = os.path.join(current_path, 'src')
-    sys.path.insert(0, package_source_path)
-
-import pytest
-from pytestqt.plugin import QtBot
-from PyQt6 import QtTest
-from PyQt6.QtWidgets import (
-    QLabel,
-    QMenu,
+from PyQt6.QtGui import (
+    QAction,
 )
 
-from plorn.config import config
-from plorn.gui import user_interface
+from plorn.config import PlornConfig
+from plorn.gui import (
+    PlornAboutDialog,
+    PlornNewCatalogDialog,
+    user_interface,
+)
 
-@pytest.fixture(scope='module')
-def qtbot_session(qapp, request):
-    print('=> setting up qtbot')
-    result = QtBot(qapp)
-    with capture_exceptions() as exceptions:
-        yield result
-    print('=> tearing down qtbot')
+CFG_FILE = 'completely_bogus_test.cfg'
+os.environ['PLORN_CONFIG'] = CFG_FILE
 
-@pytest.fixture(scope='module')
-def GUI(request):
-    print('=> setting up GUI')
-    app, root = user_interface()
-    qtbotbis = QtBot(app)
-    QtTest.QTest.qWait(2)
 
-    return app, root, qtbotbis
-
+#-- test the gui components
 def test_left_header(GUI):
     app, root, qtbot = GUI
     assert root.left_header != None
@@ -94,4 +76,135 @@ def test_statusbar(GUI):
     if photos == 1:
         psuf = ''
     assert root.sbcounts.text() == f'{albums} album{asuf}, {photos} photo{psuf}'
+
+def test_menubar(GUI):
+    app, root, qtbot = GUI
+    assert root.menuBar() != None
+    menus = [action.text() for action in root.menuBar().actions() 
+             if action.menu()]
+    assert '&Catalogs' in menus
+    assert '&Edit' in menus
+    assert '&Help' in menus
+
+def menu_list(w):
+    mlist = []
+    for action in w.actions():
+        if action.menu():
+            mlist.append(action.text())
+    return mlist
+
+def action_list(w):
+    alist = []
+    for action in w.actions():
+        alist.append(action.text())
+    return alist
+
+def test_catalog_menu(GUI):
+    app, root, qtbot = GUI
+    assert root.menuBar() != None
+    menus = menu_list(root.menuBar())
+    assert '&Catalogs' in menus
+    assert root.catalog_menu != None
+    actions = action_list(root.catalog_menu)
+    assert 'New' in actions
+    assert 'Open' in actions
+    assert 'Close' in actions
+    assert 'Quit' in actions
+
+def test_catalog_new1(GUI, monkeypatch):
+    app, root, qtbot = GUI
+    assert root.menuBar() != None
+    newcat = root.findChild(QAction, 'new_catalog_action')
+    assert newcat != None
+
+    monkeypatch.setattr(
+        PlornNewCatalogDialog, 'ask', classmethod(lambda *args: True))
+    dlg = PlornNewCatalogDialog()
+    assert dlg != None
+    assert dlg.ask() == True
+    catalog, datadir, dbname = dlg.get_inputs()
+    assert catalog == ''
+    assert datadir == None or len(datadir) > 0
+    assert dbname == ''
+    dlg.close()
+
+def test_catalog_new2(GUI, monkeypatch):
+    app, root, qtbot = GUI
+    assert root.menuBar() != None
+    newcat = root.findChild(QAction, 'new_catalog_action')
+    assert newcat != None
+
+    monkeypatch.setattr(
+        PlornNewCatalogDialog, 'ask', classmethod(lambda *args: True))
+    dlg = PlornNewCatalogDialog()
+    assert dlg != None
+    dlg.name_edit.setText('Wilma')
+    dlg.ddir_edit.setText('/tmp/wilma')
+    dlg.dbname_edit.setText('wilma.catalog')
+    assert dlg.ask() == True
+    catalog, datadir, dbname = dlg.get_inputs()
+    assert catalog == 'Wilma' and catalog != None
+    assert datadir == '/tmp/wilma' and datadir != None
+    assert dbname == 'wilma.catalog' and dbname != None
+
+def test_catalog_new3(GUI, monkeypatch):
+    app, root, qtbot = GUI
+    assert root.menuBar() != None
+    newcat = root.findChild(QAction, 'new_catalog_action')
+    assert newcat != None
+
+    monkeypatch.setattr(
+        PlornNewCatalogDialog, 'ask', classmethod(lambda *args: True))
+    dlg = PlornNewCatalogDialog()
+    assert dlg != None
+    dlg.name_edit.setText('Wilma')
+    dlg.ddir_edit.setText('/tmp/wilma')
+    dlg.dbname_edit.setText('wilma.catalog')
+    assert dlg.ask() == True
+    catalog, datadir, dbname = dlg.get_inputs()
+    config.set_catalog(name=catalog, datadir=datadir, dbname=dbname)
+    config.write_config()
+
+    c, d, db = config.get_catalog('Wilma')
+    assert c == 'Wilma'
+    assert d == '/tmp/wilma'
+    assert db == 'wilma.catalog'
+
+def test_catalog_quit(GUI):
+    app, root, qtbot = GUI
+    assert root.menuBar() != None
+    menus = menu_list(root.menuBar())
+    assert '&Catalogs' in menus
+    quit_item = root.findChild(QAction, 'quit_action')
+    assert quit_item != None
+
+def test_edit_menu(GUI):
+    app, root, qtbot = GUI
+    assert root.menuBar() != None
+    menus = menu_list(root.menuBar())
+    assert '&Edit' in menus
+    assert root.catalog_menu != None
+    actions = action_list(root.edit_menu)
+    assert 'Preferences' in actions
+
+def test_help_menu(GUI):
+    app, root, qtbot = GUI
+    assert root.menuBar() != None
+    menus = menu_list(root.menuBar())
+    assert '&Help' in menus
+    assert root.catalog_menu != None
+    actions = action_list(root.help_menu)
+    assert 'Help' in actions
+    assert 'About' in actions
+
+def test_about_window(GUI, monkeypatch):
+    app, root, qtbot = GUI
+    assert root.menuBar() != None
+    about = root.findChild(QAction, 'about_action')
+    assert about != None
+
+    monkeypatch.setattr(
+        PlornAboutDialog, 'ask', classmethod(lambda *args: True))
+    mbox = PlornAboutDialog()
+    assert mbox.ask() == True
 

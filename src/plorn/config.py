@@ -14,23 +14,19 @@ import sys
 
 MAJOR = 0
 MINOR = 27
-BUGFIX = 0
+BUGFIX = 8
 __version__ = str(MAJOR) + '.' + str(MINOR) + '.' + str(BUGFIX)
 
 module_logger = logging.getLogger('plorn.config')
-module_logger.setLevel(logging.INFO)
+module_logger.setLevel(logging.DEBUG)
 
 '''
 Config files:
     -- can be located anywhere, but if no name given, search for, in order:
-       -- ~/.config/plorn/plorn.cfg, './plorn.cfg'
-       -- ~/.plorn.cfg,
-       -- ./plorn.cfg
-       then ~/.config/plorn/plorn.cfg, './plorn.cfg', if no path provided.
+       -- environment variable PLORN_CONFIG with a non-empty path, OR ...
+       -- ~/.config/plorn/plorn.cfg (the default)
        First one found is used.
-    -- if no directory is given, assume the file is in ~/.config/plorn
-    -- if '.', '~' or '/' is the first character in the name, assume it
-       is already a complete path and search only for that
+    -- if tbe file can't be found, create the default
     -- ini file format, more or less
     -- [plorn] section is for global items:
         -- user: default is current user
@@ -53,19 +49,32 @@ Config files:
 
 '''
 
-class PlornConfig:
-    def __init__(self, filename=None):
-        global module_logger, config
+CURRENT_CONFIG = None
 
-        self.filename = filename
-        module_logger.debug(f'looking for config file "{filename}"')
-        config_home = os.path.join(os.environ['HOME'], '.config', 'plorn')
-        data_home = os.path.join(os.environ['HOME'], '.local', 'share', 'plorn')
-        self.fullpath = self.find_config(filename, config_home)
-        module_logger.debug(f'using {self.fullpath}')
+class PlornConfig:
+    def __init__(self):
+        global module_logger, CURRENT_CONFIG
+
+        if CURRENT_CONFIG:
+            return CURRENT_CONFIG
+
+        home_dir = os.environ['HOME']
+        config_dir = os.path.join('.config', 'plorn')
+        data_dir = os.path.join('.local', 'share', 'plorn')
+
+        self.default_path = True
+        if 'PLORN_CONFIG' in os.environ.keys():
+            name = os.environ['PLORN_CONFIG']
+            if len(name) > 0:
+                self.filename = name
+                self.default_path = False
+        else:
+            self.filename = 'plorn.cfg'
+        module_logger.debug(f'using config file "{self.filename}"')
+
         self.config = configparser.ConfigParser()
-        if os.path.exists(self.fullpath):
-            self.config.read(self.fullpath)
+        if os.path.exists(os.path.join(home_dir, config_dir, self.filename)):
+            self.config.read(os.path.join(home_dir, config_dir, self.filename))
         else:
             module_logger.debug('config file not found, creating one')
             self.config['plorn'] = {}
@@ -73,77 +82,39 @@ class PlornConfig:
             self.config['plorn']['user'] = uname
             fullname = pwd.getpwnam(uname).pw_gecos
             self.config['plorn']['full_name'] = fullname
-            self.config['plorn']['config_dir'] = config_home
-            self.config['plorn']['data_dir'] = data_home
+            self.config['plorn']['config_dir'] = os.path.join('~', config_dir)
+            self.config['plorn']['data_dir'] = os.path.join('~', data_dir)
             self.config['plorn']['current_catalog'] = 'default'
 
             self.config['gui'] = {}
             self.config['gui']['default_photo'] = "plorn_app.png"
 
             self.config['default'] = {}
+            self.config['default']['name'] = 'Default'
             self.config['default']['dbname'] = 'plorn.db'
 
-            if not os.path.isdir(self.config['plorn']['config_dir']):
-                print(f'? {self.config['plorn']['config_dir']} is not a directory')
-                sys.exit(1)
-
-            if not os.path.exists(self.config['plorn']['data_dir']):
-                os.makedirs(self.config['plorn']['data_dir'])
-            elif not os.path.isdir(self.config['plorn']['data_dir']):
-                print(f'? {self.config['plorn']['data_dir']} is not a directory')
-                sys.exit(1)
-
-            module_logger.debug(f'creating {self.fullpath}')
+            module_logger.debug(f'creating {self.filename}')
             self.write_config()
 
-        config = self.config
         module_logger.debug('config initialized')
 
-    def find_config(self, filename, config_home):
-        global module_logger
-
-        #-- assume a full path was given
-        if filename and filename[0] in ['/', '~', '.']:
-            return os.path.expanduser(os.path.expandvars(filename))
-
-        #-- assume a specific config file is wanted
-        if filename:
-            if os.path.dirname(filename) != '':
-                return os.path.expanduser(os.path.expandvars(filename))
-            else:
-                #-- ... but maybe without a path provided
-                return os.path.join(config_home, filename)
-
-        #-- look for the default name in the proper places
-        fname = 'plorn.cfg'
-        cfg_std = os.path.join(config_home, fname)
-        if not os.path.exists(cfg_std):
-            cfg_user = os.path.join(os.environ['HOME'], f'.{fname}')
-            if not os.path.exists(cfg_user):
-                cfg_local = os.path.join('.', fname)
-                if not os.path.exists(cfg_local):
-                    if not os.path.exists(config_home):
-                        os.makedirs(config_home)
-                    cfg_local = os.path.join(config_home, fname)
-                return cfg_local
-            else:
-                return cfg_user
-        else:
-            return cfg_std
-
     def write_config(self):
-        with open(self.fullpath, 'w') as configfile:
+        home_dir = os.environ['HOME']
+        config_dir = os.path.join('.config', 'plorn')
+        if self.default_path == True:
+            fname = os.path.join(home_dir, config_dir, self.filename)
+        else:
+            fname = self.filename
+        with open(fname, 'w') as configfile:
             self.config.write(configfile)
         configfile.close()
+        self.reread()
 
     def reread(self):
-        self.config.read(self.fullpath)
+        self.config.read(self.filename)
 
     def get_filename(self):
         return self.filename
-
-    def get_fullpath(self):
-        return self.fullpath
 
     def get_username(self):
         return self.config['plorn']['user']
@@ -182,17 +153,24 @@ class PlornConfig:
     def _get_catalog(self, catalog):
         global module_logger
 
+        result = None
         datadir = self.config['plorn']['data_dir']
         dbname = 'plorn.db'
-        if self.config[catalog] and len(self.config[catalog]) > 0:
+        #if catalog in self.config.keys() and len(self.config[catalog]) > 0:
+        if catalog in self.config.keys():
+            result = self.config[catalog]['name']
             if self.config[catalog].get('data_dir') == None:
                 datadir = self.config['plorn']['data_dir']
             else:
                 datadir = self.config[catalog]['data_dir']
             if self.config[catalog].get('dbname') != None:
                 dbname = self.config[catalog]['dbname']
-        module_logger.info(f'get: {catalog}, {datadir}, {dbname}')
-        return catalog, datadir, dbname
+        else:
+            result = None
+            datadir = None
+            dbname = None
+        module_logger.info(f'_get_catalog: {result}, {datadir}, {dbname}')
+        return result, datadir, dbname
 
     def get_catalog(self, catalog):
         return self._get_catalog(catalog)
@@ -201,7 +179,10 @@ class PlornConfig:
         catalog = self.config['plorn']['current_catalog']
         return self._get_catalog(catalog)
 
-    def _set_catalog(self, catalog='default', datadir=None, dbname=None):
+    def get_default_catalog(self):
+        return self._get_catalog('Default')
+
+    def _set_catalog(self, catalog, datadir=None, dbname=None):
         '''
         create the catalog entry if there isn't one already
         '''
@@ -209,37 +190,32 @@ class PlornConfig:
 
         if catalog not in self.config.keys():
             self.config[catalog] = {}
+        self.config[catalog]['name'] = catalog
         if datadir:
             self.config[catalog]['data_dir'] = datadir
+        else:
+            if 'data_dir' in self.config[catalog].keys():
+                del self.config[catalog]['data_dir']
         if dbname:
             self.config[catalog]['dbname'] = dbname
         elif self.config[catalog].get('dbname') == None:
             self.config[catalog]['dbname'] = f'{catalog}.catalog'
-        msg  = f'set: {catalog}, {self.config[catalog]['data_dir']}'
+        if datadir:
+            msg  = f'set: {catalog}, {self.config[catalog]['data_dir']}'
+        else:
+            msg  = f'set: {catalog}, None'
         msg += f', {self.config[catalog]['dbname']}'
         module_logger.info(msg)
 
-    def set_current_catalog(self, name='default', datadir=None, dbname=None):
-        self._set_catalog(name, datadir, dbname)
+    def set_current_catalog(self, name, datadir=None, dbname=None):
         self.config['plorn']['current_catalog'] = name
 
-    def set_catalog(self, name='default', datadir=None, dbname=None):
+    def set_catalog(self, name, datadir=None, dbname=None):
         self._set_catalog(name, datadir, dbname)
 
-    def get_dbname(self, catalog='default'):
-        res = None
-        if self.config[catalog]:
-            if self.config[catalog]['dbname']:
-                res = self.config[catalog]['dbname']
-        return res
-
-    def set_dbname(self, dbname, catalog='default'):
-        if not self.config[catalog]['dbname']:
-            self.config[catalog] = {}
-        self.config[catalog]['dbname'] = dbname
+    def set_default_catalog(self, name, datadir=None, dbname=None):
+        self._set_catalog('Default', datadir, dbname)
 
     def __str__(self):
-        return self.fullpath
-
-config = PlornConfig()
+        return self.filename
 

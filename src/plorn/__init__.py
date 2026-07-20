@@ -14,6 +14,8 @@ import shutil
 module_logger = logging.getLogger('plorn')
 module_logger.setLevel(logging.INFO)
 
+config = ''                 # global config info to be filled in later
+
 class PlornBaseObj:
     def __init__(self, name, id=None, dated='', notes='',
                  names=[], places=[], tags=[]):

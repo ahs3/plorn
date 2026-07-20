@@ -19,10 +19,10 @@ from PySide6.QtSql import (
 )
 
 from plorn import PlornAlbum, PlornPhoto, PlornName, PlornPlace, PlornTag
-from plorn.config import config
+from plorn.config import PlornConfig
 
 module_logger = logging.getLogger('plorn.db')
-module_logger.setLevel(logging.DEBUG)
+module_logger.setLevel(logging.INFO)
 
 #-- handy field number constants
 class AlbumFields(IntEnum):
@@ -104,12 +104,12 @@ def dict_factory(cursor, row):
     return {key: value for key, value in zip(fields, row)}
 
 class PlornDb(QSqlDatabase):
-    def __init__(self, dbname, config):
+    def __init__(self, dbname):
         super().__init__()
         global module_logger
 
         self.dbname = dbname
-        self.cfg = config
+        self.cfg = PlornConfig()
 
         db = QSqlDatabase.addDatabase('QSQLITE')
         db.setDatabaseName(dbname)

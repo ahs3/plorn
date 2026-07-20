@@ -7,112 +7,30 @@
 
 import copy
 import os
-import shutil
-import sys
-import pytest
-from pytestqt.plugin import QtBot
-from PyQt6 import QtTest
 
 from PyQt6.QtSql import (
     QSqlDatabase,
     QSqlQuery,
 )
 
-if os.path.join(',', 'src', 'plorn') not in sys.path:
-    current_path = os.path.dirname(os.path.dirname(__file__))
-    package_source_path = os.path.join(current_path, 'src')
-    sys.path.insert(0, package_source_path)
+from conftest import get_test_dbname
 
 from plorn import PlornAlbum, PlornPhoto, PlornName, PlornPlace, PlornTag
-import plorn.config
 
-import plorn.db
 from plorn.db import (
+    PlornDb,
     AlbumFields,
     ConfigFields,
 )
 
-from plorn.gui import user_interface
-
-@pytest.fixture(scope='module')
-def qtbot_session(qapp, request):
-    print('=> setting up qtbot')
-    result = QtBot(qapp)
-    with capture_exceptions() as exceptions:
-        yield result
-    print('=> tearing down qtbot')
-
-@pytest.fixture(scope='module',autouse=True)
-def GUI():
-    print('=> setting up GUI')
-    app, root = user_interface()
-    qtbotbis = QtBot(app)
-    QtTest.QTest.qWait(2)
-
-    return app, root, qtbotbis
-
-def get_test_dbname():
-    dbpath = os.path.expanduser('/tmp/plorn_barney')
-    return os.path.join(dbpath, 'completely_bogus.db')
-
-def get_test_cfgname():
-    path = os.path.expanduser('/tmp/plorn_barney')
-    return os.path.join(path, 'completely_bogus.cfg')
-
-@pytest.fixture
-def test_config():
-    os.makedirs('/tmp/plorn_barney', exist_ok=True)
-    name = get_test_cfgname()
-    if os.path.exists(name):
-        os.remove(name)
-
-    data = [
-        '[plorn]',
-        'user = fred',
-        'full_name = Fred Flintstone',
-        'config_dir = /tmp/plorn_barney',
-        'data_dir = /tmp/plorn_barney',
-        'current_catalog = default',
-        '',
-        '[gui]',
-        'default_photo = plorn_app.png',
-        '',
-        '[default]',
-        'dbname = completely_bogus.db',
-    ]
-    with open(name, 'w') as cfg:
-        for ii in data:
-            cfg.write(ii + '\n')
-    cfg.close()
-    yield plorn.config.PlornConfig(name)
-
-    #-- clean up our mess
-    if os.path.exists(name):
-        os.remove(name)
-    if os.path.exists('/tmp/plorn_barney/completely_bogus.db'):
-        os.remove('/tmp/plorn_barney/completely_bogus.db')
-    if os.path.exists('/tmp/plorn_barney'):
-        os.rmdir('/tmp/plorn_barney')
-
-@pytest.fixture
-def initial_db(test_config):
-    os.makedirs('/tmp/plorn_barney', exist_ok=True)
-    dbname = get_test_dbname()
-    if os.path.exists(dbname):
-        os.remove(dbname)
-    db = plorn.db.PlornDb(get_test_dbname(), test_config)
-    yield db
-
-    #-- clean up
-    db.close()
-    os.remove(dbname)
+from plorn.config import PlornConfig
 
 
 #-- basic db tests
 def test_open(initial_db):
     assert initial_db != None
 
-def test_multiple_opens(initial_db, test_config):
+def test_multiple_opens(initial_db, bogus_config):
     db1 = QSqlDatabase.database()
     db2 = QSqlDatabase.database()
     assert db1 != None
@@ -120,14 +38,16 @@ def test_multiple_opens(initial_db, test_config):
     db1.close()
     db2.close()
 
-    db1 = plorn.db.PlornDb(get_test_dbname(), test_config)
-    db2 = plorn.db.PlornDb(get_test_dbname(), test_config)
+    db1 = PlornDb(get_test_dbname(), bogus_config)
+    db2 = PlornDb(get_test_dbname(), bogus_config)
     assert db1 != None
     assert db2 != None
     db1.close()
     db2.close()
 
-def test_config_table(initial_db, test_config):
+def test_config(bogus_config, GUI, initial_db):
+    cfg = PlornConfig(bogus_config)
+    cfg.open(bogus_config)
     row = initial_db.get_config()
     assert row.value(ConfigFields.NAME) == 'plorn'
     assert row.value(ConfigFields.USERNAME) == 'fred'
@@ -150,16 +70,16 @@ def make_place(place, parent_id=0):
 def make_tag(tag, parent_id=0):
     return PlornTag(tag)
 
-def test_album_exists(initial_db, test_config):
+def test_album_exists(initial_db, bogus_config):
     tmp = make_album('fred', None, 'now', 'note1', '1')
     album = initial_db.add_album(tmp)
     assert initial_db.album_exists(album)
 
-def test_album_does_not_exist(initial_db, test_config):
+def test_album_does_not_exist(initial_db, bogus_config):
     tmp = make_album('fred', None, 'now', 'note1', '1')
     assert initial_db.album_exists(tmp) == False
 
-def test_albums_table_by_name(initial_db, test_config):
+def test_albums_table_by_name(initial_db, bogus_config):
     tmp = make_album('fred', None, 'now', 'note1', 42)
     orig = initial_db.add_album(tmp)
     album = initial_db.get_album_by_name('fred')
@@ -170,7 +90,7 @@ def test_albums_table_by_name(initial_db, test_config):
     assert album.get_notes() == 'note1'
     assert album.get_photo_count() == 42
 
-def test_albums_table_by_id(initial_db, test_config):
+def test_albums_table_by_id(initial_db, bogus_config):
     tmp = make_album('fred', None, 'now', 'note1', '42')
     orig = initial_db.add_album(tmp)
     album = initial_db.get_album_by_id(orig.get_id())
@@ -181,7 +101,7 @@ def test_albums_table_by_id(initial_db, test_config):
     assert album.get_notes() == 'note1'
     assert album.get_photo_count() == 42
 
-def test_remove_album_by_id(initial_db, test_config):
+def test_remove_album_by_id(initial_db, bogus_config):
     tmp = make_album('fred', None, 'now', 'note1', '1')
     album = initial_db.add_album(tmp)
     assert album.get_id() != None and album.get_id() != 0
@@ -189,14 +109,14 @@ def test_remove_album_by_id(initial_db, test_config):
     initial_db.remove_album_by_id(album.get_id())
     assert initial_db.album_exists(album) == False
 
-def test_remove_album(initial_db, test_config):
+def test_remove_album(initial_db, bogus_config):
     tmp = make_album('fred', None, 'now', 'note1', '1')
     album = initial_db.add_album(tmp)
     assert initial_db.album_exists(album) == True
     initial_db.remove_album(album)
     assert initial_db.album_exists(album) == False
 
-def test_get_all_albums(initial_db, test_config):
+def test_get_all_albums(initial_db, bogus_config):
     album1 = make_album('fred', None, 'now', 'note1', '1')
     album2 = make_album('barney', None, 'now', 'note2', '2')
     album1 = initial_db.add_album(album1)
@@ -209,7 +129,7 @@ def test_get_all_albums(initial_db, test_config):
     assert album1.get_id() in ids
     assert album2.get_id() in ids
 
-def test_album_count(initial_db, test_config):
+def test_album_count(initial_db, bogus_config):
     tmp1 = make_album('fred', None, 'now', 'note1', '1')
     tmp2 = make_album('barney', None, 'now', 'note2', '2')
     album1 = initial_db.add_album(tmp1)
@@ -221,7 +141,7 @@ def test_album_count(initial_db, test_config):
     assert len(rows) == 2
     assert len(rows) == initial_db.album_count()
 
-def test_add_album(initial_db, test_config):
+def test_add_album(initial_db, bogus_config):
     tmp = make_album('fred', None, 'now', 'note1', '42')
 
     #-- add some names
@@ -292,7 +212,7 @@ def test_add_album(initial_db, test_config):
                 break
         assert found
 
-def test_update_album(initial_db, test_config):
+def test_update_album(initial_db, bogus_config):
     tmp = make_album('fred', None, 'now', 'note1', '1')
     album = initial_db.add_album(tmp)
     album2 = album
@@ -314,7 +234,7 @@ def make_photo(name, path, photo_id, album_id, dated, notes):
     return PlornPhoto(name, id=photo_id, album_id=album_id,
                       path=path, dated=dated, notes=notes)
 
-def test_get_all_photos(initial_db, test_config):
+def test_get_all_photos(initial_db, bogus_config):
     tmp = make_album('fred', None, 'now', 'note1', '0')
     album = initial_db.add_album(tmp)
     assert album != None
@@ -335,7 +255,7 @@ def test_get_all_photos(initial_db, test_config):
     album = initial_db.get_album_by_id(album_id)
     assert album.get_photo_count() == 2
 
-def test_photo_count(initial_db, test_config):
+def test_photo_count(initial_db, bogus_config):
     tmp = make_album('fred', None, 'now', 'note1', '0')
     album = initial_db.add_album(tmp)
     album_row = initial_db.get_album_by_name('fred')
@@ -357,7 +277,7 @@ def test_photo_count(initial_db, test_config):
     nphotos = initial_db.photo_count()
     assert nphotos == 2
 
-def test_add_one_photo(initial_db, test_config):
+def test_add_one_photo(initial_db, bogus_config):
     tmp = make_album('fred', None, 'now', 'note1', '0')
     album = initial_db.add_album(tmp)
     album = initial_db.get_album_by_name('fred')
@@ -386,7 +306,7 @@ def test_add_one_photo(initial_db, test_config):
     album_row = initial_db.get_album_by_name('fred')
     assert album_row.get_photo_count() == 1
 
-def test_add_photos(initial_db, test_config):
+def test_add_photos(initial_db, bogus_config):
     tmp = make_album('fred', None, 'now', 'note1', '0')
     album = initial_db.add_album(tmp)
     album = initial_db.get_album_by_name('fred')
@@ -435,12 +355,12 @@ def test_add_photos(initial_db, test_config):
 def make_name(name, parent_id=None):
     return PlornName(name, parent_id=parent_id)
 
-def test_add_name(initial_db, test_config):
+def test_add_name(initial_db, bogus_config):
     tmp = make_name('fred')
     name = initial_db.add_name(tmp)
     assert initial_db.name_exists(name)
 
-def test_add_subname(initial_db, test_config):
+def test_add_subname(initial_db, bogus_config):
     tmp = make_name('Flintstone')
     parent = initial_db.add_name(tmp)
     assert initial_db.name_exists(parent)
@@ -453,7 +373,7 @@ def test_add_subname(initial_db, test_config):
     c = initial_db.get_name(child.get_id())
     assert c.get_parent_id() == p.get_id()
 
-def test_get_name_children(initial_db, test_config):
+def test_get_name_children(initial_db, bogus_config):
     tmp = make_name('Flintstone')
     parent = initial_db.add_name(tmp)
     assert initial_db.name_exists(parent)
@@ -474,7 +394,7 @@ def test_get_name_children(initial_db, test_config):
             break
     assert found
 
-def test_get_full_name(initial_db, test_config):
+def test_get_full_name(initial_db, bogus_config):
     tmp = make_name('Flintstone')
     parent = initial_db.add_name(tmp)
     assert initial_db.name_exists(parent)
@@ -489,7 +409,7 @@ def test_get_full_name(initial_db, test_config):
     assert fullname == ['Flintstone', 'Fred']
     assert ', '.join(fullname) == 'Flintstone, Fred'
 
-def test_get_all_names(initial_db, test_config):
+def test_get_all_names(initial_db, bogus_config):
     tmp = make_name('Flintstone')
     parent = initial_db.add_name(tmp)
     assert initial_db.name_exists(parent)
@@ -514,7 +434,7 @@ def test_get_all_names(initial_db, test_config):
     assert p.get_id() in id_list
     assert c.get_id() in id_list
 
-def test_remove_name(initial_db, test_config):
+def test_remove_name(initial_db, bogus_config):
     tmp = make_name('fred')
     name = initial_db.add_name(tmp)
     assert initial_db.name_exists(name)
@@ -525,7 +445,7 @@ def test_remove_name(initial_db, test_config):
     names = initial_db.get_all_names()
     assert len(names) == 0
 
-def test_update_name(initial_db, test_config):
+def test_update_name(initial_db, bogus_config):
     tmp = make_name('fred')
     name = initial_db.add_name(tmp)
     assert initial_db.name_exists(name)
@@ -547,12 +467,12 @@ def test_update_name(initial_db, test_config):
 def make_place(place, parent_id=None):
     return PlornPlace(place, parent_id=parent_id)
 
-def test_add_place(initial_db, test_config):
+def test_add_place(initial_db, bogus_config):
     tmp = make_place('fred')
     place = initial_db.add_place(tmp)
     assert initial_db.place_exists(place)
 
-def test_add_subplace(initial_db, test_config):
+def test_add_subplace(initial_db, bogus_config):
     tmp = make_place('Flintstone')
     parent = initial_db.add_place(tmp)
     assert initial_db.place_exists(parent)
@@ -565,7 +485,7 @@ def test_add_subplace(initial_db, test_config):
     c = initial_db.get_place(child.get_id())
     assert c.get_parent_id() == p.get_id()
 
-def test_get_place_children(initial_db, test_config):
+def test_get_place_children(initial_db, bogus_config):
     tmp = make_place('Flintstone')
     parent = initial_db.add_place(tmp)
     assert initial_db.place_exists(parent)
@@ -586,7 +506,7 @@ def test_get_place_children(initial_db, test_config):
             break
     assert found
 
-def test_get_full_place(initial_db, test_config):
+def test_get_full_place(initial_db, bogus_config):
     tmp = make_place('Flintstone')
     parent = initial_db.add_place(tmp)
     assert initial_db.place_exists(parent)
@@ -602,7 +522,7 @@ def test_get_full_place(initial_db, test_config):
     assert fullplace == ['Flintstone', 'Fred']
     assert ', '.join(fullplace) == 'Flintstone, Fred'
 
-def test_get_all_places(initial_db, test_config):
+def test_get_all_places(initial_db, bogus_config):
     tmp = make_place('Flintstone')
     parent = initial_db.add_place(tmp)
     assert initial_db.place_exists(parent)
@@ -627,7 +547,7 @@ def test_get_all_places(initial_db, test_config):
     assert p.get_id() in id_list
     assert c.get_id() in id_list
 
-def test_remove_place(initial_db, test_config):
+def test_remove_place(initial_db, bogus_config):
     tmp = make_place('fred')
     place = initial_db.add_place(tmp)
     assert initial_db.place_exists(place)
@@ -638,7 +558,7 @@ def test_remove_place(initial_db, test_config):
     places = initial_db.get_all_places()
     assert len(places) == 0
 
-def test_update_place(initial_db, test_config):
+def test_update_place(initial_db, bogus_config):
     tmp = make_place('fred')
     place = initial_db.add_place(tmp)
     assert initial_db.place_exists(place)
@@ -660,12 +580,12 @@ def test_update_place(initial_db, test_config):
 def make_tag(tag, parent_id=None):
     return PlornTag(tag, parent_id=parent_id)
 
-def test_add_tag(initial_db, test_config):
+def test_add_tag(initial_db, bogus_config):
     tmp = make_tag('fred')
     tag = initial_db.add_tag(tmp)
     assert initial_db.tag_exists(tag)
 
-def test_add_subtag(initial_db, test_config):
+def test_add_subtag(initial_db, bogus_config):
     tmp = make_tag('Flintstone')
     parent = initial_db.add_tag(tmp)
     assert initial_db.tag_exists(parent)
@@ -678,7 +598,7 @@ def test_add_subtag(initial_db, test_config):
     c = initial_db.get_tag(child.get_id())
     assert c.get_parent_id() == p.get_id()
 
-def test_get_tag_children(initial_db, test_config):
+def test_get_tag_children(initial_db, bogus_config):
     tmp = make_tag('Flintstone')
     parent = initial_db.add_tag(tmp)
     assert initial_db.tag_exists(parent)
@@ -699,7 +619,7 @@ def test_get_tag_children(initial_db, test_config):
             break
     assert found
 
-def test_get_full_tag(initial_db, test_config):
+def test_get_full_tag(initial_db, bogus_config):
     tmp = make_tag('Flintstone')
     parent = initial_db.add_tag(tmp)
     assert initial_db.tag_exists(parent)
@@ -715,7 +635,7 @@ def test_get_full_tag(initial_db, test_config):
     assert fulltag == ['Flintstone', 'Fred']
     assert ', '.join(fulltag) == 'Flintstone, Fred'
 
-def test_get_all_tags(initial_db, test_config):
+def test_get_all_tags(initial_db, bogus_config):
     tmp = make_tag('Flintstone')
     parent = initial_db.add_tag(tmp)
     assert initial_db.tag_exists(parent)
@@ -740,7 +660,7 @@ def test_get_all_tags(initial_db, test_config):
     assert p.get_id() in id_list
     assert c.get_id() in id_list
 
-def test_remove_tag(initial_db, test_config):
+def test_remove_tag(initial_db, bogus_config):
     tmp = make_tag('fred')
     tag = initial_db.add_tag(tmp)
     assert initial_db.tag_exists(tag)
@@ -751,7 +671,7 @@ def test_remove_tag(initial_db, test_config):
     tags = initial_db.get_all_tags()
     assert len(tags) == 0
 
-def test_update_tag(initial_db, test_config):
+def test_update_tag(initial_db, bogus_config):
     tmp = make_tag('fred')
     tag = initial_db.add_tag(tmp)
     assert initial_db.tag_exists(tag)

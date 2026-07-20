@@ -4,6 +4,7 @@
 # SPDX-FileCopyrightText: 2026 Albert H. Stone, III <ahs3@ahs3.net>
 #######################################################################
 
+import enum
 #import filetype
 import logging
 import os.path
@@ -25,16 +26,21 @@ from PyQt6.QtGui import (
     QIcon,
     QPalette,
     QPixmap,
+    QValidator,
 )
 
 from PyQt6.QtWidgets import (
     QApplication,
     QBoxLayout,
+    QCheckBox,
+    QDialog,
+    QDialogButtonBox,
     QDockWidget,
     QFrame,
     QGridLayout,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QMainWindow,
     QMenu,
     QMenuBar,
@@ -50,22 +56,150 @@ from PyQt6.QtWidgets import (
     QWidgetItem,
 )
 
-#from PIL import Image as pilImage
-#from PIL import ImageTk
-
-#import plorn.common
-#from plorn.common import SearchDomains, SearchDomainStrings
-#from plorn.common import SearchFields, SearchFieldStrings
-#from plorn.common import AlbumSearchInfo, PhotoSearchInfo
-from plorn.config import config
-#import plorn.db
+from plorn.config import PlornConfig
 from plorn.model import PlornDbModel
-#import plorn.search
 from plorn.widgets import *
 
 #-- set up logging
 module_logger = logging.getLogger('plorn.gui')
 module_logger.setLevel(logging.DEBUG)
+
+#-- some helper classes that simplify testing the GUI
+class PlornAboutDialog(QMessageBox):
+    @classmethod
+    def ask(cls, parent):
+        mbox = cls(parent)
+        if mbox.exec() == QMessageBox.StandardButton.Ok:
+            return True
+        else:
+            return False
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        photo_path = os.path.join('./src/plorn', config.get_default_photo())
+        pmap = QPixmap(photo_path)
+        icon = pmap.scaledToHeight(300)
+        self.setIconPixmap(icon)
+        self.setTextFormat(Qt.TextFormat.MarkdownText)
+        self.setText(f'***Plorn: version {config.get_version()}***')
+        self.setInformativeText('''
+Plorn is a tool to build catalogs of photo albums, without requiring specific locations, image types, or indeed using specific photo applications.
+  
+Copyright (c) 2026, Albert H. Stone, III <ahs3@ahs3.net>  
+        ''')
+
+
+class PlornNewCatalogDialog(QDialog):
+    @classmethod
+    def ask(cls, parent):
+        global module_logger
+
+        dlg = cls(parent)
+        result = None
+        name = None
+        datadir = None
+        dbname = None
+        dlg.exec()
+        if dlg.result() == QDialog.DialogCode.Rejected:
+            return False
+        return True
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setModal(True)
+        self.setWindowTitle('New Catalog')
+        layout = QGridLayout()
+        self.setSizePolicy(QSizePolicy.Policy.Expanding,
+                           QSizePolicy.Policy.Expanding)
+
+        self.name_label = QLabel('Catalog Name:')
+        layout.addWidget(self.name_label, 0, 0)
+        self.name_edit = QLineEdit()
+        layout.addWidget(self.name_edit, 0, 1)
+
+        self.ddir_label = QLabel('Data Directory (optional):')
+        layout.addWidget(self.ddir_label, 1, 0)
+        self.ddir_edit = QLineEdit()
+        self.ddir_edit.setText(f'{" ":>40}')
+        rect = self.ddir_edit.fontMetrics().boundingRect(self.ddir_edit.text())
+        self.ddir_edit.setMinimumWidth(2*rect.width())
+        layout.addWidget(self.ddir_edit, 1, 1)
+
+        self.dbname_label = QLabel('Database Name:')
+        layout.addWidget(self.dbname_label, 2, 0)
+        self.dbname_edit = QLineEdit()
+        layout.addWidget(self.dbname_edit, 2, 1)
+
+        self.change_now = QCheckBox('Make this the current catalog')
+        self.change_now.setChecked(True)
+        layout.addWidget(self.change_now, 3, 1)
+        self.make_default = QCheckBox('Make this the default catalog')
+        self.make_default.setChecked(False)
+        layout.addWidget(self.make_default, 4, 1)
+
+        self.bbox = QDialogButtonBox()
+        self.bbox.setStandardButtons(QDialogButtonBox.StandardButton.Ok |
+                                     QDialogButtonBox.StandardButton.Cancel
+        )
+        self.bbox.clicked.connect(self.dlg_done)
+        layout.addWidget(self.bbox, 5, 0, 1, 2)
+        self.setLayout(layout)
+
+    def check_inputs(self):
+        if len(self.name_edit.text().strip()) < 1:
+            QMessageBox.warning(self, 'Catalog Name Error',
+                        'A name must be provided.')
+            return QDialog.DialogCode.Rejected
+        name = self.name_edit.text()
+        catalog, datadir, dbname = config.get_catalog(name)
+        if catalog != None:
+            QMessageBox.warning(self, 'Catalog Name Error',
+                     'There is already a catalog with that name.')
+            return QDialog.DialogCode.Rejected
+
+        datadir = self.ddir_edit.text()
+        if len(datadir) < 1:
+            datadir = None
+        if len(self.dbname_edit.text().strip()) < 1:
+            QMessageBox.warning(self, 'Catalog Database Name Error',
+                        'A database name must be provided.')
+            return QDialog.DialogCode.Rejected
+        dbname = self.dbname_edit.text()
+
+        return QDialog.DialogCode.Accepted
+
+    def get_inputs(self):
+        catalog = self.name_edit.text()
+        datadir = self.ddir_edit.text()
+        if len(datadir.strip()) < 1:
+            datadir = None
+        dbname = self.dbname_edit.text()
+        return catalog, datadir, dbname
+
+    def dlg_done(self, button):
+        global module_logger
+
+        role = self.bbox.standardButton(button)
+        if role == QDialogButtonBox.StandardButton.Ok:
+            module_logger.debug('new cat: Ok clicked')
+            if self.check_inputs() == QDialog.DialogCode.Rejected:
+                return
+            datadir = self.ddir_edit.text()
+            if len(datadir.strip()) < 1:
+                datadir = None
+            config.set_catalog(name=self.name_edit.text(),
+                               datadir=datadir,
+                               dbname=self.dbname_edit.text(),
+            )
+            config.write_config()
+            self.setResult(QDialog.DialogCode.Accepted)
+        elif role == QDialogButtonBox.StandardButton.Cancel:
+            module_logger.debug('new cat: Cancel clicked')
+            self.setResult(QDialog.DialogCode.Rejected)
+        else:
+            module_logger.debug('new cat: unknown button clicked')
+        self.close()
+
 
 #-- the actual plorn application
 class Plorn(QMainWindow):
@@ -73,6 +207,7 @@ class Plorn(QMainWindow):
         super().__init__(*args, **kwargs)
 
         #-- define the primary windows
+        config = PlornConfig()
         self.setWindowTitle('plorn')
         geometry = self.screen().availableGeometry()
         self.origin = QPoint(200, 200)
@@ -80,7 +215,11 @@ class Plorn(QMainWindow):
         self.setGeometry(QRect(self.origin, self.size))
         self.setWindowIcon(QIcon(config.get_default_photo()))
         self.setSizePolicy(PlornSizePolicy())
-        self.build_menubar()
+        photo_path = os.path.join('./src/plorn', config.get_default_photo())
+        self.setWindowIcon(QIcon(photo_path))
+
+        #-- menubar
+        self.catalog_menu, self.edit_menu, self.help_menu = self.build_menubar()
 
         #-- central window
         frame = QFrame()
@@ -129,15 +268,20 @@ class Plorn(QMainWindow):
         #-- catalogs menu
         catalogs = mb.addMenu('&Catalogs')
         new_action = QAction('New', parent=self)
+        new_action.setObjectName('new_catalog_action')
+        new_action.triggered.connect(self.new_catalog_action)
         new_action.setShortcut('Ctrl+N')
         catalogs.addAction(new_action)
         open_action = QAction('Open', parent=self)
+        open_action.setObjectName('open_catalog_action')
         open_action.setShortcut('Ctrl+O')
         catalogs.addAction(open_action)
         close_action = QAction('Close', parent=self)
+        close_action.setObjectName('close_catalog_action')
         close_action.setShortcut('Ctrl+C')
         catalogs.addAction(close_action)
         quit_action = QAction('Quit', parent=self)
+        quit_action.setObjectName('quit_action')
         quit_action.triggered.connect(self.exit_action)
         quit_action.setShortcut('Ctrl+Q')
         catalogs.addAction(quit_action)
@@ -154,13 +298,15 @@ class Plorn(QMainWindow):
         help_action = QAction('Help', parent=self)
         helpmenu.addAction(help_action)
         about_action = QAction('About', parent=self)
+        about_action.setObjectName('about_action')
         about_action.triggered.connect(self.about_action)
         helpmenu.addAction(about_action)
 
         mb.show()
-        return mb
+        return catalogs, editmenu, helpmenu
 
     def build_header(self):
+        config = PlornConfig()
         header = QFrame()
         layout = QHBoxLayout()
         layout.setObjectName('header')
@@ -248,6 +394,7 @@ class Plorn(QMainWindow):
         if msg:
             txt = msg
         else:
+            config = PlornConfig()
             catalog, datadir, dbname = config.get_current_catalog()
             txt = f'catalog: {catalog}'
             nalbums = self.tree_data.album_count()
@@ -285,23 +432,17 @@ class Plorn(QMainWindow):
         self.close()
 
     def about_action(self):
-        mbox = QMessageBox(self)
-        photo_path = os.path.join('./src/plorn', config.get_default_photo())
-        pmap = QPixmap(photo_path)
-        icon = pmap.scaledToHeight(300)
-        mbox.setIconPixmap(icon)
-        mbox.setTextFormat(Qt.TextFormat.MarkdownText)
-        mbox.setText(f'***Plorn: version {config.get_version()}***')
-        mbox.setInformativeText('''
-Plorn is a tool to build catalogs of photo albums, without
-requiring specific locations, image types, or indeed using
-specific photo applications.
-  
-  
-Copyright (c) 2026, Albert H. Stone, III <ahs3@ahs3.net>  
-        ''')
-        mbox.exec()
+        mbox = PlornAboutDialog()
+        mbox.ask(self)
 
+    def new_catalog_action(self):
+        global module_logger
+
+        newcat = PlornNewCatalogDialog()
+        res = newcat.ask(self)
+        catalog, datadir, dbname = newcat.get_inputs()
+        module_logger.debug(f'new cat action: {catalog}, {datadir}, {dbname}')
+            
 
 #-- the plorn GUI
 def user_interface():
