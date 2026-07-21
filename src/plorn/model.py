@@ -41,6 +41,9 @@ class PlornDbModel:                   # sort of a model ...
             self.db = PlornDb(dbpath)
         self.rows = []
 
+    def get_db(self):
+        return self.db
+
     def add_albums(self):
         global module_logger
 

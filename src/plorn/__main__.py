@@ -9,7 +9,7 @@ import logging
 import sys
 
 #-- plorn specific imports
-from plorn.config import config, PlornConfig
+from plorn.config import PlornConfig
 from plorn.gui import user_interface
 
 #-- set up logging

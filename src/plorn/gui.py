@@ -260,6 +260,9 @@ class Plorn(QMainWindow):
         self.setCentralWidget(frame)
         self.set_status_message()
 
+    def get_db(self):
+        return self.tree_data.get_db()
+
     def build_menubar(self):
         #mb = QMenuBar(self)
         mb = self.menuBar()

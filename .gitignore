@@ -1,4 +1,5 @@
 .*.swp
+*.orig
 archive
 __pycache__
 plorn.log

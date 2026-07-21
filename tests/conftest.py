@@ -17,7 +17,7 @@ import pytest
 from pytestqt.plugin import QtBot
 
 from PyQt6 import QtTest
-
+from PyQt6.QtSql import QSqlDatabase
 from PyQt6.QtWidgets import (
     QLabel,
     QMenu,
@@ -32,13 +32,8 @@ from plorn.config import PlornConfig
 from plorn.db import PlornDb
 from plorn.gui import user_interface
 
-def get_test_cfgname():
-    path = os.path.expanduser(TMPDIR)
-    return os.path.join(path, 'completely_bogus.cfg')
-
-def get_test_dbname():
-    dbpath = os.path.expanduser(TMPDIR)
-    return os.path.join(dbpath, 'completely_bogus.db')
+def get_test_cfgname(tmpdir):
+    return os.path.join(tmpdir, 'completely_bogus.cfg')
 
 bogus_config_data = [
          '[plorn]',
@@ -119,13 +114,39 @@ def plorn_test_env(tmp_path, monkeypatch):
         os.remove(dataname)
 
     yield str(tmp_path), cfgdir, datadir
+    #-- ... and let pytest handle the cleanup
 
-    #-- paranoid cleanup
-    cfgdir = os.path.join(tmp_path, '.config', 'plorn')
+@pytest.fixture(scope='module')
+def monkeymodule():
+    from _pytest.monkeypatch import MonkeyPatch
+    mpatch = MonkeyPatch()
+    yield mpatch
+    mpatch.undo()
+
+@pytest.fixture(scope='module')
+def plorn_db_test_env(monkeymodule):
+    print('================ plorn_db_test_env =========================')
+    tmpdirobj = tempfile.TemporaryDirectory(delete=False)
+    tmpdir = tmpdirobj.name
+    print(f'==> TEST ENV: {tmpdir}')
+    if 'PLORN_CONFIG' in os.environ.keys():
+        monkeymodule.delenv('PLORN_CONFIG')
+        print(f'=> PLORN_CONFIG: "{os.environ["PLORN_CONFIG"]}"')
+    else:
+        print('=> PLORN_CONFIG: None')
+    if 'HOME' in os.environ.keys():
+        monkeymodule.setenv('HOME', str(tmpdir))
+        print(f'=> HOME: "{os.environ["HOME"]}"')
+    else:
+        print('=> HOME: None')
+
+    cfgdir = os.path.join(tmpdir, '.config', 'plorn')
     if not os.path.exists(cfgdir):
+        print(f'=> making cfgdir: {cfgdir}')
         os.makedirs(cfgdir)
-    datadir = os.path.join(tmp_path, '.local', 'share', 'plorn')
+    datadir = os.path.join(tmpdir, '.local', 'share', 'plorn')
     if not os.path.exists(datadir):
+        print(f'=> making datadir: {datadir}')
         os.makedirs(datadir)
     cfgname = os.path.join(cfgdir, 'plorn.cfg')
     if os.path.exists(cfgname):
@@ -134,22 +155,25 @@ def plorn_test_env(tmp_path, monkeypatch):
     if os.path.exists(dataname):
         os.remove(dataname)
 
-@pytest.fixture(scope='function')
-def bogus_config(tmp_path, monkeypatch):
-    if not os.path.exists(TMPDIR):
-        os.makedirs(TMPDIR)
-    path = get_test_cfgname()
-    if os.path.exists(path):
-        os.remove(path)
-    write_test_config(path)
-    monkeypatch.setenv('PLORN_CONFIG', path)
-    yield path
+    yield tmpdir, cfgdir, datadir
 
-    #-- always clean up your mess
-    if os.path.exists(path):
-        os.remove(path)
+    #-- paranoid cleanup
+    # DO NOTHING for now -- still useful for debugging
+    #cfgname = os.path.join(cfgdir, 'plorn.cfg')
+    #if os.path.exists(cfgname):
+    #    os.remove(cfgname)
+    #dataname = os.path.join(datadir, 'plorn.db')
+    #if os.path.exists(dataname):
+    #    os.remove(dataname)
+    #if not os.path.exists(cfgdir):
+    #    os.remove(cfgdir)
+    #if not os.path.exists(datadir):
+    #    os.remove(datadir)
 
-#@pytest.fixture(scope='session')
+@pytest.fixture(scope='session')
+def qapp_cls():
+    return Plorn
+
 @pytest.fixture
 def qtbot_session(qapp, request):
     print('=> setting up qtbot')
@@ -158,25 +182,42 @@ def qtbot_session(qapp, request):
         yield result
     print('=> tearing down qtbot')
 
-#@pytest.fixture(scope='session')
 @pytest.fixture
-def GUI(request, plorn_test_env):
+def GUI(request):
     print('=> setting up GUI')
     app, root = user_interface()
     qtbotbis = QtBot(app)
     QtTest.QTest.qWait(2)
 
-    return app, root, qtbotbis
+    yield app, root, qtbotbis
+    app.closeAllWindows()
+    app.exit(0)
 
-@pytest.fixture
-def initial_db(GUI, bogus_config):
-    if os.path.exists(get_test_dbname()):
-        os.remove(get_test_dbname())
-    db = PlornDb(get_test_dbname(), bogus_config)
-    yield db
+@pytest.fixture(scope='module')
+def initial_db(plorn_db_test_env, monkeymodule):
+    tmpdir, cfgdir, datadir = plorn_db_test_env
+    monkeymodule.setenv('HOME', tmpdir)
+    dbname = os.path.join(datadir, 'plorn.db')
+    if os.path.exists(dbname):
+        os.remove(dbname)
+    cfgname = os.path.join(cfgdir, 'plorn.cfg')
+    if os.path.exists(cfgname):
+        os.remove(cfgname)
+    info = {}
+    info['dbname'] = dbname
+    info['homedir'] = tmpdir
+    info['cfgdir'] = cfgdir
+    info['datadir'] = datadir
 
-    #-- clean up
-    db.close()
-    os.remove(get_test_dbname())
+    app, root = user_interface()
+    qtbotbis = QtBot(app)
+    info['db'] = QSqlDatabase.database()
+    info['app'] = app
+    info['root'] = root
+    info['qtbot'] = qtbotbis
+    QtTest.QTest.qWait(2)
 
+    yield info
+    info['app'].exit(0)
+    info['db'].close()
 

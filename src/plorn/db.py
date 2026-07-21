@@ -22,7 +22,7 @@ from plorn import PlornAlbum, PlornPhoto, PlornName, PlornPlace, PlornTag
 from plorn.config import PlornConfig
 
 module_logger = logging.getLogger('plorn.db')
-module_logger.setLevel(logging.INFO)
+module_logger.setLevel(logging.DEBUG)
 
 #-- handy field number constants
 class AlbumFields(IntEnum):
@@ -108,13 +108,23 @@ class PlornDb(QSqlDatabase):
         super().__init__()
         global module_logger
 
-        self.dbname = dbname
+        self.dbname = os.path.expanduser(dbname)
+        self.db_opened = False
+        module_logger.debug(f'opening db "{dbname}"')
         self.cfg = PlornConfig()
 
+        if not os.path.exists(self.dbname):
+            open(self.dbname, 'a').close()      # "touch" the file
+
+        if self.db_opened:
+            return self
+
         db = QSqlDatabase.addDatabase('QSQLITE')
-        db.setDatabaseName(dbname)
+        db.setDatabaseName(self.dbname)
+        db.setUserName(self.cfg.get_username())
         db.open()
         db.row_factory = dict_factory
+        self.db_opened = True
         
         self.create_tables()
 
@@ -383,6 +393,28 @@ class PlornDb(QSqlDatabase):
         query.next()
         return query
 
+    def truncate_tables(self):
+        '''
+        Clear all data tables except config; this is useful for testing
+        only and should never be used in anger.  It cannot be reversed.
+        '''
+        global module_logger
+        
+        module_logger.debug('called truncate_tables')
+        db = QSqlDatabase.database()
+        db.transaction()
+        query = QSqlQuery(db=db)
+        tables = [
+            'photo_tags', 'photo_places', 'photo_names',
+            'album_tags', 'album_places', 'album_names',
+            'tags', 'places', 'names',
+            'photos', 'albums',
+        ]
+        for ii in tables:
+            sql = f'DELETE FROM {ii};'
+            query.exec(sql)
+        db.commit()
+        
     def get_all_albums_list(self):
         db = QSqlDatabase.database()
         query = QSqlQuery(db=db)
@@ -407,14 +439,14 @@ class PlornDb(QSqlDatabase):
         sql = f'SELECT * FROM albums WHERE name = \'{album.get_name()}\';'
         query = QSqlQuery(sql, db)
         query.next()
-        return query.value(AlbumFields.NAME) != None
+        return query.isValid()
 
     def photo_exists(self, photo):
         db = QSqlDatabase.database()
-        query = QSqlQuery(db=db)
         sql = f'SELECT * FROM photos WHERE id = \'{photo.get_id()}\''
-        query.prepare(sql)
-        return query.exec().size() < 1
+        query = QSqlQuery(sql, db)
+        query.next()
+        return query.isValid()
 
     def add_album_name_list(self, album):
         db = QSqlDatabase.database()
@@ -482,7 +514,6 @@ class PlornDb(QSqlDatabase):
             photo_id = photo.get_id()
             sql  = 'INSERT INTO photo_names (name_id, photo_id) VALUES '
             for ii in photo.get_name_list():
-                #print(f'   {ii.get_value()}: {ii.get_id()}, {photo_id}')
                 sql += f'({ii.get_id()}, {photo_id}), '
             idx = sql.rfind(',')
             sql = sql[0:idx]
@@ -499,7 +530,6 @@ class PlornDb(QSqlDatabase):
             photo_id = photo.get_id()
             sql  = 'INSERT INTO photo_places (place_id, photo_id) VALUES '
             for ii in photo.get_place_list():
-                #print(f'   {ii.get_value()}: {ii.get_id()}, {photo_id}')
                 sql += f'({ii.get_id()}, {photo_id}), '
             idx = sql.rfind(',')
             sql = sql[0:idx]
@@ -516,7 +546,6 @@ class PlornDb(QSqlDatabase):
             photo_id = photo.get_id()
             sql  = 'INSERT INTO photo_tags (tag_id, photo_id) VALUES '
             for ii in photo.get_tag_list():
-                #print(f'   {ii.get_value()}: {ii.get_id()}, {photo_id}')
                 sql += f'({ii.get_id()}, {photo_id}), '
             idx = sql.rfind(',')
             sql = sql[0:idx]
@@ -737,6 +766,9 @@ class PlornDb(QSqlDatabase):
         sql = f'SELECT * FROM photos WHERE id = {photo_id};'
         query = QSqlQuery(sql, db)
         query.next()
+        if not query.isValid():
+            return None
+
         p = PlornPhoto(query.value(PhotoFields.NAME),
                        id=query.value(PhotoFields.ID),
                        album_id=query.value(PhotoFields.ALBUM_ID),
@@ -833,18 +865,6 @@ class PlornDb(QSqlDatabase):
         msg += f' to {row['id']}'
         module_logger.debug(msg)
         return self.get_photo_by_id(photo.get_id())
-
-    def name_exists(self, name, parent_id=0):
-        sql = f'SELECT * FROM names WHERE name = \'{name}\''
-        res = self.cursor.execute(sql)
-        rows = res.fetchall()
-        pid = parent_id
-        if parent_id == None:
-            pid = 0
-        for ii in rows:
-            if ii['parent_id'] == pid:
-                return True
-        return False
 
     def get_names_cursor(self):
         sql = f'SELECT * FROM names'
@@ -943,15 +963,6 @@ class PlornDb(QSqlDatabase):
         msg += f' to {row['name']}'
         module_logger.debug(msg)
         return PlornName(row['name'], id=row['id'], parent_id=row['parent_id'])
-
-    def place_exists(self, place, parent_id=0):
-        sql = f'SELECT * FROM places WHERE place = \'{place}\''
-        res = self.cursor.execute(sql)
-        rows = res.fetchall()
-        for ii in rows:
-            if ii['parent_id'] == parent_id:
-                return True
-        return False
 
     def get_place_children(self, place_id):
         sql  = f'SELECT * FROM places WHERE parent_id = {place_id}'
@@ -1076,7 +1087,7 @@ class PlornDb(QSqlDatabase):
         sql = f'SELECT * FROM {table_name} WHERE value = \'{value}\';'
         query =QSqlQuery(sql, db)
         query.next()
-        return query.value(0) != None
+        return query.isValid()
 
     def name_exists(self, name):
         return self.attr_exists(name)
