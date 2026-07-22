@@ -73,11 +73,11 @@ def test_statusbar(initial_db, monkeypatch):
     assert root.statusBar() != None
     msg = root.statusBar().currentMessage()
     assert msg != ''
-    assert msg[:8] == 'catalog:'
+    assert msg[:len('opened catalog ')] == 'opened catalog '
     config = PlornConfig()
     catalog, datadir, dbname = config.get_current_catalog()
-    assert msg == f'catalog: {catalog}'
-    db = info['root'].get_db()
+    assert root.catname.text() == f'catalog: {catalog}'
+    db = root.get_db()
     albums = db.album_count()
     photos = db.photo_count()
     asuf = 's'

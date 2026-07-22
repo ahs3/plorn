@@ -256,7 +256,8 @@ class Plorn(QMainWindow):
         self.tree.expandAll()
         self.expand_all.setEnabled(False)
 
-        sb, counts = self.build_statusbar()
+        sb, counts, catname = self.build_statusbar()
+        self.catname = catname                  # so it can be changed later
         self.sbcounts = counts                  # so it can be changed later
         self.setCentralWidget(frame)
         self.set_status_message()
@@ -388,11 +389,15 @@ class Plorn(QMainWindow):
         sb.setSizeGripEnabled(False)
         sb.setSizeGripEnabled(True)
 
+        catname = QLabel('')
+        sb.addPermanentWidget(catname)
+        spacer = QLabel('     ')
+        sb.addPermanentWidget(spacer)
         counts = QLabel('')
         sb.addPermanentWidget(counts)
 
         sb.showMessage('no catalog currently open')
-        return sb, counts
+        return sb, counts, catname
 
     def set_status_message(self, msg=None):
         if msg:
@@ -400,7 +405,7 @@ class Plorn(QMainWindow):
         else:
             config = PlornConfig()
             catalog, datadir, dbname = config.get_current_catalog()
-            txt = f'catalog: {catalog}'
+            txt = f'opened catalog {catalog}'
             nalbums = self.tree_data.album_count()
             asuffix = 's'
             if nalbums == 1:
@@ -410,6 +415,7 @@ class Plorn(QMainWindow):
             if nphotos == 1:
                 psuffix = ''
             counts = f'{nalbums} album{asuffix}, {nphotos} photo{psuffix}'
+            self.catname.setText(f'catalog: {catalog}')
             self.sbcounts.setText(counts)
         self.statusBar().showMessage(txt)
 
