@@ -76,6 +76,7 @@ class PlornAboutDialog(QMessageBox):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        config = PlornConfig()
         photo_path = os.path.join('./src/plorn', config.get_default_photo())
         pmap = QPixmap(photo_path)
         icon = pmap.scaledToHeight(300)

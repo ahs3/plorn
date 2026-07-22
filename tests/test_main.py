@@ -7,9 +7,8 @@
 
 import os
 
-def test_main(plorn_test_env, GUI):
-    tmpdir, cfgdir, datadir = plorn_test_env
-    app, root, qtbot = GUI
-    assert app != None
-    assert root != None
+def test_main(initial_db, monkeypatch):
+    info = initial_db
+    assert info['app'] != None
+    assert info['root'] != None
 

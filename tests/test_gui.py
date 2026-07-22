@@ -18,29 +18,34 @@ from plorn.gui import (
     user_interface,
 )
 
-CFG_FILE = 'completely_bogus_test.cfg'
-os.environ['PLORN_CONFIG'] = CFG_FILE
-
-
 #-- test the gui components
-def test_left_header(GUI):
-    app, root, qtbot = GUI
+def test_left_header(initial_db, monkeypatch):
+    info = initial_db
+    monkeypatch.setenv('HOME', info['homedir'])
+    root = info['root']
     assert root.left_header != None
     assert root.left_header.text() == '***plorn: catalog photos***'
 
-def test_mid_header(GUI):
-    app, root, qtbot = GUI
+def test_mid_header(initial_db, monkeypatch):
+    info = initial_db
+    monkeypatch.setenv('HOME', info['homedir'])
+    root = info['root']
     assert root.mid_header != None
     assert root.mid_header.text() == ''
 
-def test_right_header(GUI):
-    app, root, qtbot = GUI
+def test_right_header(initial_db, monkeypatch):
+    info = initial_db
+    monkeypatch.setenv('HOME', info['homedir'])
+    root = info['root']
     assert root.right_header != None
+    config = PlornConfig()
     msg = f'***version {config.get_version()}***'
     assert root.right_header.text() == msg
 
-def test_catalog(GUI):
-    app, root, qtbot = GUI
+def test_catalog(initial_db, monkeypatch):
+    info = initial_db
+    monkeypatch.setenv('HOME', info['homedir'])
+    root = info['root']
     assert root.catalog != None
     assert root.tree != None
     assert root.tree_data != None
@@ -49,8 +54,10 @@ def test_catalog(GUI):
     assert root.collapse_all != None
     assert root.collapse_all.isEnabled() == True
 
-def test_catalog_headers(GUI):
-    app, root, qtbot = GUI
+def test_catalog_headers(initial_db, monkeypatch):
+    info = initial_db
+    monkeypatch.setenv('HOME', info['homedir'])
+    root = info['root']
     assert root.catalog != None
     assert root.tree != None
     item = root.tree.headerItem()
@@ -59,26 +66,33 @@ def test_catalog_headers(GUI):
     assert item.text(2) == 'Type'
     assert item.text(3) == 'ID'
 
-def test_statusbar(GUI):
-    app, root, qtbot = GUI
+def test_statusbar(initial_db, monkeypatch):
+    info = initial_db
+    monkeypatch.setenv('HOME', info['homedir'])
+    root = info['root']
     assert root.statusBar() != None
     msg = root.statusBar().currentMessage()
     assert msg != ''
     assert msg[:8] == 'catalog:'
+    config = PlornConfig()
     catalog, datadir, dbname = config.get_current_catalog()
     assert msg == f'catalog: {catalog}'
-    albums = root.tree_data.album_count()
-    photos = root.tree_data.photo_count()
+    db = info['root'].get_db()
+    albums = db.album_count()
+    photos = db.photo_count()
     asuf = 's'
     if albums == 1:
         asuf = ''
     psuf = 's'
     if photos == 1:
         psuf = ''
+    assert root.sbcounts != None
     assert root.sbcounts.text() == f'{albums} album{asuf}, {photos} photo{psuf}'
 
-def test_menubar(GUI):
-    app, root, qtbot = GUI
+def test_menubar(initial_db, monkeypatch):
+    info = initial_db
+    monkeypatch.setenv('HOME', info['homedir'])
+    root = info['root']
     assert root.menuBar() != None
     menus = [action.text() for action in root.menuBar().actions() 
              if action.menu()]
@@ -99,8 +113,10 @@ def action_list(w):
         alist.append(action.text())
     return alist
 
-def test_catalog_menu(GUI):
-    app, root, qtbot = GUI
+def test_catalog_menu(initial_db, monkeypatch):
+    info = initial_db
+    monkeypatch.setenv('HOME', info['homedir'])
+    root = info['root']
     assert root.menuBar() != None
     menus = menu_list(root.menuBar())
     assert '&Catalogs' in menus
@@ -111,8 +127,10 @@ def test_catalog_menu(GUI):
     assert 'Close' in actions
     assert 'Quit' in actions
 
-def test_catalog_new1(GUI, monkeypatch):
-    app, root, qtbot = GUI
+def test_catalog_new1(initial_db, monkeypatch):
+    info = initial_db
+    monkeypatch.setenv('HOME', info['homedir'])
+    root = info['root']
     assert root.menuBar() != None
     newcat = root.findChild(QAction, 'new_catalog_action')
     assert newcat != None
@@ -128,8 +146,10 @@ def test_catalog_new1(GUI, monkeypatch):
     assert dbname == ''
     dlg.close()
 
-def test_catalog_new2(GUI, monkeypatch):
-    app, root, qtbot = GUI
+def test_catalog_new2(initial_db, monkeypatch):
+    info = initial_db
+    monkeypatch.setenv('HOME', info['homedir'])
+    root = info['root']
     assert root.menuBar() != None
     newcat = root.findChild(QAction, 'new_catalog_action')
     assert newcat != None
@@ -147,8 +167,10 @@ def test_catalog_new2(GUI, monkeypatch):
     assert datadir == '/tmp/wilma' and datadir != None
     assert dbname == 'wilma.catalog' and dbname != None
 
-def test_catalog_new3(GUI, monkeypatch):
-    app, root, qtbot = GUI
+def test_catalog_new3(initial_db, monkeypatch):
+    info = initial_db
+    monkeypatch.setenv('HOME', info['homedir'])
+    root = info['root']
     assert root.menuBar() != None
     newcat = root.findChild(QAction, 'new_catalog_action')
     assert newcat != None
@@ -162,6 +184,7 @@ def test_catalog_new3(GUI, monkeypatch):
     dlg.dbname_edit.setText('wilma.catalog')
     assert dlg.ask() == True
     catalog, datadir, dbname = dlg.get_inputs()
+    config = PlornConfig()
     config.set_catalog(name=catalog, datadir=datadir, dbname=dbname)
     config.write_config()
 
@@ -170,16 +193,20 @@ def test_catalog_new3(GUI, monkeypatch):
     assert d == '/tmp/wilma'
     assert db == 'wilma.catalog'
 
-def test_catalog_quit(GUI):
-    app, root, qtbot = GUI
+def test_catalog_quit(initial_db, monkeypatch):
+    info = initial_db
+    monkeypatch.setenv('HOME', info['homedir'])
+    root = info['root']
     assert root.menuBar() != None
     menus = menu_list(root.menuBar())
     assert '&Catalogs' in menus
     quit_item = root.findChild(QAction, 'quit_action')
     assert quit_item != None
 
-def test_edit_menu(GUI):
-    app, root, qtbot = GUI
+def test_edit_menu(initial_db, monkeypatch):
+    info = initial_db
+    monkeypatch.setenv('HOME', info['homedir'])
+    root = info['root']
     assert root.menuBar() != None
     menus = menu_list(root.menuBar())
     assert '&Edit' in menus
@@ -187,8 +214,10 @@ def test_edit_menu(GUI):
     actions = action_list(root.edit_menu)
     assert 'Preferences' in actions
 
-def test_help_menu(GUI):
-    app, root, qtbot = GUI
+def test_help_menu(initial_db, monkeypatch):
+    info = initial_db
+    monkeypatch.setenv('HOME', info['homedir'])
+    root = info['root']
     assert root.menuBar() != None
     menus = menu_list(root.menuBar())
     assert '&Help' in menus
@@ -197,8 +226,10 @@ def test_help_menu(GUI):
     assert 'Help' in actions
     assert 'About' in actions
 
-def test_about_window(GUI, monkeypatch):
-    app, root, qtbot = GUI
+def test_about_window(initial_db, monkeypatch):
+    info = initial_db
+    monkeypatch.setenv('HOME', info['homedir'])
+    root = info['root']
     assert root.menuBar() != None
     about = root.findChild(QAction, 'about_action')
     assert about != None

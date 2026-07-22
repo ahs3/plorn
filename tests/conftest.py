@@ -116,14 +116,14 @@ def plorn_test_env(tmp_path, monkeypatch):
     yield str(tmp_path), cfgdir, datadir
     #-- ... and let pytest handle the cleanup
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope='session')
 def monkeymodule():
     from _pytest.monkeypatch import MonkeyPatch
     mpatch = MonkeyPatch()
     yield mpatch
     mpatch.undo()
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope='session')
 def plorn_db_test_env(monkeymodule):
     print('================ plorn_db_test_env =========================')
     tmpdirobj = tempfile.TemporaryDirectory(delete=False)
@@ -193,7 +193,7 @@ def GUI(request):
     app.closeAllWindows()
     app.exit(0)
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope='session')
 def initial_db(plorn_db_test_env, monkeymodule):
     tmpdir, cfgdir, datadir = plorn_db_test_env
     monkeymodule.setenv('HOME', tmpdir)
@@ -218,6 +218,6 @@ def initial_db(plorn_db_test_env, monkeymodule):
     QtTest.QTest.qWait(2)
 
     yield info
-    info['app'].exit(0)
-    info['db'].close()
+    #info['app'].exit(0)
+    #info['db'].close()
 
