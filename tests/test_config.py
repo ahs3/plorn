@@ -190,7 +190,7 @@ def test_write_config(plorn_test_env, monkeypatch):
     cfg.set_datadir('foobar')
     cfg.set_default_photo('foobar')
     cfg.set_current_catalog('Betty')
-    cfg.set_default_catalog('Betty', None, 'betty_too.catalog')
+    cfg.set_default_catalog('Betty')
     cfg.set_catalog('Betty', None, 'new_betty.catalog')
 
     assert cfg.get_username() == 'foobar'
@@ -204,9 +204,9 @@ def test_write_config(plorn_test_env, monkeypatch):
     assert datadir == 'foobar'
     assert dbname == 'new_betty.catalog'
     catalog, datadir, dbname = cfg.get_default_catalog()
-    assert catalog == 'Default'
+    assert catalog == 'Betty'
     assert datadir == 'foobar'
-    assert dbname == 'betty_too.catalog'
+    assert dbname == 'new_betty.catalog'
     catalog, datadir, dbname = cfg.get_catalog('Betty')
     assert catalog == 'Betty'
     assert datadir == 'foobar'
@@ -224,9 +224,9 @@ def test_write_config(plorn_test_env, monkeypatch):
     assert datadir == 'foobar'
     assert dbname == 'new_betty.catalog'
     catalog, datadir, dbname = cfg.get_default_catalog()
-    assert catalog == 'Default'
+    assert catalog == 'Betty'
     assert datadir == 'foobar'
-    assert dbname == 'betty_too.catalog'
+    assert dbname == 'new_betty.catalog'
     catalog, datadir, dbname = cfg.get_catalog('Betty')
     assert catalog == 'Betty'
     assert datadir == 'foobar'

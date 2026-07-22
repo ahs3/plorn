@@ -14,7 +14,7 @@ import sys
 
 MAJOR = 0
 MINOR = 27
-BUGFIX = 13
+BUGFIX = 14
 __version__ = str(MAJOR) + '.' + str(MINOR) + '.' + str(BUGFIX)
 
 module_logger = logging.getLogger('plorn.config')
@@ -84,6 +84,7 @@ class PlornConfig:
             self.config['plorn']['full_name'] = fullname
             self.config['plorn']['config_dir'] = os.path.join('~', config_dir)
             self.config['plorn']['data_dir'] = os.path.join('~', data_dir)
+            self.config['plorn']['default_catalog'] = 'default'
             self.config['plorn']['current_catalog'] = 'default'
 
             self.config['gui'] = {}
@@ -180,7 +181,8 @@ class PlornConfig:
         return self._get_catalog(catalog)
 
     def get_default_catalog(self):
-        return self._get_catalog('Default')
+        catalog = self.config['plorn']['default_catalog']
+        return self._get_catalog(catalog)
 
     def _set_catalog(self, catalog, datadir=None, dbname=None):
         '''
@@ -214,7 +216,8 @@ class PlornConfig:
         self._set_catalog(name, datadir, dbname)
 
     def set_default_catalog(self, name, datadir=None, dbname=None):
-        self._set_catalog('Default', datadir, dbname)
+        self.config['plorn']['default_catalog'] = name
+        self._set_catalog(name, datadir, dbname)
 
     def __str__(self):
         return self.filename
