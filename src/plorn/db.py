@@ -22,7 +22,7 @@ from plorn import PlornAlbum, PlornPhoto, PlornName, PlornPlace, PlornTag
 from plorn.config import PlornConfig
 
 module_logger = logging.getLogger('plorn.db')
-module_logger.setLevel(logging.DEBUG)
+module_logger.setLevel(logging.INFO)
 
 #-- handy field number constants
 class AlbumFields(IntEnum):

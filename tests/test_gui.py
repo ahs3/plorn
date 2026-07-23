@@ -47,20 +47,15 @@ def test_catalog(initial_db, monkeypatch):
     monkeypatch.setenv('HOME', info['homedir'])
     root = info['root']
     assert root.catalog != None
-    assert root.tree != None
-    assert root.tree_data != None
-    assert root.expand_all != None
-    assert root.expand_all.isEnabled() == False
-    assert root.collapse_all != None
-    assert root.collapse_all.isEnabled() == True
+    assert root.album_tree != None
 
 def test_catalog_headers(initial_db, monkeypatch):
     info = initial_db
     monkeypatch.setenv('HOME', info['homedir'])
     root = info['root']
     assert root.catalog != None
-    assert root.tree != None
-    item = root.tree.headerItem()
+    assert root.album_tree != None
+    item = root.album_tree.headerItem()
     assert item.text(0) == 'Name'
     assert item.text(1) == 'Photos'
     assert item.text(2) == 'Type'
@@ -73,7 +68,7 @@ def test_statusbar(initial_db, monkeypatch):
     assert root.statusBar() != None
     msg = root.statusBar().currentMessage()
     assert msg != ''
-    assert msg[:len('opened catalog ')] == 'opened catalog '
+    assert msg[:len('ready')] == 'ready'
     config = PlornConfig()
     catalog, datadir, dbname = config.get_current_catalog()
     assert root.catname.text() == f'catalog: {catalog}'
@@ -96,9 +91,8 @@ def test_menubar(initial_db, monkeypatch):
     assert root.menuBar() != None
     menus = [action.text() for action in root.menuBar().actions() 
              if action.menu()]
-    assert '&Catalogs' in menus
-    assert '&Edit' in menus
-    assert '&Help' in menus
+    for ii in ['Catalogs', 'Albums', 'Photos', 'Tools', 'Help']:
+        assert f'&{ii}' in menus
 
 def menu_list(w):
     mlist = []
@@ -113,15 +107,15 @@ def action_list(w):
         alist.append(action.text())
     return alist
 
-def test_catalog_menu(initial_db, monkeypatch):
+def test_catalogs_menu(initial_db, monkeypatch):
     info = initial_db
     monkeypatch.setenv('HOME', info['homedir'])
     root = info['root']
     assert root.menuBar() != None
     menus = menu_list(root.menuBar())
     assert '&Catalogs' in menus
-    assert root.catalog_menu != None
-    actions = action_list(root.catalog_menu)
+    assert root.catalogs_menu != None
+    actions = action_list(root.catalogs_menu)
     assert 'New' in actions
     assert 'Open' in actions
     assert 'Close' in actions
@@ -136,14 +130,17 @@ def test_catalog_new1(initial_db, monkeypatch):
     assert newcat != None
 
     monkeypatch.setattr(
-        PlornNewCatalogDialog, 'ask', classmethod(lambda *args: True))
+        PlornNewCatalogDialog, 'ask', 
+        classmethod(lambda *args: dlg.get_inputs()))
     dlg = PlornNewCatalogDialog()
     assert dlg != None
-    assert dlg.ask() == True
-    catalog, datadir, dbname = dlg.get_inputs()
-    assert catalog == ''
-    assert datadir == None or len(datadir) > 0
-    assert dbname == ''
+    catinfo = dlg.ask(info['root'])
+    assert dlg.ask() != None
+    assert catinfo['catalog'] == ''
+    assert catinfo['datadir'] == None or len(catinfo['datadir']) > 0
+    assert catinfo['dbname'] == ''
+    assert catinfo['make_current'] == True
+    assert catinfo['make_default'] == False
     dlg.close()
 
 def test_catalog_new2(initial_db, monkeypatch):
@@ -203,15 +200,15 @@ def test_catalog_quit(initial_db, monkeypatch):
     quit_item = root.findChild(QAction, 'quit_action')
     assert quit_item != None
 
-def test_edit_menu(initial_db, monkeypatch):
+def test_tools_menu(initial_db, monkeypatch):
     info = initial_db
     monkeypatch.setenv('HOME', info['homedir'])
     root = info['root']
     assert root.menuBar() != None
     menus = menu_list(root.menuBar())
-    assert '&Edit' in menus
-    assert root.catalog_menu != None
-    actions = action_list(root.edit_menu)
+    assert '&Tools' in menus
+    assert root.catalogs_menu != None
+    actions = action_list(root.tools_menu)
     assert 'Preferences' in actions
 
 def test_help_menu(initial_db, monkeypatch):
@@ -221,7 +218,7 @@ def test_help_menu(initial_db, monkeypatch):
     assert root.menuBar() != None
     menus = menu_list(root.menuBar())
     assert '&Help' in menus
-    assert root.catalog_menu != None
+    assert root.catalogs_menu != None
     actions = action_list(root.help_menu)
     assert 'Help' in actions
     assert 'About' in actions

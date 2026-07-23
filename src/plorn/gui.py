@@ -29,6 +29,11 @@ from PyQt6.QtGui import (
     QValidator,
 )
 
+from PyQt6.QtSql import (
+    QSqlDatabase,
+    QSqlRelationalDelegate,
+)
+
 from PyQt6.QtWidgets import (
     QApplication,
     QBoxLayout,
@@ -39,6 +44,7 @@ from PyQt6.QtWidgets import (
     QFrame,
     QGridLayout,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
     QLineEdit,
     QMainWindow,
@@ -48,7 +54,8 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QSpacerItem,
     QStatusBar,
-    QTreeWidget,
+    QStyledItemDelegate,
+    QTreeView,
     QTreeWidgetItem,
     QToolBar,
     QVBoxLayout,
@@ -57,7 +64,8 @@ from PyQt6.QtWidgets import (
 )
 
 from plorn.config import PlornConfig
-from plorn.model import PlornDbModel
+from plorn.db import AlbumFields
+from plorn.model import PlornAlbumModel
 from plorn.widgets import *
 
 #-- set up logging
@@ -65,6 +73,13 @@ module_logger = logging.getLogger('plorn.gui')
 module_logger.setLevel(logging.DEBUG)
 
 #-- some helper classes that simplify testing the GUI
+class IDDelegate(QStyledItemDelegate):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def displayText(self, value, locale):
+        return f'{value:04}'
+
 class PlornAboutDialog(QMessageBox):
     @classmethod
     def ask(cls, parent):
@@ -102,8 +117,8 @@ class PlornNewCatalogDialog(QDialog):
         dbname = None
         dlg.exec()
         if dlg.result() == QDialog.DialogCode.Rejected:
-            return False
-        return True
+            return dlg.get_inputs()
+        return None
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -131,9 +146,9 @@ class PlornNewCatalogDialog(QDialog):
         self.dbname_edit = QLineEdit()
         layout.addWidget(self.dbname_edit, 2, 1)
 
-        self.change_now = QCheckBox('Make this the current catalog')
-        self.change_now.setChecked(True)
-        layout.addWidget(self.change_now, 3, 1)
+        self.make_current = QCheckBox('Make this the current catalog')
+        self.make_current.setChecked(True)
+        layout.addWidget(self.make_current, 3, 1)
         self.make_default = QCheckBox('Make this the default catalog')
         self.make_default.setChecked(False)
         layout.addWidget(self.make_default, 4, 1)
@@ -152,6 +167,7 @@ class PlornNewCatalogDialog(QDialog):
                         'A name must be provided.')
             return QDialog.DialogCode.Rejected
         name = self.name_edit.text()
+        config = PlornConfig()
         catalog, datadir, dbname = config.get_catalog(name)
         if catalog != None:
             QMessageBox.warning(self, 'Catalog Name Error',
@@ -170,12 +186,19 @@ class PlornNewCatalogDialog(QDialog):
         return QDialog.DialogCode.Accepted
 
     def get_inputs(self):
-        catalog = self.name_edit.text()
+        global module_logger
+
+        info = {}
+        info['catalog'] = self.name_edit.text()
+        info['datadir'] = self.ddir_edit.text()
         datadir = self.ddir_edit.text()
         if len(datadir.strip()) < 1:
             datadir = None
-        dbname = self.dbname_edit.text()
-        return catalog, datadir, dbname
+        info['datadir'] = datadir
+        info['dbname'] = self.dbname_edit.text()
+        info['make_current'] = self.make_current.isChecked()
+        info['make_default'] = self.make_default.isChecked()
+        return info
 
     def dlg_done(self, button):
         global module_logger
@@ -185,20 +208,12 @@ class PlornNewCatalogDialog(QDialog):
             module_logger.debug('new cat: Ok clicked')
             if self.check_inputs() == QDialog.DialogCode.Rejected:
                 return
-            datadir = self.ddir_edit.text()
-            if len(datadir.strip()) < 1:
-                datadir = None
-            config.set_catalog(name=self.name_edit.text(),
-                               datadir=datadir,
-                               dbname=self.dbname_edit.text(),
-            )
-            config.write_config()
             self.setResult(QDialog.DialogCode.Accepted)
+
         elif role == QDialogButtonBox.StandardButton.Cancel:
             module_logger.debug('new cat: Cancel clicked')
             self.setResult(QDialog.DialogCode.Rejected)
-        else:
-            module_logger.debug('new cat: unknown button clicked')
+
         self.close()
 
 
@@ -207,8 +222,16 @@ class Plorn(QMainWindow):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        #-- define the primary windows
+        #-- open up the data base
         config = PlornConfig()
+        catname, datadir, dbname = config.get_current_catalog()
+        self.dbname = dbname
+        dbpath = os.path.join(datadir, dbname)
+        self.db = QSqlDatabase.addDatabase('QSQLITE')
+        self.db.setDatabaseName(dbpath)
+        self.db.open()
+
+        #-- define the primary windows
         self.setWindowTitle('plorn')
         geometry = self.screen().availableGeometry()
         self.origin = QPoint(200, 200)
@@ -220,7 +243,12 @@ class Plorn(QMainWindow):
         self.setWindowIcon(QIcon(photo_path))
 
         #-- menubar
-        self.catalog_menu, self.edit_menu, self.help_menu = self.build_menubar()
+        mb, cats, albs, phos, tools, helpmenu = self.build_menubar()
+        self.catalogs_menu = cats
+        self.albums_menu = albs
+        self.photos_menu = phos
+        self.tools_menu = tools
+        self.help_menu = helpmenu
 
         #-- central window
         frame = QFrame()
@@ -246,59 +274,84 @@ class Plorn(QMainWindow):
         layout.addLayout(hlayout)
         layout.addWidget(self.header, alignment=Qt.AlignmentFlag.AlignTop)
 
-        self.catalog, clayout, self.tree, \
-            self.expand_all, self.collapse_all = self.build_catalog()
+        catalog, clayout, tree = self.build_catalog(PlornAlbumModel())
+        self.catalog = catalog
+        self.album_tree = tree
         layout.addLayout(clayout)
         layout.addWidget(self.catalog, alignment=Qt.AlignmentFlag.AlignCenter)
         layout.addStretch(8)
-        self.tree_data = PlornDbModel(self.tree)
-        self.tree_data.add_albums()
-        self.tree.expandAll()
-        self.expand_all.setEnabled(False)
 
         sb, counts, catname = self.build_statusbar()
         self.catname = catname                  # so it can be changed later
         self.sbcounts = counts                  # so it can be changed later
         self.setCentralWidget(frame)
-        self.set_status_message()
+        self.set_catalog_info()
+        self.set_status_message('ready')
+
+    def set_status_message(self, msg, timeout=5000):
+        self.statusBar().showMessage(msg, msecs=timeout)
 
     def get_db(self):
-        return self.tree_data.get_db()
+        return QSqlDatabase.database()
 
-    def build_menubar(self):
-        #mb = QMenuBar(self)
-        mb = self.menuBar()
-        mb.setNativeMenuBar(True)
-
-        #-- catalogs menu
+    def _catalogs_menu(self, mb):
         catalogs = mb.addMenu('&Catalogs')
         new_action = QAction('New', parent=self)
         new_action.setObjectName('new_catalog_action')
         new_action.triggered.connect(self.new_catalog_action)
-        new_action.setShortcut('Ctrl+N')
         catalogs.addAction(new_action)
         open_action = QAction('Open', parent=self)
         open_action.setObjectName('open_catalog_action')
-        open_action.setShortcut('Ctrl+O')
         catalogs.addAction(open_action)
+        edit_action = QAction('Edit', parent=self)
+        edit_action.setObjectName('edit_catalog_action')
+        catalogs.addAction(edit_action)
         close_action = QAction('Close', parent=self)
         close_action.setObjectName('close_catalog_action')
-        close_action.setShortcut('Ctrl+C')
         catalogs.addAction(close_action)
-        quit_action = QAction('Quit', parent=self)
-        quit_action.setObjectName('quit_action')
-        quit_action.triggered.connect(self.exit_action)
-        quit_action.setShortcut('Ctrl+Q')
-        catalogs.addAction(quit_action)
-        catalogs.insertSeparator(quit_action)
+        return catalogs
 
-        #-- edit menu
-        editmenu = mb.addMenu('&Edit')
+    def _albums_menu(self, mb):
+        albums = mb.addMenu('&Albums')
+        new_action = QAction('New', parent=self)
+        new_action.setObjectName('new_album_action')
+        new_action.triggered.connect(self.new_album_action)
+        albums.addAction(new_action)
+        open_action = QAction('Open', parent=self)
+        open_action.setObjectName('open_album_action')
+        albums.addAction(open_action)
+        edit_action = QAction('Edit', parent=self)
+        edit_action.setObjectName('edit_album_action')
+        albums.addAction(edit_action)
+        del_action = QAction('Delete', parent=self)
+        del_action.setObjectName('del_album_action')
+        albums.addAction(del_action)
+        return albums
+
+    def _photos_menu(self, mb):
+        photos = mb.addMenu('&Photos')
+        new_action = QAction('New', parent=self)
+        new_action.setObjectName('new_photo_action')
+        new_action.triggered.connect(self.new_photo_action)
+        photos.addAction(new_action)
+        open_action = QAction('Open', parent=self)
+        open_action.setObjectName('open_photo_action')
+        photos.addAction(open_action)
+        edit_action = QAction('Edit', parent=self)
+        edit_action.setObjectName('edit_photo_action')
+        photos.addAction(edit_action)
+        del_action = QAction('Delete', parent=self)
+        del_action.setObjectName('del_photo_action')
+        photos.addAction(del_action)
+        return photos
+
+    def _tools_menu(self, mb):
+        tools = mb.addMenu('&Tools')
         pref_action = QAction('Preferences', parent=self)
-        editmenu.addAction(pref_action)
-        catalogs.insertSeparator(quit_action)
+        tools.addAction(pref_action)
+        return tools
 
-        #-- help menu
+    def _help_menu(self, mb):
         helpmenu = mb.addMenu('&Help')
         help_action = QAction('Help', parent=self)
         helpmenu.addAction(help_action)
@@ -306,9 +359,29 @@ class Plorn(QMainWindow):
         about_action.setObjectName('about_action')
         about_action.triggered.connect(self.about_action)
         helpmenu.addAction(about_action)
+        return helpmenu
+
+    def build_menubar(self):
+        mb = self.menuBar()
+        mb.setNativeMenuBar(True)
+
+        #-- catalogs menu
+        catalogs = self._catalogs_menu(mb)
+        quit_action = QAction('Quit', parent=self)
+        quit_action.setObjectName('quit_action')
+        quit_action.triggered.connect(self.exit_action)
+        quit_action.setShortcut('Ctrl+Q')
+        catalogs.addAction(quit_action)
+        catalogs.insertSeparator(quit_action)
+
+        #-- submenus ....
+        albums = self._albums_menu(mb)
+        photos = self._photos_menu(mb)
+        tools = self._tools_menu(mb)
+        helpmenu = self._help_menu(mb)
 
         mb.show()
-        return catalogs, editmenu, helpmenu
+        return mb, catalogs, albums, photos, tools, helpmenu
 
     def build_header(self):
         config = PlornConfig()
@@ -329,7 +402,7 @@ class Plorn(QMainWindow):
 
         return header, layout, lhdr, mhdr, rhdr
 
-    def build_catalog(self):
+    def build_catalog(self, model):
         global module_logger
 
         module_logger.debug('entering build_catalog')
@@ -337,52 +410,37 @@ class Plorn(QMainWindow):
         layout = QGridLayout()
         layout.setObjectName('catalog')
 
-        tree = QTreeWidget()
+        spacer = QSpacerItem(800, 50, hPolicy=QSizePolicy.Policy.Expanding)
+        layout.addItem(spacer, 0, 0)
+        config = PlornConfig()
+        catname, ddir, dbname = config.get_current_catalog()
+        cathdr = QLabel(f'**Catalog:** {catname}',
+                      parent=frame,
+                      textFormat=Qt.TextFormat.MarkdownText)
+        layout.addWidget(cathdr, 1, 0)
+
+        #--- format the tree
+        tree = QTreeView()
+        tree.setModel(model)
         tree.setAlternatingRowColors(True)
-        tree.setSizeAdjustPolicy(QTreeWidget.SizeAdjustPolicy.AdjustToContents)
-        tree.setHeaderLabels(['Name', 'Photos', 'Type', 'ID'])
-        tree.header().setDefaultAlignment(Qt.AlignmentFlag.AlignLeft)
-        tree.header().resizeSection(0, 500)
-        tree.header().resizeSection(1, 100)
-        tree.header().resizeSection(2, 100)
-        tree.header().resizeSection(3, 100)
-        tree.header().setSectionHidden(3, True)
-        hdrItem = tree.headerItem()
-        hdrItem.setTextAlignment(1, Qt.AlignmentFlag.AlignCenter)
         tree.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Sunken)
-        layout.addWidget(tree, 0, 0)
-        tree.itemExpanded.connect(self.set_expansion_button_state)
-        tree.itemCollapsed.connect(self.set_expansion_button_state)
+        tree.setItemsExpandable(True)
+        layout.addWidget(tree, 2, 0)
 
-        row_count = tree.topLevelItemCount()
-        for row in range(row_count):
-            item = self.tree.topLevelItem(row)
+        tree.header().setDefaultAlignment(Qt.AlignmentFlag.AlignLeft)
+        tree.header().setSectionHidden(AlbumFields.DATED, True)
+        tree.header().setSectionHidden(AlbumFields.NOTES, True)
 
-        controls = QFrame()
-        blayout = QVBoxLayout()
-        blayout.setObjectName('catalog controls')
-        blayout.setDirection(QBoxLayout.Direction.TopToBottom)
-        controls.setSizePolicy(PlornSizePolicy())
-        xbutton = PlornPushButton('expand all', default=False,
-                                  parent=controls)
-        xbutton.clicked.connect(self.expand_all)
-        blayout.addWidget(xbutton, alignment=Qt.AlignmentFlag.AlignCenter)
-        cbutton = PlornPushButton('collapse all', default=False,
-                                  parent=controls)
-        cbutton.clicked.connect(self.collapse_all)
-        blayout.addWidget(cbutton, alignment=Qt.AlignmentFlag.AlignCenter)
-        layout.addLayout(blayout, 0, 1)
-        layout.addWidget(controls, 0, 1)
+        chunk = 100
+        tree.header().setMaximumSectionSize(int(10*chunk))
+        tree.header().resizeSection(AlbumFields.ID, chunk)
+        tree.header().resizeSection(AlbumFields.NAME, int(8*chunk))
+        tree.header().resizeSection(AlbumFields.PHOTO_COUNT, chunk)
 
-        return frame, layout, tree, xbutton, cbutton
+        tree.setItemDelegateForColumn(AlbumFields.ID, IDDelegate())
+        tree.setItemDelegate(QSqlRelationalDelegate(tree))
 
-    def expand_all(self):
-        self.tree.expandAll()
-        self.set_expansion_button_state()
-
-    def collapse_all(self):
-        self.tree.collapseAll()
-        self.set_expansion_button_state()
+        return frame, layout, tree
 
     def build_statusbar(self):
         sb = self.statusBar()
@@ -399,44 +457,29 @@ class Plorn(QMainWindow):
         sb.showMessage('no catalog currently open')
         return sb, counts, catname
 
-    def set_status_message(self, msg=None):
-        if msg:
-            txt = msg
-        else:
-            config = PlornConfig()
-            catalog, datadir, dbname = config.get_current_catalog()
-            txt = f'opened catalog {catalog}'
-            nalbums = self.tree_data.album_count()
-            asuffix = 's'
-            if nalbums == 1:
-                asuffix = ''
-            nphotos = self.tree_data.photo_count()
-            psuffix = 's'
-            if nphotos == 1:
-                psuffix = ''
-            counts = f'{nalbums} album{asuffix}, {nphotos} photo{psuffix}'
-            self.catname.setText(f'catalog: {catalog}')
-            self.sbcounts.setText(counts)
-        self.statusBar().showMessage(txt)
+    def set_catalog_info(self):
+        global module_logger
 
-    def set_expansion_button_state(self):
-        expanded = 0
-        row_count = self.tree.topLevelItemCount()
-        for row in range(row_count):
-            #yield item
-            item = self.tree.topLevelItem(row)
-            if item.isExpanded():
-                expanded += 1
+        config = PlornConfig()
+        catalog, datadir, dbname = config.get_current_catalog()
+        nalbums = self.album_tree.model().rowCount()
+        asuffix = 's'
+        if nalbums == 1:
+            asuffix = ''
 
-        if expanded == 0:
-            self.expand_all.setEnabled(True)
-            self.collapse_all.setEnabled(False)
-        elif expanded == row_count:
-            self.expand_all.setEnabled(False)
-            self.collapse_all.setEnabled(True)
-        else:
-            self.expand_all.setEnabled(True)
-            self.collapse_all.setEnabled(True)
+        nphotos = 0
+        model = self.album_tree.model()
+        for row in range(model.rowCount()):
+            item = model.index(row, AlbumFields.PHOTO_COUNT)
+            module_logger.debug(f'row {row} = {item.data()}')
+            nphotos += item.data()
+        module_logger.debug(f'nphotos = {nphotos}')
+        psuffix = 's'
+        if nphotos == 1:
+            psuffix = ''
+        counts = f'{nalbums} album{asuffix}, {nphotos} photo{psuffix}'
+        self.catname.setText(f'catalog: {catalog}')
+        self.sbcounts.setText(counts)
 
     def exit_action(self):
         self.close()
@@ -449,10 +492,43 @@ class Plorn(QMainWindow):
         global module_logger
 
         newcat = PlornNewCatalogDialog()
-        res = newcat.ask(self)
-        catalog, datadir, dbname = newcat.get_inputs()
-        module_logger.debug(f'new cat action: {catalog}, {datadir}, {dbname}')
+        info = newcat.ask(self)
+        msg  = f'new cat action: '
+        msg += f'cat {info['catalog']}, '
+        msg += f'ddir {info['datadir']}, '
+        msg += f'db {info['dbname']}, '
+        msg += f'chg {info['make_current']}, '
+        msg += f'def {info['make_default']}'
+        module_logger.debug(msg)
+
+        #-- input values have already been checked for validity
+        config = PlornConfig()
+        new_cat = info['catalog']
+        new_ddir = info['datadir']
+        new_dbnm = info['dbname']
+        if new_ddir != None and len(new_ddir.strip()) < 1:
+            new_ddir = None
+        config.set_catalog(name=new_cat, datadir=new_ddir, dbname=new_dbnm)
+        if info['make_current']:
+            catalog, datadir, dbname = config.get_current_catalog()
+            if catalog != new_cat:
+                config.set_current_catalog(new_cat)
+        if info['make_default']:
+            catalog, datadir, dbname = config.get_default_catalog()
+            if catalog != new_cat:
+                config.set_default_catalog(new_cat)
+        config.write_config()
+
+        #-- if we need to change the current db, we have to close the old
+        #   one and open the new one
+        # if info['make_current']:
             
+    def new_album_action(self):
+        pass
+
+    def new_photo_action(self):
+        pass
+
 
 #-- the plorn GUI
 def user_interface():

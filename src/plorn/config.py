@@ -14,11 +14,11 @@ import sys
 
 MAJOR = 0
 MINOR = 27
-BUGFIX = 14
+BUGFIX = 15
 __version__ = str(MAJOR) + '.' + str(MINOR) + '.' + str(BUGFIX)
 
 module_logger = logging.getLogger('plorn.config')
-module_logger.setLevel(logging.DEBUG)
+module_logger.setLevel(logging.INFO)
 
 '''
 Config files:
@@ -157,20 +157,18 @@ class PlornConfig:
         result = None
         datadir = self.config['plorn']['data_dir']
         dbname = 'plorn.db'
-        #if catalog in self.config.keys() and len(self.config[catalog]) > 0:
         if catalog in self.config.keys():
             result = self.config[catalog]['name']
             if self.config[catalog].get('data_dir') == None:
                 datadir = self.config['plorn']['data_dir']
             else:
                 datadir = self.config[catalog]['data_dir']
-            if self.config[catalog].get('dbname') != None:
-                dbname = self.config[catalog]['dbname']
+            dbname = self.config[catalog]['dbname']
         else:
             result = None
             datadir = None
             dbname = None
-        module_logger.info(f'_get_catalog: {result}, {datadir}, {dbname}')
+        module_logger.debug(f'_get_catalog: {result}, {datadir}, {dbname}')
         return result, datadir, dbname
 
     def get_catalog(self, catalog):
