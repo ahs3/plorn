@@ -8,7 +8,7 @@ import logging
 import os.path
 
 from plorn.config import PlornConfig
-from plorn.db import PlornDb, AlbumFields, PhotoFields
+from plorn.db import AlbumFields, PhotoFields
 
 from PyQt6.QtCore import (
     Qt,

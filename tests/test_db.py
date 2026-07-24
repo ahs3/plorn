@@ -9,58 +9,51 @@ import copy
 import getpass
 import os
 import pwd
+import sys
 
 from PyQt6.QtSql import (
     QSqlDatabase,
     QSqlQuery,
 )
 
+if os.path.join(',', 'src', 'plorn') not in sys.path:
+    current_path = os.path.dirname(os.path.dirname(__file__))
+    package_source_path = os.path.join(current_path, 'src')
+    sys.path.insert(0, package_source_path)
+
 from plorn import PlornAlbum, PlornPhoto, PlornName, PlornPlace, PlornTag
 from plorn.db import (
-    PlornDb,
     AlbumFields,
     ConfigFields,
 )
-from plorn.config import PlornConfig
-from plorn.gui import Plorn
+from plorn.rawdb import PlornRawDb
 
 
 #-- basic db tests
-def test_open0(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    db = QSqlDatabase.database()
+def test_open1(tmp_path):
+    dbpath = os.path.join(tmp_path, 'testing.db')
+    db = PlornRawDb(dbpath)
     assert db != None
+    db.close()
 
-def test_open1(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    print(f'dbname: {info['dbname']}')
-    print(f'homedir: {info['homedir']}')
-    print(f'datadir: {info['datadir']}')
-    assert info['db'] != None
-
-def test_open2(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    db1 = QSqlDatabase.database()
-    db2 = QSqlDatabase.database()
+def test_open2(tmp_path):
+    dbpath = os.path.join(tmp_path, 'testing.db')
+    db1 = PlornRawDb(dbpath)
+    db2 = PlornRawDb(dbpath)
     assert db1 != None
     assert db2 != None
     db1.close()
     db2.close()
 
-def test_config(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    db = info['root'].get_db()
+def test_config(tmp_path):
+    dbpath = os.path.join(tmp_path, 'testing.db')
+    db = PlornRawDb(dbpath)
     row = db.get_config()
-    assert row.value(ConfigFields.NAME) == 'plorn'
-    user = getpass.getuser()
-    assert row.value(ConfigFields.USERNAME) == user
-    assert row.value(ConfigFields.FULLNAME) == pwd.getpwnam(user).pw_gecos
-    datadir = os.path.join('~', '.local', 'share', 'plorn')
-    assert row.value(ConfigFields.DATADIR) == datadir
+    assert row['name'] == 'plorn'
+    assert row['username'] == 'guest'
+    assert row['fullname'] == 'No Body'
+    datadir = '.'
+    assert row['datadir'] == datadir
 
 #-- tests for albums in the db
 def make_album(name, id, dated, notes, nphotos):
@@ -76,26 +69,23 @@ def make_place(place, parent_id=0):
 def make_tag(tag, parent_id=0):
     return PlornTag(tag)
 
-def test_album_exists(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    db = info['root'].get_db()
+def test_album_exists(tmp_path):
+    dbpath = os.path.join(tmp_path, 'testing.db')
+    db = PlornRawDb(dbpath)
     tmp = make_album('fred', None, 'now', 'note1', '1')
     album = db.add_album(tmp)
     assert db.album_exists(album)
 
-def test_album_does_not_exist(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    db = info['root'].get_db()
+def test_album_does_not_exist(tmp_path):
+    dbpath = os.path.join(tmp_path, 'testing.db')
+    db = PlornRawDb(dbpath)
     db.truncate_tables()
     tmp = make_album('fred', None, 'now', 'note1', '1')
     assert db.album_exists(tmp) == False
 
-def test_albums_table_by_name(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    db = info['root'].get_db()
+def test_albums_table_by_name(tmp_path):
+    dbpath = os.path.join(tmp_path, 'testing.db')
+    db = PlornRawDb(dbpath)
     db.truncate_tables()
     tmp = make_album('fred', None, 'now', 'note1', 42)
     orig = db.add_album(tmp)
@@ -107,10 +97,9 @@ def test_albums_table_by_name(initial_db, monkeypatch):
     assert album.get_notes() == 'note1'
     assert album.get_photo_count() == 42
 
-def test_albums_table_by_id(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    db = info['root'].get_db()
+def test_albums_table_by_id(tmp_path):
+    dbpath = os.path.join(tmp_path, 'testing.db')
+    db = PlornRawDb(dbpath)
     db.truncate_tables()
     tmp = make_album('fred', None, 'now', 'note1', '42')
     orig = db.add_album(tmp)
@@ -122,10 +111,9 @@ def test_albums_table_by_id(initial_db, monkeypatch):
     assert album.get_notes() == 'note1'
     assert album.get_photo_count() == 42
 
-def test_remove_album_by_id(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    db = info['root'].get_db()
+def test_remove_album_by_id(tmp_path):
+    dbpath = os.path.join(tmp_path, 'testing.db')
+    db = PlornRawDb(dbpath)
     db.truncate_tables()
     tmp = make_album('fred', None, 'now', 'note1', '1')
     album = db.add_album(tmp)
@@ -134,10 +122,9 @@ def test_remove_album_by_id(initial_db, monkeypatch):
     db.remove_album_by_id(album.get_id())
     assert db.album_exists(album) == False
 
-def test_remove_album(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    db = info['root'].get_db()
+def test_remove_album(tmp_path):
+    dbpath = os.path.join(tmp_path, 'testing.db')
+    db = PlornRawDb(dbpath)
     db.truncate_tables()
     tmp = make_album('fred', None, 'now', 'note1', '1')
     album = db.add_album(tmp)
@@ -145,43 +132,40 @@ def test_remove_album(initial_db, monkeypatch):
     db.remove_album(album)
     assert db.album_exists(album) == False
 
-def test_get_all_albums(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    db = info['root'].get_db()
+def test_get_all_albums(tmp_path):
+    dbpath = os.path.join(tmp_path, 'testing.db')
+    db = PlornRawDb(dbpath)
     db.truncate_tables()
     album1 = make_album('fred', None, 'now', 'note1', '1')
     album2 = make_album('barney', None, 'now', 'note2', '2')
     album1 = db.add_album(album1)
     album2 = db.add_album(album2)
-    query = db.get_all_albums_list()
+    cursor = db.get_album_cursor()
     ids = []
-    while query.next():
-        ids.append(query.value(AlbumFields.ID))
+    for row in cursor:
+        ids.append(row['id'])
     assert len(ids) == 2
     assert album1.get_id() in ids
     assert album2.get_id() in ids
 
-def test_album_count(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    db = info['root'].get_db()
+def test_album_count(tmp_path):
+    dbpath = os.path.join(tmp_path, 'testing.db')
+    db = PlornRawDb(dbpath)
     db.truncate_tables()
     tmp1 = make_album('fred', None, 'now', 'note1', '1')
     tmp2 = make_album('barney', None, 'now', 'note2', '2')
     album1 = db.add_album(tmp1)
     album2 = db.add_album(tmp2)
-    query = db.get_all_albums_list()
+    cursor = db.get_album_cursor()
     rows = []
-    while query.next():
-        rows.append(query.value(AlbumFields.ID))
+    for data in cursor:
+        rows.append(data)
     assert len(rows) == 2
     assert len(rows) == db.album_count()
 
-def test_add_album(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    db = info['root'].get_db()
+def test_add_album(tmp_path):
+    dbpath = os.path.join(tmp_path, 'testing.db')
+    db = PlornRawDb(dbpath)
     db.truncate_tables()
     tmp = make_album('fred', None, 'now', 'note1', '42')
 
@@ -252,10 +236,9 @@ def test_add_album(initial_db, monkeypatch):
                 break
         assert found
 
-def test_update_album(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    db = info['root'].get_db()
+def test_update_album(tmp_path):
+    dbpath = os.path.join(tmp_path, 'testing.db')
+    db = PlornRawDb(dbpath)
     db.truncate_tables()
     tmp = make_album('fred', None, 'now', 'note1', '1')
     album = db.add_album(tmp)
@@ -278,10 +261,9 @@ def make_photo(name, path, photo_id, album_id, dated, notes):
     return PlornPhoto(name, id=photo_id, album_id=album_id,
                       path=path, dated=dated, notes=notes)
 
-def test_get_all_photos(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    db = info['root'].get_db()
+def test_get_all_photos(tmp_path):
+    dbpath = os.path.join(tmp_path, 'testing.db')
+    db = PlornRawDb(dbpath)
     db.truncate_tables()
     tmp = make_album('fred', None, 'now', 'note1', '0')
     album = db.add_album(tmp)
@@ -303,10 +285,9 @@ def test_get_all_photos(initial_db, monkeypatch):
     album = db.get_album_by_id(album_id)
     assert album.get_photo_count() == 2
 
-def test_photo_count(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    db = info['root'].get_db()
+def test_photo_count(tmp_path):
+    dbpath = os.path.join(tmp_path, 'testing.db')
+    db = PlornRawDb(dbpath)
     db.truncate_tables()
     tmp = make_album('fred', None, 'now', 'note1', '0')
     album = db.add_album(tmp)
@@ -329,10 +310,9 @@ def test_photo_count(initial_db, monkeypatch):
     nphotos = db.photo_count()
     assert nphotos == 2
 
-def test_add_one_photo(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    db = info['root'].get_db()
+def test_add_one_photo(tmp_path):
+    dbpath = os.path.join(tmp_path, 'testing.db')
+    db = PlornRawDb(dbpath)
     db.truncate_tables()
     tmp = make_album('fred', None, 'now', 'note1', '0')
     album = db.add_album(tmp)
@@ -362,10 +342,9 @@ def test_add_one_photo(initial_db, monkeypatch):
     album_row = db.get_album_by_name('fred')
     assert album_row.get_photo_count() == 1
 
-def test_add_photos(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    db = info['root'].get_db()
+def test_add_photos(tmp_path):
+    dbpath = os.path.join(tmp_path, 'testing.db')
+    db = PlornRawDb(dbpath)
     db.truncate_tables()
     tmp = make_album('fred', None, 'now', 'note1', '0')
     album = db.add_album(tmp)
@@ -415,19 +394,17 @@ def test_add_photos(initial_db, monkeypatch):
 def make_name(name, parent_id=None):
     return PlornName(name, parent_id=parent_id)
 
-def test_add_name(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    db = info['root'].get_db()
+def test_add_name(tmp_path):
+    dbpath = os.path.join(tmp_path, 'testing.db')
+    db = PlornRawDb(dbpath)
     db.truncate_tables()
     tmp = make_name('fred')
     name = db.add_name(tmp)
     assert db.name_exists(name)
 
-def test_add_subname(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    db = info['root'].get_db()
+def test_add_subname(tmp_path):
+    dbpath = os.path.join(tmp_path, 'testing.db')
+    db = PlornRawDb(dbpath)
     db.truncate_tables()
     tmp = make_name('Flintstone')
     parent = db.add_name(tmp)
@@ -441,10 +418,9 @@ def test_add_subname(initial_db, monkeypatch):
     c = db.get_name(child.get_id())
     assert c.get_parent_id() == p.get_id()
 
-def test_get_name_children(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    db = info['root'].get_db()
+def test_get_name_children(tmp_path):
+    dbpath = os.path.join(tmp_path, 'testing.db')
+    db = PlornRawDb(dbpath)
     db.truncate_tables()
     tmp = make_name('Flintstone')
     parent = db.add_name(tmp)
@@ -466,10 +442,9 @@ def test_get_name_children(initial_db, monkeypatch):
             break
     assert found
 
-def test_get_full_name(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    db = info['root'].get_db()
+def test_get_full_name(tmp_path):
+    dbpath = os.path.join(tmp_path, 'testing.db')
+    db = PlornRawDb(dbpath)
     db.truncate_tables()
     tmp = make_name('Flintstone')
     parent = db.add_name(tmp)
@@ -485,10 +460,9 @@ def test_get_full_name(initial_db, monkeypatch):
     assert fullname == ['Flintstone', 'Fred']
     assert ', '.join(fullname) == 'Flintstone, Fred'
 
-def test_get_all_names(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    db = info['root'].get_db()
+def test_get_all_names(tmp_path):
+    dbpath = os.path.join(tmp_path, 'testing.db')
+    db = PlornRawDb(dbpath)
     db.truncate_tables()
     tmp = make_name('Flintstone')
     parent = db.add_name(tmp)
@@ -514,10 +488,9 @@ def test_get_all_names(initial_db, monkeypatch):
     assert p.get_id() in id_list
     assert c.get_id() in id_list
 
-def test_remove_name(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    db = info['root'].get_db()
+def test_remove_name(tmp_path):
+    dbpath = os.path.join(tmp_path, 'testing.db')
+    db = PlornRawDb(dbpath)
     db.truncate_tables()
     tmp = make_name('fred')
     name = db.add_name(tmp)
@@ -529,10 +502,9 @@ def test_remove_name(initial_db, monkeypatch):
     names = db.get_all_names()
     assert len(names) == 0
 
-def test_update_name(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    db = info['root'].get_db()
+def test_update_name(tmp_path):
+    dbpath = os.path.join(tmp_path, 'testing.db')
+    db = PlornRawDb(dbpath)
     db.truncate_tables()
     tmp = make_name('fred')
     name = db.add_name(tmp)
@@ -555,19 +527,17 @@ def test_update_name(initial_db, monkeypatch):
 def make_place(place, parent_id=None):
     return PlornPlace(place, parent_id=parent_id)
 
-def test_add_place(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    db = info['root'].get_db()
+def test_add_place(tmp_path):
+    dbpath = os.path.join(tmp_path, 'testing.db')
+    db = PlornRawDb(dbpath)
     db.truncate_tables()
     tmp = make_place('fred')
     place = db.add_place(tmp)
     assert db.place_exists(place)
 
-def test_add_subplace(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    db = info['root'].get_db()
+def test_add_subplace(tmp_path):
+    dbpath = os.path.join(tmp_path, 'testing.db')
+    db = PlornRawDb(dbpath)
     db.truncate_tables()
     tmp = make_place('Flintstone')
     parent = db.add_place(tmp)
@@ -581,10 +551,9 @@ def test_add_subplace(initial_db, monkeypatch):
     c = db.get_place(child.get_id())
     assert c.get_parent_id() == p.get_id()
 
-def test_get_place_children(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    db = info['root'].get_db()
+def test_get_place_children(tmp_path):
+    dbpath = os.path.join(tmp_path, 'testing.db')
+    db = PlornRawDb(dbpath)
     db.truncate_tables()
     tmp = make_place('Flintstone')
     parent = db.add_place(tmp)
@@ -606,10 +575,9 @@ def test_get_place_children(initial_db, monkeypatch):
             break
     assert found
 
-def test_get_full_place(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    db = info['root'].get_db()
+def test_get_full_place(tmp_path):
+    dbpath = os.path.join(tmp_path, 'testing.db')
+    db = PlornRawDb(dbpath)
     db.truncate_tables()
     tmp = make_place('Flintstone')
     parent = db.add_place(tmp)
@@ -626,10 +594,9 @@ def test_get_full_place(initial_db, monkeypatch):
     assert fullplace == ['Flintstone', 'Fred']
     assert ', '.join(fullplace) == 'Flintstone, Fred'
 
-def test_get_all_places(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    db = info['root'].get_db()
+def test_get_all_places(tmp_path):
+    dbpath = os.path.join(tmp_path, 'testing.db')
+    db = PlornRawDb(dbpath)
     db.truncate_tables()
     tmp = make_place('Flintstone')
     parent = db.add_place(tmp)
@@ -655,10 +622,9 @@ def test_get_all_places(initial_db, monkeypatch):
     assert p.get_id() in id_list
     assert c.get_id() in id_list
 
-def test_remove_place(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    db = info['root'].get_db()
+def test_remove_place(tmp_path):
+    dbpath = os.path.join(tmp_path, 'testing.db')
+    db = PlornRawDb(dbpath)
     db.truncate_tables()
     tmp = make_place('fred')
     place = db.add_place(tmp)
@@ -670,10 +636,9 @@ def test_remove_place(initial_db, monkeypatch):
     places = db.get_all_places()
     assert len(places) == 0
 
-def test_update_place(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    db = info['root'].get_db()
+def test_update_place(tmp_path):
+    dbpath = os.path.join(tmp_path, 'testing.db')
+    db = PlornRawDb(dbpath)
     db.truncate_tables()
     tmp = make_place('fred')
     place = db.add_place(tmp)
@@ -696,19 +661,17 @@ def test_update_place(initial_db, monkeypatch):
 def make_tag(tag, parent_id=None):
     return PlornTag(tag, parent_id=parent_id)
 
-def test_add_tag(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    db = info['root'].get_db()
+def test_add_tag(tmp_path):
+    dbpath = os.path.join(tmp_path, 'testing.db')
+    db = PlornRawDb(dbpath)
     db.truncate_tables()
     tmp = make_tag('fred')
     tag = db.add_tag(tmp)
     assert db.tag_exists(tag)
 
-def test_add_subtag(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    db = info['root'].get_db()
+def test_add_subtag(tmp_path):
+    dbpath = os.path.join(tmp_path, 'testing.db')
+    db = PlornRawDb(dbpath)
     db.truncate_tables()
     tmp = make_tag('Flintstone')
     parent = db.add_tag(tmp)
@@ -722,10 +685,9 @@ def test_add_subtag(initial_db, monkeypatch):
     c = db.get_tag(child.get_id())
     assert c.get_parent_id() == p.get_id()
 
-def test_get_tag_children(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    db = info['root'].get_db()
+def test_get_tag_children(tmp_path):
+    dbpath = os.path.join(tmp_path, 'testing.db')
+    db = PlornRawDb(dbpath)
     db.truncate_tables()
     tmp = make_tag('Flintstone')
     parent = db.add_tag(tmp)
@@ -747,10 +709,9 @@ def test_get_tag_children(initial_db, monkeypatch):
             break
     assert found
 
-def test_get_full_tag(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    db = info['root'].get_db()
+def test_get_full_tag(tmp_path):
+    dbpath = os.path.join(tmp_path, 'testing.db')
+    db = PlornRawDb(dbpath)
     db.truncate_tables()
     tmp = make_tag('Flintstone')
     parent = db.add_tag(tmp)
@@ -767,10 +728,9 @@ def test_get_full_tag(initial_db, monkeypatch):
     assert fulltag == ['Flintstone', 'Fred']
     assert ', '.join(fulltag) == 'Flintstone, Fred'
 
-def test_get_all_tags(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    db = info['root'].get_db()
+def test_get_all_tags(tmp_path):
+    dbpath = os.path.join(tmp_path, 'testing.db')
+    db = PlornRawDb(dbpath)
     db.truncate_tables()
     tmp = make_tag('Flintstone')
     parent = db.add_tag(tmp)
@@ -796,10 +756,9 @@ def test_get_all_tags(initial_db, monkeypatch):
     assert p.get_id() in id_list
     assert c.get_id() in id_list
 
-def test_remove_tag(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    db = info['root'].get_db()
+def test_remove_tag(tmp_path):
+    dbpath = os.path.join(tmp_path, 'testing.db')
+    db = PlornRawDb(dbpath)
     db.truncate_tables()
     tmp = make_tag('fred')
     tag = db.add_tag(tmp)
@@ -811,10 +770,9 @@ def test_remove_tag(initial_db, monkeypatch):
     tags = db.get_all_tags()
     assert len(tags) == 0
 
-def test_update_tag(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    db = info['root'].get_db()
+def test_update_tag(tmp_path):
+    dbpath = os.path.join(tmp_path, 'testing.db')
+    db = PlornRawDb(dbpath)
     db.truncate_tables()
     tmp = make_tag('fred')
     tag = db.add_tag(tmp)

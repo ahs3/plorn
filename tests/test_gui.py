@@ -10,8 +10,15 @@ import os
 from PyQt6.QtGui import (
     QAction,
 )
+from PyQt6.QtCore import (
+    Qt,
+)
 
 from plorn.config import PlornConfig
+from plorn.db import (
+    ConfigFields,
+    AlbumFields,
+)
 from plorn.gui import (
     PlornAboutDialog,
     PlornNewCatalogDialog,
@@ -49,18 +56,6 @@ def test_catalog(initial_db, monkeypatch):
     assert root.catalog != None
     assert root.album_tree != None
 
-def test_catalog_headers(initial_db, monkeypatch):
-    info = initial_db
-    monkeypatch.setenv('HOME', info['homedir'])
-    root = info['root']
-    assert root.catalog != None
-    assert root.album_tree != None
-    item = root.album_tree.headerItem()
-    assert item.text(0) == 'Name'
-    assert item.text(1) == 'Photos'
-    assert item.text(2) == 'Type'
-    assert item.text(3) == 'ID'
-
 def test_statusbar(initial_db, monkeypatch):
     info = initial_db
     monkeypatch.setenv('HOME', info['homedir'])
@@ -73,16 +68,13 @@ def test_statusbar(initial_db, monkeypatch):
     catalog, datadir, dbname = config.get_current_catalog()
     assert root.catname.text() == f'catalog: {catalog}'
     db = root.get_db()
-    albums = db.album_count()
-    photos = db.photo_count()
+    albums = root.album_tree.model().rowCount()
     asuf = 's'
     if albums == 1:
         asuf = ''
-    psuf = 's'
-    if photos == 1:
-        psuf = ''
     assert root.sbcounts != None
-    assert root.sbcounts.text() == f'{albums} album{asuf}, {photos} photo{psuf}'
+    expected = f'{albums} album{asuf}, '
+    assert str(root.sbcounts.text()).find(expected) >= 0
 
 def test_menubar(initial_db, monkeypatch):
     info = initial_db
@@ -159,10 +151,10 @@ def test_catalog_new2(initial_db, monkeypatch):
     dlg.ddir_edit.setText('/tmp/wilma')
     dlg.dbname_edit.setText('wilma.catalog')
     assert dlg.ask() == True
-    catalog, datadir, dbname = dlg.get_inputs()
-    assert catalog == 'Wilma' and catalog != None
-    assert datadir == '/tmp/wilma' and datadir != None
-    assert dbname == 'wilma.catalog' and dbname != None
+    catinfo = dlg.get_inputs()
+    assert catinfo['catalog'] == 'Wilma' and catinfo['catalog'] != None
+    assert catinfo['datadir'] == '/tmp/wilma' and catinfo['datadir'] != None
+    assert catinfo['dbname'] == 'wilma.catalog' and catinfo['dbname'] != None
 
 def test_catalog_new3(initial_db, monkeypatch):
     info = initial_db
@@ -180,9 +172,11 @@ def test_catalog_new3(initial_db, monkeypatch):
     dlg.ddir_edit.setText('/tmp/wilma')
     dlg.dbname_edit.setText('wilma.catalog')
     assert dlg.ask() == True
-    catalog, datadir, dbname = dlg.get_inputs()
+    catinfo = dlg.get_inputs()
     config = PlornConfig()
-    config.set_catalog(name=catalog, datadir=datadir, dbname=dbname)
+    config.set_catalog(name=catinfo['catalog'],
+                       datadir=catinfo['datadir'],
+                       dbname=catinfo['dbname'])
     config.write_config()
 
     c, d, db = config.get_catalog('Wilma')

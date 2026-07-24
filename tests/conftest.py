@@ -29,7 +29,6 @@ if os.path.join(',', 'src', 'plorn') not in sys.path:
     sys.path.insert(0, package_source_path)
 
 from plorn.config import PlornConfig
-from plorn.db import PlornDb
 from plorn.gui import user_interface
 
 def get_test_cfgname(tmpdir):
