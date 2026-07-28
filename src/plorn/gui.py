@@ -314,9 +314,12 @@ class Plorn(QMainWindow):
         if not hasattr(self, 'open_catalog_menu'):
             setattr(self, 'open_catalog_menu', open_menu)
 
-        delete_action = QAction('&Delete', parent=self)
-        delete_action.setObjectName('delete_catalog_action')
-        catalogs.addAction(delete_action)
+        delete_menu = catalogs.addMenu('&Delete')
+        delete_menu.aboutToShow.connect(self.update_removable_catalogs)
+        delete_menu.triggered.connect(self.delete_catalog)
+        if not hasattr(self, 'delete_catalog_menu'):
+            setattr(self, 'delete_catalog_menu', delete_menu)
+
         return catalogs
 
     def _albums_menu(self, mb):
@@ -591,7 +594,6 @@ class Plorn(QMainWindow):
         config = PlornConfig()
         current, cur_ddir, curdbname = config.get_current_catalog()
         catlist = config.get_catalog_list()
-        module_logger.debug(f'open_cat: cat list {catlist}')
         for name in catlist:
             open_action = self.open_catalog_menu.addAction(f'{name}')
             open_action.setCheckable(True)
@@ -610,6 +612,45 @@ class Plorn(QMainWindow):
         self.album_tree.setModel(model)
         self.prettify_album_tree(self.album_tree)
         self.set_catalog_info()
+
+    def update_removable_catalogs(self):
+        global module_logger
+
+        module_logger.debug('entering upd_remv_cat')
+        self.delete_catalog_menu.clear()
+        config = PlornConfig()
+        current, cur_ddir, curdbname = config.get_current_catalog()
+        catlist = config.get_catalog_list()
+        for name in catlist:
+            if name == current:
+                continue
+            del_action = self.delete_catalog_menu.addAction(f'{name}')
+            del_action.setCheckable(True)
+            del_action.setChecked(False)
+            del_action.setData(name)
+
+    def delete_catalog(self, action):
+        '''
+        make sure they _really_ want to do this ....
+        '''
+        config = PlornConfig()
+        catalog, ddir, dbname = config.get_catalog(action.data())
+
+        mbox = QMessageBox(self)
+        mbox.setIcon(QMessageBox.Icon.Warning)
+        mbox.setText(f'This only removes the catalog information from the configuration file.  The database "{dbname}" will remain until removed manually.')
+        msg = f'Are you SURE you want to delete the {action.data()} catalog?'
+        mbox.setInformativeText(msg)
+        mbox.setStandardButtons(QMessageBox.StandardButton.Yes | \
+                                QMessageBox.StandardButton.Cancel)
+        mbox.setDefaultButton(QMessageBox.StandardButton.Cancel)
+        ret = mbox.exec()
+
+        if ret == QMessageBox.StandardButton.Cancel:
+            return
+
+        config.remove_catalog(action.data())
+        config.write_config()
 
     def new_album_action(self):
         pass

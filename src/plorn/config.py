@@ -14,7 +14,7 @@ import sys
 
 MAJOR = 0
 MINOR = 28
-BUGFIX = 4
+BUGFIX = 5
 __version__ = str(MAJOR) + '.' + str(MINOR) + '.' + str(BUGFIX)
 
 module_logger = logging.getLogger('plorn.config')
@@ -155,10 +155,7 @@ class PlornConfig:
         dbname = 'plorn.db'
         if catalog in self.config.keys():
             result = self.config[catalog]['name']
-            if self.config[catalog].get('data_dir') == None:
-                datadir = self.config['DEFAULT']['data_dir']
-            else:
-                datadir = self.config[catalog]['data_dir']
+            datadir = self.config[catalog]['data_dir']
             dbname = self.config[catalog]['dbname']
         else:
             result = None
@@ -220,6 +217,13 @@ class PlornConfig:
     def set_default_catalog(self, name, datadir=None, dbname=None):
         self.config['DEFAULT']['default_catalog'] = name
         self._set_catalog(name, datadir, dbname)
+
+    def remove_catalog(self, catalog):
+        current = self.config['DEFAULT']['current_catalog']
+        if catalog == current:
+            #-- let's not do that ....
+            return
+        self.config.remove_section(catalog)
 
     def __str__(self):
         return self.filename
