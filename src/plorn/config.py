@@ -14,7 +14,7 @@ import sys
 
 MAJOR = 0
 MINOR = 28
-BUGFIX = 3
+BUGFIX = 4
 __version__ = str(MAJOR) + '.' + str(MINOR) + '.' + str(BUGFIX)
 
 module_logger = logging.getLogger('plorn.config')
@@ -28,7 +28,7 @@ Config files:
        First one found is used.
     -- if tbe file can't be found, create the default
     -- ini file format, more or less
-    -- [plorn] section is for global items:
+    -- [DEFAULT] section is for global items:
         -- user: default is current user
         -- full_name: optional, from system if possible
         -- config_dir: default ~/.config/plorn
@@ -37,10 +37,6 @@ Config files:
     -- [gui] section is for appearance items
         -- default_photo: plorn_app.png -- used as an icon and a placeholder
            when an image needs to be shown, and in 'about' window
-    -- [database] section is for the default catalog
-        -- data_dir: default ~/.local/share/plorn (overrides global)
-        -- dbname: default $data_dir/plorn.db; if first character of path
-           is '/', '~', or '.', do not prepend $data_dir
     -- [<name>] section is for one or more catalogs that have been created
            and used at some point
         -- data_dir: default ~/.local/share/plorn (overrides global)
@@ -77,15 +73,15 @@ class PlornConfig:
             self.config.read(os.path.join(home_dir, config_dir, self.filename))
         else:
             module_logger.debug('config file not found, creating one')
-            self.config['plorn'] = {}
+            self.config['DEFAULT'] = {}
             uname = getpass.getuser()
-            self.config['plorn']['user'] = uname
+            self.config['DEFAULT']['user'] = uname
             fullname = pwd.getpwnam(uname).pw_gecos
-            self.config['plorn']['full_name'] = fullname
-            self.config['plorn']['config_dir'] = os.path.join('~', config_dir)
-            self.config['plorn']['data_dir'] = os.path.join('~', data_dir)
-            self.config['plorn']['default_catalog'] = 'Plorn'
-            self.config['plorn']['current_catalog'] = 'Plorn'
+            self.config['DEFAULT']['full_name'] = fullname
+            self.config['DEFAULT']['config_dir'] = os.path.join('~', config_dir)
+            self.config['DEFAULT']['data_dir'] = os.path.join('~', data_dir)
+            self.config['DEFAULT']['default_catalog'] = 'Plorn'
+            self.config['DEFAULT']['current_catalog'] = 'Plorn'
 
             self.config['gui'] = {}
             self.config['gui']['default_photo'] = "plorn_app.png"
@@ -118,28 +114,28 @@ class PlornConfig:
         return self.filename
 
     def get_username(self):
-        return self.config['plorn']['user']
+        return self.config['DEFAULT']['user']
 
     def set_username(self, name):
-        self.config['plorn']['user'] = name
+        self.config['DEFAULT']['user'] = name
 
     def get_fullname(self):
-        return self.config['plorn']['full_name']
+        return self.config['DEFAULT']['full_name']
 
     def set_fullname(self, name):
-        self.config['plorn']['full_name'] = name
+        self.config['DEFAULT']['full_name'] = name
 
     def get_configdir(self):
-        return self.config['plorn']['config_dir']
+        return self.config['DEFAULT']['config_dir']
 
     def set_configdir(self, path):
-        self.config['plorn']['config_dir'] = path
+        self.config['DEFAULT']['config_dir'] = path
 
     def get_datadir(self):
-        return self.config['plorn']['data_dir']
+        return self.config['DEFAULT']['data_dir']
 
     def set_datadir(self, path):
-        self.config['plorn']['data_dir'] = path
+        self.config['DEFAULT']['data_dir'] = path
 
     def get_version(self):
         global __version__
@@ -155,12 +151,12 @@ class PlornConfig:
         global module_logger
 
         result = None
-        datadir = self.config['plorn']['data_dir']
+        datadir = self.config['DEFAULT']['data_dir']
         dbname = 'plorn.db'
         if catalog in self.config.keys():
             result = self.config[catalog]['name']
             if self.config[catalog].get('data_dir') == None:
-                datadir = self.config['plorn']['data_dir']
+                datadir = self.config['DEFAULT']['data_dir']
             else:
                 datadir = self.config[catalog]['data_dir']
             dbname = self.config[catalog]['dbname']
@@ -175,12 +171,19 @@ class PlornConfig:
         return self._get_catalog(catalog)
 
     def get_current_catalog(self):
-        catalog = self.config['plorn']['current_catalog']
+        catalog = self.config['DEFAULT']['current_catalog']
         return self._get_catalog(catalog)
 
     def get_default_catalog(self):
-        catalog = self.config['plorn']['default_catalog']
+        catalog = self.config['DEFAULT']['default_catalog']
         return self._get_catalog(catalog)
+
+    def get_catalog_list(self):
+        res = []
+        for ii in self.config.keys():
+            if ii not in ['DEFAULT', 'gui']:
+                res.append(ii)
+        return sorted(res)
 
     def _set_catalog(self, catalog, datadir=None, dbname=None):
         '''
@@ -191,11 +194,12 @@ class PlornConfig:
         if catalog not in self.config.keys():
             self.config[catalog] = {}
         self.config[catalog]['name'] = catalog
-        if datadir:
-            self.config[catalog]['data_dir'] = datadir
-        else:
-            if 'data_dir' in self.config[catalog].keys():
+        if datadir == None:
+            val = self.config.get(catalog, 'data_dir', fallback=None)
+            if val != self.config['DEFAULT']['data_dir']:
                 del self.config[catalog]['data_dir']
+        else:
+            self.config[catalog]['data_dir'] = datadir
         if dbname:
             self.config[catalog]['dbname'] = dbname
         elif self.config[catalog].get('dbname') == None:
@@ -208,13 +212,13 @@ class PlornConfig:
         module_logger.info(msg)
 
     def set_current_catalog(self, name, datadir=None, dbname=None):
-        self.config['plorn']['current_catalog'] = name
+        self.config['DEFAULT']['current_catalog'] = name
 
     def set_catalog(self, name, datadir=None, dbname=None):
         self._set_catalog(name, datadir, dbname)
 
     def set_default_catalog(self, name, datadir=None, dbname=None):
-        self.config['plorn']['default_catalog'] = name
+        self.config['DEFAULT']['default_catalog'] = name
         self._set_catalog(name, datadir, dbname)
 
     def __str__(self):

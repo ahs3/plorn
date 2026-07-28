@@ -35,7 +35,7 @@ def get_test_cfgname(tmpdir):
     return os.path.join(tmpdir, 'completely_bogus.cfg')
 
 bogus_config_data = [
-         '[plorn]',
+         '[DEFAULT]',
          'user = fred',
          'full_name = Fred Flintstone',
          'config_dir = /tmp/test_plorn_barney',
@@ -57,7 +57,7 @@ bogus_config_data = [
 ]
 
 default_config_data = [
-         '[plorn]',
+         '[DEFAULT]',
          'user = fred',
          'full_name = Fred Flintstone',
          'config_dir = TMP_CFG_DIR',

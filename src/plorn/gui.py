@@ -117,12 +117,6 @@ class PlornNewCatalogDialog(QDialog):
         dbname = None
         res = dlg.exec()
         info = dlg.get_inputs()
-        #if res == QDialog.DialogCode.Accepted:
-        #    module_logger.debug('dlg result accepted')
-        #    module_logger.debug(f'new ask: {info}')
-        #elif res == QDialog.DialogCode.Rejected:
-        #    info = dlg.get_inputs()
-        #    module_logger.debug('dlg result rejected')
         return info
 
     def __init__(self, *args, **kwargs):
@@ -309,19 +303,20 @@ class Plorn(QMainWindow):
 
     def _catalogs_menu(self, mb):
         catalogs = mb.addMenu('&Catalogs')
-        new_action = QAction('New', parent=self)
+        new_action = QAction('&New', parent=self)
         new_action.setObjectName('new_catalog_action')
         new_action.triggered.connect(self.new_catalog_action)
         catalogs.addAction(new_action)
-        open_action = QAction('Open', parent=self)
-        open_action.setObjectName('open_catalog_action')
-        catalogs.addAction(open_action)
-        edit_action = QAction('Edit', parent=self)
-        edit_action.setObjectName('edit_catalog_action')
-        catalogs.addAction(edit_action)
-        close_action = QAction('Close', parent=self)
-        close_action.setObjectName('close_catalog_action')
-        catalogs.addAction(close_action)
+
+        open_menu = catalogs.addMenu('&Open')
+        open_menu.aboutToShow.connect(self.update_open_catalogs)
+        open_menu.triggered.connect(self.open_catalog)
+        if not hasattr(self, 'open_catalog_menu'):
+            setattr(self, 'open_catalog_menu', open_menu)
+
+        delete_action = QAction('&Delete', parent=self)
+        delete_action.setObjectName('delete_catalog_action')
+        catalogs.addAction(delete_action)
         return catalogs
 
     def _albums_menu(self, mb):
@@ -425,7 +420,7 @@ class Plorn(QMainWindow):
         
         olddb = QSqlDatabase.database(catalog)
         if olddb.isOpen() and olddb.isValid():
-            module_logger.debug(f'build_db: using {olddb.connection()}')
+            module_logger.debug(f'build_db: using {olddb.connectionName()}')
             return olddb
 
         db = QSqlDatabase.addDatabase('QSQLITE', connectionName=catalog)
@@ -438,6 +433,27 @@ class Plorn(QMainWindow):
             module_logger.debug(f'build_db: db open failed for {catalog}')
             module_logger.debug(f'build_db fail: {db.lastError().text()}')
         return db
+
+    def prettify_album_tree(self, tree):
+        global module_logger
+
+        tree.setAlternatingRowColors(True)
+        tree.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Sunken)
+        tree.setItemsExpandable(True)
+
+        tree.header().setDefaultAlignment(Qt.AlignmentFlag.AlignLeft)
+        tree.header().setSectionHidden(AlbumFields.DATED, True)
+        tree.header().setSectionHidden(AlbumFields.NOTES, True)
+
+        chunk = 100
+        tree.header().setMaximumSectionSize(int(10*chunk))
+        tree.header().resizeSection(AlbumFields.ID, chunk)
+        tree.header().resizeSection(AlbumFields.NAME, int(8*chunk))
+        tree.header().resizeSection(AlbumFields.PHOTO_COUNT, chunk)
+
+        tree.setItemDelegateForColumn(AlbumFields.ID, IDDelegate())
+        tree.setItemDelegate(QSqlRelationalDelegate(tree))
+
 
     def build_catalog(self):
         global module_logger
@@ -456,28 +472,13 @@ class Plorn(QMainWindow):
                       textFormat=Qt.TextFormat.MarkdownText)
         layout.addWidget(cathdr, 1, 0)
 
-        #--- format the tree
+        #--- build the album tree view
         tree = QTreeView()
         db = self.open_db()
         model = PlornAlbumModel(parent=tree, db=db)
         tree.setModel(model)
-        tree.setAlternatingRowColors(True)
-        tree.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Sunken)
-        tree.setItemsExpandable(True)
+        self.prettify_album_tree(tree)
         layout.addWidget(tree, 2, 0)
-
-        tree.header().setDefaultAlignment(Qt.AlignmentFlag.AlignLeft)
-        tree.header().setSectionHidden(AlbumFields.DATED, True)
-        tree.header().setSectionHidden(AlbumFields.NOTES, True)
-
-        chunk = 100
-        tree.header().setMaximumSectionSize(int(10*chunk))
-        tree.header().resizeSection(AlbumFields.ID, chunk)
-        tree.header().resizeSection(AlbumFields.NAME, int(8*chunk))
-        tree.header().resizeSection(AlbumFields.PHOTO_COUNT, chunk)
-
-        tree.setItemDelegateForColumn(AlbumFields.ID, IDDelegate())
-        tree.setItemDelegate(QSqlRelationalDelegate(tree))
 
         return frame, layout, tree, cathdr
 
@@ -571,6 +572,7 @@ class Plorn(QMainWindow):
                 self.album_tree.setModel(new_model)
 
                 module_logger.debug(f'new cat: current is now {new_cat}')
+                self.prettify_album_tree(self.album_tree)
                 self.set_catalog_info()
 
         if info['make_default']:
@@ -580,6 +582,34 @@ class Plorn(QMainWindow):
                 config.set_default_catalog(new_cat)
                 config.write_config()
                 module_logger.debug(f'new cat: {new_cat} is now default')
+
+    def update_open_catalogs(self):
+        global module_logger
+
+        module_logger.debug('entering upd_open_cat')
+        self.open_catalog_menu.clear()
+        config = PlornConfig()
+        current, cur_ddir, curdbname = config.get_current_catalog()
+        catlist = config.get_catalog_list()
+        module_logger.debug(f'open_cat: cat list {catlist}')
+        for name in catlist:
+            open_action = self.open_catalog_menu.addAction(f'{name}')
+            open_action.setCheckable(True)
+            if name == current:
+                open_action.setChecked(True)
+            else:
+                open_action.setChecked(False)
+            open_action.setData(name)
+
+    def open_catalog(self, action):
+        config = PlornConfig()
+        config.set_current_catalog(action.data())
+        config.write_config()
+        db = self.open_db()
+        model = PlornAlbumModel(parent=self.album_tree, db=db)
+        self.album_tree.setModel(model)
+        self.prettify_album_tree(self.album_tree)
+        self.set_catalog_info()
 
     def new_album_action(self):
         pass
