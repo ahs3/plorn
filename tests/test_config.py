@@ -57,7 +57,7 @@ def test_open_new1(plorn_test_env, monkeypatch):
     assert cfg.get_version() != ''
     assert cfg.get_default_photo() == 'plorn_app.png'
     catalog, datadir, dbname = cfg.get_current_catalog()
-    assert catalog == 'Default'
+    assert catalog == 'Plorn'
     assert datadir == cfg.get_datadir()
     assert dbname == 'plorn.db'
 
@@ -80,7 +80,7 @@ def test_open_new2(plorn_test_env, monkeypatch):
     assert cfg.get_version() != ''
     assert cfg.get_default_photo() == 'plorn_app.png'
     catalog, datadir, dbname = cfg.get_current_catalog()
-    assert catalog == 'Default'
+    assert catalog == 'Plorn'
     assert datadir == cfg.get_datadir()
     assert dbname == 'plorn.db'
 
@@ -103,7 +103,7 @@ def test_open_path1(plorn_test_env, monkeypatch):
     assert cfg.get_version() != ''
     assert cfg.get_default_photo() == 'silly-photo.png'
     catalog, datadir, dbname = cfg.get_current_catalog()
-    assert catalog == 'Default'
+    assert catalog == 'Plorn'
     assert datadir == cfg.get_datadir()
     assert dbname == 'default.catalog'
     catalog, datadir, dbname = cfg.get_catalog('Betty')
@@ -128,7 +128,7 @@ def test_open_path2(plorn_test_env, monkeypatch):
     assert cfg.get_version() != ''
     assert cfg.get_default_photo() == 'silly-photo.png'
     catalog, datadir, dbname = cfg.get_current_catalog()
-    assert catalog == 'Default'
+    assert catalog == 'Plorn'
     assert datadir == cfg.get_datadir()
     assert dbname == 'default.catalog'
     catalog, datadir, dbname = cfg.get_catalog('Betty')
@@ -156,7 +156,7 @@ def test_open_path3(plorn_test_env, monkeypatch):
     assert cfg.get_version() != ''
     assert cfg.get_default_photo() == 'silly-photo.png'
     catalog, datadir, dbname = cfg.get_current_catalog()
-    assert catalog == 'Default'
+    assert catalog == 'Plorn'
     assert datadir == cfg.get_datadir()
     assert dbname == 'default.catalog'
     catalog, datadir, dbname = cfg.get_catalog('Betty')
@@ -273,7 +273,7 @@ def test_get_default_catalog(plorn_test_env, monkeypatch):
     write_test_config(fname, bogus_config_data)
     cfg = PlornConfig()
     catalog, datadir, dbname = cfg.get_current_catalog()
-    assert catalog == 'Default'
+    assert catalog == 'Plorn'
     assert datadir == cfg.get_datadir()
     assert dbname == 'default.catalog'
 
@@ -283,8 +283,8 @@ def test_get_catalog1(plorn_test_env, monkeypatch):
     fname = os.path.join(cfgdir, 'plorn.cfg')
     write_test_config(fname, bogus_config_data)
     cfg = PlornConfig()
-    catalog, datadir, dbname = cfg.get_catalog('Default')
-    assert catalog == 'Default'
+    catalog, datadir, dbname = cfg.get_catalog('Plorn')
+    assert catalog == 'Plorn'
     assert datadir == cfg.get_datadir()
     assert dbname == 'default.catalog'
 
@@ -306,7 +306,7 @@ def test_set_default_catalog(plorn_test_env, monkeypatch):
     write_test_config(fname, bogus_config_data)
     cfg = PlornConfig()
     catalog, datadir, dbname = cfg.get_current_catalog()
-    assert catalog == 'Default'
+    assert catalog == 'Plorn'
     assert datadir == cfg.get_datadir()
     assert dbname == 'default.catalog'
 
@@ -328,13 +328,13 @@ def test_set_catalog(plorn_test_env, monkeypatch):
     write_test_config(fname, bogus_config_data)
     cfg = PlornConfig()
     catalog, datadir, dbname = cfg.get_current_catalog()
-    assert catalog == 'Default'
+    assert catalog == 'Plorn'
     assert datadir == cfg.get_datadir()
     assert dbname == 'default.catalog'
 
     cfg.set_catalog(name='Wilma', datadir='/tmp/foobar', dbname='omg.db')
     catalog, datadir, dbname = cfg.get_current_catalog()
-    assert catalog == 'Default'
+    assert catalog == 'Plorn'
     assert datadir == cfg.get_datadir()
     assert dbname == 'default.catalog'
 

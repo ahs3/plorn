@@ -115,10 +115,15 @@ class PlornNewCatalogDialog(QDialog):
         name = None
         datadir = None
         dbname = None
-        dlg.exec()
-        if dlg.result() == QDialog.DialogCode.Rejected:
-            return dlg.get_inputs()
-        return None
+        res = dlg.exec()
+        info = dlg.get_inputs()
+        #if res == QDialog.DialogCode.Accepted:
+        #    module_logger.debug('dlg result accepted')
+        #    module_logger.debug(f'new ask: {info}')
+        #elif res == QDialog.DialogCode.Rejected:
+        #    info = dlg.get_inputs()
+        #    module_logger.debug('dlg result rejected')
+        return info
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -162,6 +167,8 @@ class PlornNewCatalogDialog(QDialog):
         self.setLayout(layout)
 
     def check_inputs(self):
+        global module_logger
+
         if len(self.name_edit.text().strip()) < 1:
             QMessageBox.warning(self, 'Catalog Name Error',
                         'A name must be provided.')
@@ -183,6 +190,7 @@ class PlornNewCatalogDialog(QDialog):
             return QDialog.DialogCode.Rejected
         dbname = self.dbname_edit.text()
 
+        module_logger.debug('check_inputs returns accepted')
         return QDialog.DialogCode.Accepted
 
     def get_inputs(self):
@@ -198,6 +206,7 @@ class PlornNewCatalogDialog(QDialog):
         info['dbname'] = self.dbname_edit.text()
         info['make_current'] = self.make_current.isChecked()
         info['make_default'] = self.make_default.isChecked()
+        module_logger.debug(f'get_inputs returns {info}')
         return info
 
     def dlg_done(self, button):
@@ -214,22 +223,23 @@ class PlornNewCatalogDialog(QDialog):
             module_logger.debug('new cat: Cancel clicked')
             self.setResult(QDialog.DialogCode.Rejected)
 
+        module_logger.debug(f'dlg_done returns {self.result()}')
         self.close()
 
 
 #-- the actual plorn application
 class Plorn(QMainWindow):
     def __init__(self, *args, **kwargs):
+        global module_logger
         super().__init__(*args, **kwargs)
 
         #-- open up the data base
         config = PlornConfig()
         catname, datadir, dbname = config.get_current_catalog()
+        if not catname:
+            catname, datadir, dbname = config.get_default_catalog()
         self.dbname = dbname
         dbpath = os.path.join(datadir, dbname)
-        self.db = QSqlDatabase.addDatabase('QSQLITE')
-        self.db.setDatabaseName(dbpath)
-        self.db.open()
 
         #-- define the primary windows
         self.setWindowTitle('plorn')
@@ -274,9 +284,10 @@ class Plorn(QMainWindow):
         layout.addLayout(hlayout)
         layout.addWidget(self.header, alignment=Qt.AlignmentFlag.AlignTop)
 
-        catalog, clayout, tree = self.build_catalog(PlornAlbumModel())
+        catalog, clayout, tree, hdr = self.build_catalog()
         self.catalog = catalog
         self.album_tree = tree
+        self.catalog_header = hdr
         layout.addLayout(clayout)
         layout.addWidget(self.catalog, alignment=Qt.AlignmentFlag.AlignCenter)
         layout.addStretch(8)
@@ -292,7 +303,9 @@ class Plorn(QMainWindow):
         self.statusBar().showMessage(msg, msecs=timeout)
 
     def get_db(self):
-        return QSqlDatabase.database()
+        config = PlornConfig()
+        catname, datadir, dbname = config.get_current_catalog()
+        return QSqlDatabase.database(catname)
 
     def _catalogs_menu(self, mb):
         catalogs = mb.addMenu('&Catalogs')
@@ -402,7 +415,31 @@ class Plorn(QMainWindow):
 
         return header, layout, lhdr, mhdr, rhdr
 
-    def build_catalog(self, model):
+    def open_db(self):
+        global module_logger
+
+        module_logger.debug('entering build_db')
+        module_logger.debug(f'build_db: {QSqlDatabase.connectionNames()}')
+        config = PlornConfig()
+        catalog, datadir, dbname = config.get_current_catalog()
+        
+        olddb = QSqlDatabase.database(catalog)
+        if olddb.isOpen() and olddb.isValid():
+            module_logger.debug(f'build_db: using {olddb.connection()}')
+            return olddb
+
+        db = QSqlDatabase.addDatabase('QSQLITE', connectionName=catalog)
+        dbpath = os.path.join(datadir, dbname)
+        db.setDatabaseName(dbpath)
+        res = db.open()
+        if res:
+            module_logger.debug(f'build_db: db opened for {catalog}')
+        else:
+            module_logger.debug(f'build_db: db open failed for {catalog}')
+            module_logger.debug(f'build_db fail: {db.lastError().text()}')
+        return db
+
+    def build_catalog(self):
         global module_logger
 
         module_logger.debug('entering build_catalog')
@@ -421,6 +458,8 @@ class Plorn(QMainWindow):
 
         #--- format the tree
         tree = QTreeView()
+        db = self.open_db()
+        model = PlornAlbumModel(parent=tree, db=db)
         tree.setModel(model)
         tree.setAlternatingRowColors(True)
         tree.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Sunken)
@@ -440,7 +479,7 @@ class Plorn(QMainWindow):
         tree.setItemDelegateForColumn(AlbumFields.ID, IDDelegate())
         tree.setItemDelegate(QSqlRelationalDelegate(tree))
 
-        return frame, layout, tree
+        return frame, layout, tree, cathdr
 
     def build_statusbar(self):
         sb = self.statusBar()
@@ -462,6 +501,10 @@ class Plorn(QMainWindow):
 
         config = PlornConfig()
         catalog, datadir, dbname = config.get_current_catalog()
+        self.catalog_header.setText(f'**Catalog:** {catalog}')
+        db = QSqlDatabase.database(catalog)
+        db.open()
+        module_logger.debug(f'set cat info: db open? {db.isOpen()}')
         nalbums = self.album_tree.model().rowCount()
         asuffix = 's'
         if nalbums == 1:
@@ -478,7 +521,7 @@ class Plorn(QMainWindow):
         if nphotos == 1:
             psuffix = ''
         counts = f'{nalbums} album{asuffix}, {nphotos} photo{psuffix}'
-        self.catname.setText(f'catalog: {catalog}')
+        self.catname.setText(f'database: {os.path.basename(dbname)}')
         self.sbcounts.setText(counts)
 
     def exit_action(self):
@@ -491,8 +534,8 @@ class Plorn(QMainWindow):
     def new_catalog_action(self):
         global module_logger
 
-        newcat = PlornNewCatalogDialog()
-        info = newcat.ask(self)
+        catdlg = PlornNewCatalogDialog()
+        info = catdlg.ask(self)
         msg  = f'new cat action: '
         msg += f'cat {info['catalog']}, '
         msg += f'ddir {info['datadir']}, '
@@ -509,20 +552,35 @@ class Plorn(QMainWindow):
         if new_ddir != None and len(new_ddir.strip()) < 1:
             new_ddir = None
         config.set_catalog(name=new_cat, datadir=new_ddir, dbname=new_dbnm)
+        config.write_config()
         if info['make_current']:
             catalog, datadir, dbname = config.get_current_catalog()
+            module_logger.debug(f'new cat: current is {catalog}')
             if catalog != new_cat:
+                module_logger.debug(f'new cat: make {new_cat} current')
                 config.set_current_catalog(new_cat)
+                config.write_config()
+
+                model = self.album_tree.model()
+                model.setFilter('')
+                model.setSort(-1, Qt.SortOrder.AscendingOrder)
+                model.submitAll()
+                model.select()
+                db = self.open_db()
+                new_model = PlornAlbumModel(parent=self.album_tree, db=db)
+                self.album_tree.setModel(new_model)
+
+                module_logger.debug(f'new cat: current is now {new_cat}')
+                self.set_catalog_info()
+
         if info['make_default']:
             catalog, datadir, dbname = config.get_default_catalog()
+            module_logger.debug(f'new cat: default is {catalog}')
             if catalog != new_cat:
                 config.set_default_catalog(new_cat)
-        config.write_config()
+                config.write_config()
+                module_logger.debug(f'new cat: {new_cat} is now default')
 
-        #-- if we need to change the current db, we have to close the old
-        #   one and open the new one
-        # if info['make_current']:
-            
     def new_album_action(self):
         pass
 

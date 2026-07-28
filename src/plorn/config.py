@@ -14,7 +14,7 @@ import sys
 
 MAJOR = 0
 MINOR = 28
-BUGFIX = 1
+BUGFIX = 3
 __version__ = str(MAJOR) + '.' + str(MINOR) + '.' + str(BUGFIX)
 
 module_logger = logging.getLogger('plorn.config')
@@ -37,7 +37,7 @@ Config files:
     -- [gui] section is for appearance items
         -- default_photo: plorn_app.png -- used as an icon and a placeholder
            when an image needs to be shown, and in 'about' window
-    -- [default] section is for the default catalog
+    -- [database] section is for the default catalog
         -- data_dir: default ~/.local/share/plorn (overrides global)
         -- dbname: default $data_dir/plorn.db; if first character of path
            is '/', '~', or '.', do not prepend $data_dir
@@ -84,15 +84,15 @@ class PlornConfig:
             self.config['plorn']['full_name'] = fullname
             self.config['plorn']['config_dir'] = os.path.join('~', config_dir)
             self.config['plorn']['data_dir'] = os.path.join('~', data_dir)
-            self.config['plorn']['default_catalog'] = 'default'
-            self.config['plorn']['current_catalog'] = 'default'
+            self.config['plorn']['default_catalog'] = 'Plorn'
+            self.config['plorn']['current_catalog'] = 'Plorn'
 
             self.config['gui'] = {}
             self.config['gui']['default_photo'] = "plorn_app.png"
 
-            self.config['default'] = {}
-            self.config['default']['name'] = 'Default'
-            self.config['default']['dbname'] = 'plorn.db'
+            self.config['Plorn'] = {}
+            self.config['Plorn']['name'] = 'Plorn'
+            self.config['Plorn']['dbname'] = 'plorn.db'
 
             module_logger.debug(f'creating {self.filename}')
             self.write_config()

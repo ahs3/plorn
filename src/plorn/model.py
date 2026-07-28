@@ -36,10 +36,13 @@ class PlornAlbumModel(QSqlRelationalTableModel):
     '''
     NB: we always use the defalt connection for the db
     '''
-    def __init__(self, parent=None):
-        super().__init__(parent)
+    def __init__(self, parent=None, db=QSqlDatabase(), *args, **kwargs):
+        global module_logger
+        super().__init__(parent=parent, db=db, *args, **kwargs)
 
+        module_logger.debug(f'album model init: {db.connectionName()}')
         self.setTable('albums')
+        module_logger.debug(f'album model: valid? {db.isValid()}')
         self.setEditStrategy(QSqlTableModel.EditStrategy.OnFieldChange)
         self.setHeaderData(AlbumFields.ID,
                            Qt.Orientation.Horizontal, 'ID')
@@ -51,5 +54,6 @@ class PlornAlbumModel(QSqlRelationalTableModel):
                            Qt.Orientation.Horizontal, 'Notes')
         self.setHeaderData(AlbumFields.PHOTO_COUNT,
                            Qt.Orientation.Horizontal, 'Photo Count')
-        self.select()
+        res = self.select()
+        module_logger.debug(f'album model init: select result {res}')
 
