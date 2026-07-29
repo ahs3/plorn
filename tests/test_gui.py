@@ -66,7 +66,7 @@ def test_statusbar(initial_db, monkeypatch):
     assert msg[:len('ready')] == 'ready'
     config = PlornConfig()
     catalog, datadir, dbname = config.get_current_catalog()
-    assert root.catname.text() == f'catalog: {catalog}'
+    assert root.catname.text() == f'database: {dbname}'
     db = root.get_db()
     albums = root.album_tree.model().rowCount()
     asuf = 's'
@@ -108,9 +108,9 @@ def test_catalogs_menu(initial_db, monkeypatch):
     assert '&Catalogs' in menus
     assert root.catalogs_menu != None
     actions = action_list(root.catalogs_menu)
-    assert 'New' in actions
-    assert 'Open' in actions
-    assert 'Close' in actions
+    assert '&New' in actions
+    assert '&Open' in actions
+    assert '&Delete' in actions
     assert 'Quit' in actions
 
 def test_catalog_new1(initial_db, monkeypatch):

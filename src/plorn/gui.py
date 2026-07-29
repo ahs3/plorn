@@ -591,6 +591,7 @@ class Plorn(QMainWindow):
 
         module_logger.debug('entering upd_open_cat')
         self.open_catalog_menu.clear()
+        self.open_catalog_menu.addSection('Catalogs')
         config = PlornConfig()
         current, cur_ddir, curdbname = config.get_current_catalog()
         catlist = config.get_catalog_list()
@@ -618,6 +619,7 @@ class Plorn(QMainWindow):
 
         module_logger.debug('entering upd_remv_cat')
         self.delete_catalog_menu.clear()
+        self.delete_catalog_menu.addSection('Catalogs')
         config = PlornConfig()
         current, cur_ddir, curdbname = config.get_current_catalog()
         catlist = config.get_catalog_list()
@@ -634,11 +636,11 @@ class Plorn(QMainWindow):
         make sure they _really_ want to do this ....
         '''
         config = PlornConfig()
-        catalog, ddir, dbname = config.get_catalog(action.data())
+        catalog, ddir, dbname = self.get_catalog(action.data())
 
         mbox = QMessageBox(self)
         mbox.setIcon(QMessageBox.Icon.Warning)
-        mbox.setText(f'This only removes the catalog information from the configuration file.  The database "{dbname}" will remain until removed manually.')
+        mbox.setText(f'This only removes the catalog information from the configuration file.  The database "{dbname}" must be removed manually.')
         msg = f'Are you SURE you want to delete the {action.data()} catalog?'
         mbox.setInformativeText(msg)
         mbox.setStandardButtons(QMessageBox.StandardButton.Yes | \
