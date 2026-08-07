@@ -16,45 +16,146 @@ from PIL import Image as pilImage
 from PIL.ExifTags import TAGS as pilTAGS
 from PIL.ExifTags import GPSTAGS as pilGPSTAGS
 
-#import ttkbootstrap as ttk
-#from ttkbootstrap import StringVar, IntVar
-#from ttkbootstrap.constants import *
-#from ttkbootstrap.dialogs.message import Messagebox
+from PyQt6.QtCore import (
+    QSize,
+    Qt,
+)
 
-import plorn.attr
-import plorn.base_obj
-import plorn.db
-import plorn.common
-from plorn.config import config
-#import plorn.photo
-#import plorn.widgets
+from PyQt6.QtWidgets import (
+    QDialog,
+    QDialogButtonBox,
+    QGridLayout,
+    QLabel,
+    QLineEdit,
+    QSizePolicy,
+    QTextEdit,
+)
+
+from plorn.config import PlornConfig
 
 module_logger = logging.getLogger('plorn.album')
 module_logger.setLevel(logging.DEBUG)
 
-class PlornAlbum(plorn.base_obj.PlornBaseObj):
-    def __init__(self, name, id=None, dated='', notes='', photo_count=0,
-                 names=[], places=[], tags=[]):
-        self.photo_count = photo_count
-        super().__init__(name, id, dated, notes, names, places, tags)
-        module_logger.debug('initializing album object: ' + str(self))
 
-    def set_photo_count(self, photo_count):
-        self.photo_count = photo_count
+class PlornNewAlbumDialog(QDialog):
+    @classmethod
+    def ask(cls, parent):
+        global module_logger
 
-    def get_photo_count(self):
-        return self.photo_count
+        dlg = cls(parent)
+        result = None
+        name = None
+        datadir = None
+        dbname = None
+        res = dlg.exec()
+        info = dlg.get_inputs()
+        return info
 
-    def __str__(self):
-        val  = f'id: \'{self.id}\''
-        val += f', name: \'{self.name}\''
-        val += f', dated: \'{self.dated}\''
-        val += f', notes: \'{self.notes}\''
-        val += f', photo_count: \'{self.photo_count}\''
-        val += f', name_list: \'{str(self.name_list)}\''
-        val += f', place_list: \'{str(self.place_list)}\''
-        val += f', tag_list: \'{str(self.tag_list)}\''
-        return val
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setModal(True)
+        self.setWindowTitle('New Album')
+        layout = QGridLayout()
+        self.setSizePolicy(QSizePolicy.Policy.Expanding,
+                           QSizePolicy.Policy.Expanding)
+
+        config = PlornConfig()
+        catalog, datadir, dbname = config.get_current_catalog()
+        self.catalog_label = QLabel(f'***Catalog: {catalog}***',
+                                    textFormat=Qt.TextFormat.MarkdownText)
+        layout.addWidget(self.catalog_label, 0, 0)
+
+        self.name_label = QLabel('Album Name:')
+        layout.addWidget(self.name_label, 1, 0)
+        self.name_edit = QLineEdit()
+        self.name_edit.setText(f'{" ":>40}')
+        rect = self.name_edit.fontMetrics().boundingRect(self.name_edit.text())
+        self.name_edit.setMinimumWidth(2*rect.width())
+        self.name_edit.setText('')
+        layout.addWidget(self.name_edit, 1, 1)
+
+        self.dated_label = QLabel('Dated:')
+        layout.addWidget(self.dated_label, 2, 0)
+        self.dated_edit = QLineEdit()
+        self.dated_edit.setText(f'{" ":>40}')
+        rect = self.dated_edit.fontMetrics().boundingRect(self.dated_edit.text())
+        self.dated_edit.setMinimumWidth(2*rect.width())
+        self.dated_edit.setText('')
+        layout.addWidget(self.dated_edit, 2, 1)
+
+        self.notes_label = QLabel('Notes:')
+        layout.addWidget(self.notes_label, 3, 0,
+                         alignment=Qt.AlignmentFlag.AlignTop)
+        self.notes_edit = QTextEdit()
+        layout.addWidget(self.notes_edit, 3, 1)
+
+        self.bbox = QDialogButtonBox()
+        self.bbox.setStandardButtons(QDialogButtonBox.StandardButton.Ok |
+                                     QDialogButtonBox.StandardButton.Cancel
+        )
+        self.bbox.clicked.connect(self.dlg_done)
+        layout.addWidget(self.bbox, 4, 0, 1, 2)
+        self.setLayout(layout)
+
+    def check_inputs(self):
+        global module_logger
+
+        if len(self.name_edit.text().strip()) < 1:
+            QMessageBox.warning(self, 'Albume Name Error',
+                        'A name must be provided.')
+            return QDialog.DialogCode.Rejected
+        name = self.name_edit.text()
+        config = PlornConfig()
+        catalog, datadir, dbname = config.get_catalog(name)
+        if catalog != None:
+            QMessageBox.warning(self, 'Albume Name Error',
+                     'There is already a catalog with that name.')
+            return QDialog.DialogCode.Rejected
+
+        datadir = self.ddir_edit.text()
+        if len(datadir) < 1:
+            datadir = None
+        if len(self.dbname_edit.text().strip()) < 1:
+            QMessageBox.warning(self, 'Albume Database Name Error',
+                        'A database name must be provided.')
+            return QDialog.DialogCode.Rejected
+        dbname = self.dbname_edit.text()
+
+        module_logger.debug('check_inputs returns accepted')
+        return QDialog.DialogCode.Accepted
+
+    def get_inputs(self):
+        global module_logger
+
+        info = {}
+        info['catalog'] = self.name_edit.text()
+        info['datadir'] = self.ddir_edit.text()
+        datadir = self.ddir_edit.text()
+        if len(datadir.strip()) < 1:
+            datadir = None
+        info['datadir'] = datadir
+        info['dbname'] = self.dbname_edit.text()
+        info['make_current'] = self.make_current.isChecked()
+        info['make_default'] = self.make_default.isChecked()
+        module_logger.debug(f'get_inputs returns {info}')
+        return info
+
+    def dlg_done(self, button):
+        global module_logger
+
+        role = self.bbox.standardButton(button)
+        if role == QDialogButtonBox.StandardButton.Ok:
+            module_logger.debug('new cat: Ok clicked')
+            if self.check_inputs() == QDialog.DialogCode.Rejected:
+                return
+            self.setResult(QDialog.DialogCode.Accepted)
+
+        elif role == QDialogButtonBox.StandardButton.Cancel:
+            module_logger.debug('new cat: Cancel clicked')
+            self.setResult(QDialog.DialogCode.Rejected)
+
+        module_logger.debug(f'dlg_done returns {self.result()}')
+        self.close()
 
 
 #class PlornAlbumLeftFrame:

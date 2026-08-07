@@ -5,13 +5,9 @@
 #######################################################################
 
 import enum
-#import filetype
 import logging
 import os.path
-#import re
-#import shutil
 import sys
-#import time
 
 from PyQt6.QtCore import (
     QPoint,
@@ -53,8 +49,8 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QSpacerItem,
+    QSizePolicy,
     QStatusBar,
-    QStyledItemDelegate,
     QTreeView,
     QTreeWidgetItem,
     QToolBar,
@@ -63,23 +59,22 @@ from PyQt6.QtWidgets import (
     QWidgetItem,
 )
 
+from plorn.album_widgets import PlornNewAlbumDialog
 from plorn.config import PlornConfig
 from plorn.db import AlbumFields
 from plorn.model import PlornAlbumModel
-from plorn.widgets import *
+from plorn.widgets import (
+    IDDelegate,
+    PlornAttrView,
+    PlornSizePolicy,
+)
 
 #-- set up logging
 module_logger = logging.getLogger('plorn.gui')
 module_logger.setLevel(logging.DEBUG)
 
-#-- some helper classes that simplify testing the GUI
-class IDDelegate(QStyledItemDelegate):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
 
-    def displayText(self, value, locale):
-        return f'{value:04}'
-
+#-- some helper classes that simplify testing the GUI or whatever
 class PlornAboutDialog(QMessageBox):
     @classmethod
     def ask(cls, parent):
@@ -138,6 +133,7 @@ class PlornNewCatalogDialog(QDialog):
         self.ddir_edit.setText(f'{" ":>40}')
         rect = self.ddir_edit.fontMetrics().boundingRect(self.ddir_edit.text())
         self.ddir_edit.setMinimumWidth(2*rect.width())
+        self.ddir_edit.setText('')
         layout.addWidget(self.ddir_edit, 1, 1)
 
         self.dbname_label = QLabel('Database Name:')
@@ -324,17 +320,18 @@ class Plorn(QMainWindow):
 
     def _albums_menu(self, mb):
         albums = mb.addMenu('&Albums')
-        new_action = QAction('New', parent=self)
+        new_action = QAction('&New', parent=self)
         new_action.setObjectName('new_album_action')
         new_action.triggered.connect(self.new_album_action)
         albums.addAction(new_action)
-        open_action = QAction('Open', parent=self)
+
+        open_action = QAction('&Open', parent=self)
         open_action.setObjectName('open_album_action')
         albums.addAction(open_action)
-        edit_action = QAction('Edit', parent=self)
+        edit_action = QAction('&Edit', parent=self)
         edit_action.setObjectName('edit_album_action')
         albums.addAction(edit_action)
-        del_action = QAction('Delete', parent=self)
+        del_action = QAction('&Delete', parent=self)
         del_action.setObjectName('del_album_action')
         albums.addAction(del_action)
         return albums
@@ -355,6 +352,25 @@ class Plorn(QMainWindow):
         del_action.setObjectName('del_photo_action')
         photos.addAction(del_action)
         return photos
+
+    def _attrs_menu(self, mb):
+        attrs = mb.addMenu('&Attrbutes')
+        names_action = QAction('&Names', parent=self)
+        names_action.setObjectName('name_attr_action')
+        names_action.triggered.connect(self.names_attr_action)
+        attrs.addAction(names_action)
+
+        places_action = QAction('&Places', parent=self)
+        places_action.setObjectName('place_attr_action')
+        places_action.triggered.connect(self.places_attr_action)
+        attrs.addAction(places_action)
+
+        tags_action = QAction('&Tags', parent=self)
+        tags_action.setObjectName('tag_attr_action')
+        tags_action.triggered.connect(self.tags_attr_action)
+        attrs.addAction(tags_action)
+
+        return attrs
 
     def _tools_menu(self, mb):
         tools = mb.addMenu('&Tools')
@@ -386,9 +402,10 @@ class Plorn(QMainWindow):
         catalogs.insertSeparator(quit_action)
 
         #-- submenus ....
-        albums = self._albums_menu(mb)
-        photos = self._photos_menu(mb)
-        tools = self._tools_menu(mb)
+        albums   = self._albums_menu(mb)
+        photos   = self._photos_menu(mb)
+        attrs    = self._attrs_menu(mb)
+        tools    = self._tools_menu(mb)
         helpmenu = self._help_menu(mb)
 
         mb.show()
@@ -555,12 +572,14 @@ class Plorn(QMainWindow):
         new_dbnm = info['dbname']
         if new_ddir != None and len(new_ddir.strip()) < 1:
             new_ddir = None
-        config.set_catalog(name=new_cat, datadir=new_ddir, dbname=new_dbnm)
-        config.write_config()
-        if info['make_current']:
-            catalog, datadir, dbname = config.get_current_catalog()
-            module_logger.debug(f'new cat: current is {catalog}')
+        catalog, datadir, dbname = config.get_current_catalog()
+        module_logger.debug(f'new cat: current is {catalog}')
+        if len(info['catalog']) > 0 and info['make_current'] == True:
             if catalog != new_cat:
+                config.set_catalog(name=new_cat,
+                                   datadir=new_ddir,
+                                   dbname=new_dbnm)
+                config.write_config()
                 module_logger.debug(f'new cat: make {new_cat} current')
                 config.set_current_catalog(new_cat)
                 config.write_config()
@@ -578,10 +597,14 @@ class Plorn(QMainWindow):
                 self.prettify_album_tree(self.album_tree)
                 self.set_catalog_info()
 
-        if info['make_default']:
+        if len(info['catalog']) > 0 and info['make_default'] == True:
             catalog, datadir, dbname = config.get_default_catalog()
             module_logger.debug(f'new cat: default is {catalog}')
             if catalog != new_cat:
+                config.set_catalog(name=new_cat,
+                                   datadir=new_ddir,
+                                   dbname=new_dbnm)
+                config.write_config()
                 config.set_default_catalog(new_cat)
                 config.write_config()
                 module_logger.debug(f'new cat: {new_cat} is now default')
@@ -655,10 +678,83 @@ class Plorn(QMainWindow):
         config.write_config()
 
     def new_album_action(self):
-        pass
+        global module_logger
+
+        new_album_dlg = PlornNewAlbumDialog()
+        info = new_album_dlg.ask(self)
+        #msg  = f'new cat action: '
+        #msg += f'cat {info['catalog']}, '
+        #msg += f'ddir {info['datadir']}, '
+        #msg += f'db {info['dbname']}, '
+        #msg += f'chg {info['make_current']}, '
+        #msg += f'def {info['make_default']}'
+        #module_logger.debug(msg)
+
+        #-- input values have already been checked for validity
+        #config = PlornConfig()
+        #new_cat = info['catalog']
+        #new_ddir = info['datadir']
+        #new_dbnm = info['dbname']
+        #if new_ddir != None and len(new_ddir.strip()) < 1:
+        #    new_ddir = None
+        #config.set_catalog(name=new_cat, datadir=new_ddir, dbname=new_dbnm)
+        #config.write_config()
+        #if info['make_current']:
+        #    catalog, datadir, dbname = config.get_current_catalog()
+        #    module_logger.debug(f'new cat: current is {catalog}')
+        #    if catalog != new_cat:
+        #        module_logger.debug(f'new cat: make {new_cat} current')
+        #        config.set_current_catalog(new_cat)
+        #        config.write_config()
+
+        #        model = self.album_tree.model()
+        #        model.setFilter('')
+        #        model.setSort(-1, Qt.SortOrder.AscendingOrder)
+        #        model.submitAll()
+        #        model.select()
+        #        db = self.open_db()
+        #        new_model = PlornAlbumModel(parent=self.album_tree, db=db)
+        #        self.album_tree.setModel(new_model)
+
+        #        module_logger.debug(f'new cat: current is now {new_cat}')
+        #        self.prettify_album_tree(self.album_tree)
+        #        self.set_catalog_info()
+
+        #if info['make_default']:
+        #    catalog, datadir, dbname = config.get_default_catalog()
+        #    module_logger.debug(f'new cat: default is {catalog}')
+        #    if catalog != new_cat:
+        #        config.set_default_catalog(new_cat)
+        #        config.write_config()
+        #        module_logger.debug(f'new cat: {new_cat} is now default')
+
 
     def new_photo_action(self):
         pass
+
+    def names_attr_action(self):
+        global module_logger
+        
+        db = self.open_db()
+        name_view = PlornAttrView(title='Names', table='names', db=db)
+        name_view.exec()
+        module_logger.debug('name_attr_action done')
+
+    def places_attr_action(self):
+        global module_logger
+        
+        db = self.open_db()
+        place_view = PlornAttrView(title='Places', table='places', db=db)
+        place_view.exec()
+        module_logger.debug('place_attr_action done')
+
+    def tags_attr_action(self):
+        global module_logger
+        
+        db = self.open_db()
+        tag_view = PlornAttrView(title='Tags', table='tags', db=db)
+        tag_view.exec()
+        module_logger.debug('tag_attr_action done')
 
 
 #-- the plorn GUI

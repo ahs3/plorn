@@ -11,10 +11,20 @@ import logging
 import os
 import shutil
 
+import faulthandler
+faulthandler.enable()
+
 module_logger = logging.getLogger('plorn')
 module_logger.setLevel(logging.INFO)
 
 config = ''                 # global config info to be filled in later
+
+def DUMP_STACK():
+    with open('tb.log', 'a+') as fd:
+        print('\n===== traceback started ====', file=fd)
+        traceback.print_stack(limit=10, file=fd)
+        print('===== traceback done ====\n', file=fd)
+        fd.close()
 
 class PlornBaseObj:
     def __init__(self, name, id=None, dated='', notes='',
