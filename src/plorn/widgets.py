@@ -150,7 +150,7 @@ class PlornAttrView(QDialog):
         if not index.isValid():
             module_logger.debug('context_menu: assume invisible root')
             add_sib_action = menu.addAction('Add',
-                           lambda: self.add_attr_sib(self.invisibleRootItem()))
+                     lambda: self.add_attr_sib(self.model.invisibleRootItem()))
         else:
             item = self.model.itemFromIndex(index)
             add_sib_action = menu.addAction('Add Sibling',
@@ -184,6 +184,20 @@ class PlornAttrView(QDialog):
         if ok and input_value:
             res = add_attrs(self.model.invisibleRootItem(), parent, input_value,
                             table=self.table, db=self.db)
+            if res == 'cannot insert' or res == 'retrieve failed':
+                title = 'Internal Attribute Database Failure'
+                label_txt  = f'{res.capitalize()} "{input_value}"'
+                button = QMessageBox.critical(self, title, label_txt)
+                return
+            if res == 'duplicate attribute':
+                title = 'Duplicate Attribute'
+                label_txt  = f'"{input_value}" is already a sibling'
+                if parent and parent != self.model.invisibleRootItem():
+                    label_txt += f' of "{parent.text()}"'
+                else:
+                    label_txt += f' at the top most level'
+                button = QMessageBox.critical(self, title, label_txt)
+                return
             if parent != None:
                 self.tree.setExpanded(parent.index(), True)
             module_logger.debug(f'add_attr_sib {res}: {input_value}, {ptxt}')
@@ -211,6 +225,20 @@ class PlornAttrView(QDialog):
         if ok and input_value:
             res = add_attrs(self.model.invisibleRootItem(), item, input_value,
                             table=self.table, db=self.db)
+            if res == 'cannot insert' or res == 'retrieve failed':
+                title = 'Internal Attribute Database Failure'
+                label_txt  = f'{res.capitalize()} "{input_value}"'
+                button = QMessageBox.critical(self, title, label_txt)
+                return
+            if res == 'duplicate attribute':
+                title = 'Duplicate Attribute'
+                label_txt  = f'"{input_value} is already a child'
+                if item and item != self.model.invisibleRootItem():
+                    label_txt += f' of {item.text()}'
+                else:
+                    label_txt += f' at the top most level'
+                button = QMessageBox.critical(self, title, label_txt)
+                return
             self.tree.setExpanded(item.index(), True)
             module_logger.debug(
                 f'add_attr_child add {res}: {input_value}, {ptxt}')

@@ -92,22 +92,53 @@ def populate_attrs(root, table='names', db=QSqlDatabase()):
 def add_attrs(root, parent, value, table='names', db=QSqlDatabase()):
     global module_logger, _DBDATA
 
-    msg  = f'add_attr: add {value} to {table} in db {db.connectionName()}'
+    msg  = f'add_attrs: add {value} to {table} in db {db.connectionName()}'
     module_logger.debug(msg)
 
     if len(value) < 1:          # should be a string and actual QStandardItem
-        return False
+        return 'internal error: bad value'
     if parent == None:
         parent = root
-    msg  = f'add_attr: appending row {value} to "{parent.text()}"'
+    msg  = f'add_attrs: appending row "{value}" to "{parent.text()}"'
     module_logger.debug(msg)
     pid = 0
     if parent.data() and len(parent.data()) > 0:
-        pid = parent.data()[AttrFields.PARENT_ID]
+        module_logger.debug(f'add_attrs: parent data "{parent.data()}"')
+        pid = parent.data()[AttrFields.ID]
+
     # add to db to get an id and actual dbrow
-    item = _build_attr_item([-1, pid, value])
-    parent.appendRow(item)                  # add to treeview
-    return True
+    # ...but first, do we already have it?
+    sql  = f'SELECT * FROM {table} WHERE '
+    sql += f'value = "{value}" AND parent_id = {pid};'
+    query = QSqlQuery(sql, db=db)
+    if query and query.next():
+        module_logger.debug(f'add_attrs: found existing {query}')
+        return 'duplicate attribute'
+
+    # ...we don't, so try adding it
+    module_logger.debug(f'add_attrs: adding item to db')
+    sql  = f'INSERT INTO {table} '
+    sql += f'(parent_id, value) VALUES '
+    sql += f'({pid}, "{value}");'
+    query = QSqlQuery(sql, db=db)
+    if not query:
+        module_logger.debug(f'add_attrs: query to insert failed')
+        return 'cannot insert'
+
+    # ...we added it, so now tell the view
+    sql  = f'SELECT * FROM {table} WHERE '
+    sql += f'value = "{value}" AND parent_id = {pid};'
+    query = QSqlQuery(sql, db=db)
+    if not query.next():
+        module_logger.debug(f'add_attrs: retrieval of row failed')
+        return 'retrieve failed'
+    id = query.value(AttrFields.ID)
+    row = [id, pid, value]
+    module_logger.debug(f'add_attrs: added {row} to {table}')
+    item = _build_attr_item(row)
+    parent.appendRow(item)                          # add to treeview
+    module_logger.debug(f'add_attrs: okay and done')
+    return 'okay'
 
 def _build_attr_item(dbrow):
     id = dbrow[AttrFields.ID]
