@@ -74,16 +74,40 @@ class PlornAlbumModel(QSqlRelationalTableModel):
 #   data model for Attributes -- use QStandardItem model directly, so
 #   these are helper functions to populate the model
 #
+
+_DBDATA = {}
+
 def populate_attrs(root, table='names', db=QSqlDatabase()):
-    global module_logger
+    global module_logger, _DBDATA
 
     msg  = f'populate_attrs:{table} init: db {db.connectionName()}'
     module_logger.debug(msg)
 
     dbdata = _collect_attr_dbdata(table, db)
+    _DBDATA = dbdata
     dbtree = _build_attr_tree(root, dbdata)
     _dump_attr_tree(root, dbtree)
     module_logger.debug(f'populate_attrs: {table} init done')
+
+def add_attrs(root, parent, value, table='names', db=QSqlDatabase()):
+    global module_logger, _DBDATA
+
+    msg  = f'add_attr: add {value} to {table} in db {db.connectionName()}'
+    module_logger.debug(msg)
+
+    if len(value) < 1:          # should be a string and actual QStandardItem
+        return False
+    if parent == None:
+        parent = root
+    msg  = f'add_attr: appending row {value} to "{parent.text()}"'
+    module_logger.debug(msg)
+    pid = 0
+    if parent.data() and len(parent.data()) > 0:
+        pid = parent.data()[AttrFields.PARENT_ID]
+    # add to db to get an id and actual dbrow
+    item = _build_attr_item([-1, pid, value])
+    parent.appendRow(item)                  # add to treeview
+    return True
 
 def _build_attr_item(dbrow):
     id = dbrow[AttrFields.ID]

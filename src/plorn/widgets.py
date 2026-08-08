@@ -17,6 +17,7 @@ from PyQt6.QtSql import (
 )
 
 from PyQt6.QtGui import (
+    QStandardItem,
     QStandardItemModel,
 )
 
@@ -37,7 +38,7 @@ from PyQt6.QtWidgets import (
 
 from plorn.config import PlornConfig
 from plorn.db import AttrFields
-from plorn.model import populate_attrs
+from plorn.model import populate_attrs, add_attrs
 
 module_logger = logging.getLogger('plorn.widgets')
 module_logger.setLevel(logging.DEBUG)
@@ -147,9 +148,9 @@ class PlornAttrView(QDialog):
         menu = QMenu()
         menu.setTitle('Actions')
         if not index.isValid():
-            module_logger.debug('context_menu: invalid index')
+            module_logger.debug('context_menu: assume invisible root')
             add_sib_action = menu.addAction('Add',
-                                   lambda: self.add_attr_sib(None))
+                           lambda: self.add_attr_sib(self.invisibleRootItem()))
         else:
             item = self.model.itemFromIndex(index)
             add_sib_action = menu.addAction('Add Sibling',
@@ -173,14 +174,18 @@ class PlornAttrView(QDialog):
             label_txt = f'Add {self.title[0:-1].capitalize()}:'
 
         ptxt = 'invisibleRoot'
-        parent = None
+        parent = self.model.invisibleRootItem()
         if item and item != self.model.invisibleRootItem():
             parent = item.parent()
             if parent and parent != self.model.invisibleRootItem():
                 ptxt = f' parent = {parent.text()}'
+
         input_value, ok = QInputDialog.getText(self, title, label_txt)
         if ok and input_value:
-            res = self.model.add_attr(input_value, parent)
+            res = add_attrs(self.model.invisibleRootItem(), parent, input_value,
+                            table=self.table, db=self.db)
+            if parent != None:
+                self.tree.setExpanded(parent.index(), True)
             module_logger.debug(f'add_attr_sib {res}: {input_value}, {ptxt}')
         else:
             module_logger.debug(f'add_attr_sib canceled: {input_value}, {ptxt}')
@@ -204,7 +209,9 @@ class PlornAttrView(QDialog):
             ptxt = f' parent = {item.text()}'
         input_value, ok = QInputDialog.getText(self, title, label_txt)
         if ok and input_value:
-            res = self.model.add_attr(input_value, item)
+            res = add_attrs(self.model.invisibleRootItem(), item, input_value,
+                            table=self.table, db=self.db)
+            self.tree.setExpanded(item.index(), True)
             module_logger.debug(
                 f'add_attr_child add {res}: {input_value}, {ptxt}')
         else:
