@@ -459,17 +459,18 @@ class Plorn(QMainWindow):
 
         tree.setAlternatingRowColors(True)
         tree.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Sunken)
-        tree.setItemsExpandable(True)
+        tree.setItemsExpandable(False)
 
         tree.header().setDefaultAlignment(Qt.AlignmentFlag.AlignLeft)
-        tree.header().setSectionHidden(AlbumFields.DATED, True)
+        #tree.header().setSectionHidden(AlbumFields.DATED, True)
         tree.header().setSectionHidden(AlbumFields.NOTES, True)
 
-        chunk = 100
-        tree.header().setMaximumSectionSize(int(10*chunk))
-        tree.header().resizeSection(AlbumFields.ID, chunk)
-        tree.header().resizeSection(AlbumFields.NAME, int(8*chunk))
-        tree.header().resizeSection(AlbumFields.PHOTO_COUNT, chunk)
+        chunk = 25
+        tree.header().setMaximumSectionSize(int(40*chunk))
+        tree.header().resizeSection(AlbumFields.ID, int(4*chunk))
+        tree.header().resizeSection(AlbumFields.NAME, int(24*chunk))
+        tree.header().resizeSection(AlbumFields.DATED, int(8*chunk))
+        tree.header().resizeSection(AlbumFields.PHOTO_COUNT, int(4*chunk))
 
         tree.setItemDelegateForColumn(AlbumFields.ID, IDDelegate())
         tree.setItemDelegate(QSqlRelationalDelegate(tree))

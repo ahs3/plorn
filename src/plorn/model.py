@@ -20,6 +20,7 @@ from PyQt6.QtCore import (
 )
 
 from PyQt6.QtGui import (
+    QFont,
     QIcon,
     QStandardItem,
     QStandardItemModel,
@@ -55,18 +56,42 @@ class PlornAlbumModel(QSqlRelationalTableModel):
         self.setTable('albums')
         module_logger.debug(f'album model: valid? {db.isValid()}')
         self.setEditStrategy(QSqlTableModel.EditStrategy.OnFieldChange)
-        self.setHeaderData(AlbumFields.ID,
-                           Qt.Orientation.Horizontal, 'ID')
-        self.setHeaderData(AlbumFields.NAME,
-                           Qt.Orientation.Horizontal, 'Album')
-        self.setHeaderData(AlbumFields.DATED,
-                           Qt.Orientation.Horizontal, 'Dated')
-        self.setHeaderData(AlbumFields.NOTES,
-                           Qt.Orientation.Horizontal, 'Notes')
-        self.setHeaderData(AlbumFields.PHOTO_COUNT,
-                           Qt.Orientation.Horizontal, 'Photo Count')
+        #self.setHeaderData(AlbumFields.ID,
+        #                   Qt.Orientation.Horizontal, 'ID')
+        #self.setHeaderData(AlbumFields.NAME,
+        #                   Qt.Orientation.Horizontal, 'Album')
+        #self.setHeaderData(AlbumFields.DATED,
+        #                   Qt.Orientation.Horizontal, 'Dated')
+        #self.setHeaderData(AlbumFields.NOTES,
+        #                   Qt.Orientation.Horizontal, 'Notes')
+        #self.setHeaderData(AlbumFields.PHOTO_COUNT,
+        #                   Qt.Orientation.Horizontal, 'Photo Count')
         res = self.select()
         module_logger.debug(f'album model init: select result {res}')
+
+    def headerData(self, section, orientation,
+                   role=Qt.ItemDataRole.DisplayRole):
+        global module_logger
+
+        super().headerData(section, orientation, role)
+        module_logger.debug(f'headerData: {section, role}')
+
+        section_text = ['ID', 'Album', 'Dated', 'Notes', 'Photo Count']
+        if role == Qt.ItemDataRole.DisplayRole:
+            module_logger.debug(f'headerData: display {section}')
+            return str(section_text[section])
+
+        elif role == Qt.ItemDataRole.FontRole:
+            font = QFont()
+            font.setBold(True)
+            return font
+
+        elif section==AttrFields.ID and role==Qt.ItemDataRole.TextAlignmentRole:
+            return Qt.AlignmentFlag.AlignHCenter
+
+        elif section > AttrFields.ID:
+            return Qt.AlignmentFlag.AlignLeft
+        
 
 
 ##########################################################################

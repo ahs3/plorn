@@ -65,7 +65,8 @@ class PlornNewAlbumDialog(QDialog):
                                     textFormat=Qt.TextFormat.MarkdownText)
         layout.addWidget(self.catalog_label, 0, 0)
 
-        self.name_label = QLabel('Album Name:')
+        self.name_label = QLabel('Album Name:',
+                                 alignment=Qt.AlignmentFlag.AlignRight)
         layout.addWidget(self.name_label, 1, 0)
         self.name_edit = QLineEdit()
         self.name_edit.setText(f'{" ":>40}')
@@ -74,7 +75,8 @@ class PlornNewAlbumDialog(QDialog):
         self.name_edit.setText('')
         layout.addWidget(self.name_edit, 1, 1)
 
-        self.dated_label = QLabel('Dated:')
+        self.dated_label = QLabel('Dated:',
+                                  alignment=Qt.AlignmentFlag.AlignRight)
         layout.addWidget(self.dated_label, 2, 0)
         self.dated_edit = QLineEdit()
         self.dated_edit.setText(f'{" ":>40}')
@@ -83,7 +85,8 @@ class PlornNewAlbumDialog(QDialog):
         self.dated_edit.setText('')
         layout.addWidget(self.dated_edit, 2, 1)
 
-        self.notes_label = QLabel('Notes:')
+        self.notes_label = QLabel('Notes:',
+                                  alignment=Qt.AlignmentFlag.AlignRight)
         layout.addWidget(self.notes_label, 3, 0,
                          alignment=Qt.AlignmentFlag.AlignTop)
         self.notes_edit = QTextEdit()
@@ -112,14 +115,14 @@ class PlornNewAlbumDialog(QDialog):
                      'There is already a catalog with that name.')
             return QDialog.DialogCode.Rejected
 
-        datadir = self.ddir_edit.text()
-        if len(datadir) < 1:
-            datadir = None
-        if len(self.dbname_edit.text().strip()) < 1:
-            QMessageBox.warning(self, 'Albume Database Name Error',
-                        'A database name must be provided.')
-            return QDialog.DialogCode.Rejected
-        dbname = self.dbname_edit.text()
+        #datadir = self.ddir_edit.text()
+        #if len(datadir) < 1:
+        #    datadir = None
+        #if len(self.dbname_edit.text().strip()) < 1:
+        #    QMessageBox.warning(self, 'Albume Database Name Error',
+        #                'A database name must be provided.')
+        #    return QDialog.DialogCode.Rejected
+        #dbname = self.dbname_edit.text()
 
         module_logger.debug('check_inputs returns accepted')
         return QDialog.DialogCode.Accepted
