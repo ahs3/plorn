@@ -137,7 +137,56 @@ def add_attrs(root, parent, value, table='names', db=QSqlDatabase()):
     module_logger.debug(f'add_attrs: added {row} to {table}')
     item = _build_attr_item(row)
     parent.appendRow(item)                          # add to treeview
+    _DBDATA[id] = item                              # save if for the "model"
     module_logger.debug(f'add_attrs: okay and done')
+    return 'okay'
+
+def remove_attrs(root, item, table='names', db=QSqlDatabase()):
+    global module_logger, _DBDATA
+
+    if not item:
+        module_logger.debug('remove_attrs: nothing to remove')
+        return 'okay'
+
+    msg  = f'remove_attrs: remove {item.text()} from {table} '
+    msg += f'in db {db.connectionName()}'
+    module_logger.debug(msg)
+
+    row = item.data()
+    if not row or len(row) < 1:                     # cannot remove root
+        return 'cannot delete root'
+
+    id = row[AttrFields.ID]                         # no such db record
+    if id < 1:
+        return 'cannot delete db index 0'
+
+    parent = item.parent()
+    msg = 'remove_attrs: '
+    if not parent:
+        parent = root
+        msg += f'deleting {item.row()} from root'
+    else:
+        msg += f'deleting {item.row()} from parent {parent.text()}'
+    module_logger.debug(msg)
+
+    while item.hasChildren():
+        res = remove_attrs(root, item.child(0), table=table, db=db)
+
+    sql  = f'DELETE FROM {table} WHERE id = {id};'
+    query = QSqlQuery(sql, db=db)
+    if not query:
+        module_logger.debug(f'remove_attrs: retrieval of row failed')
+        return 'retrieve failed'
+    module_logger.debug(f'remove_attrs: deleted {row} from {table}')
+
+    module_logger.debug(msg)
+    value = item.text()
+    parent.removeRow(item.row())                    # remove from treeview
+    if id in _DBDATA.keys():
+        msg = f'remove_attrs: deleting "{value}" from _DBDATA'
+        module_logger.debug(msg)
+        del _DBDATA[id]
+    module_logger.debug(f'remove_attrs: okay and done')
     return 'okay'
 
 def _build_attr_item(dbrow):
@@ -195,6 +244,8 @@ def _build_attr_tree(root, dbdata):
                     root.appendRow(item)
                     dbtree[id] = item
                     count -= 1
+                else:
+                    module_logger.debug(f'! skipping???')
     root.sortChildren(0, Qt.SortOrder.AscendingOrder)
     module_logger.debug('_build_attr_tree: done')
     return dbtree

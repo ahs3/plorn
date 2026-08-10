@@ -38,7 +38,7 @@ from PyQt6.QtWidgets import (
 
 from plorn.config import PlornConfig
 from plorn.db import AttrFields
-from plorn.model import populate_attrs, add_attrs
+from plorn.model import populate_attrs, add_attrs, remove_attrs
 
 module_logger = logging.getLogger('plorn.widgets')
 module_logger.setLevel(logging.DEBUG)
@@ -255,18 +255,33 @@ class PlornAttrView(QDialog):
         title = f'Remove {self.title.capitalize()}'
         if self.title[-1] == 's':    # English specific ...
             label_txt = f'Add {self.title[0:-1].capitalize()}:'
-        msg  = f'remove_attr {self.table}:'
-        msg += f' add child to {item.text()}'
+        msg  = f'remove_attr "{item.text()}" from {self.table}:'
         module_logger.debug(msg)
         label_txt = f'Remove "{item.text()}"'
         if item.hasChildren():
             label_txt += ' and children'
         label_txt += '?'
+        parent = item.parent()
+        if not parent:
+            parent = self.model.invisibleRootItem()
+        value = item.text()
         button = QMessageBox.question(self, title, label_txt)
         if button == QMessageBox.StandardButton.Yes:
-            response = 'Yes'
+            module_logger.debug(f'remove_attr? Yes')
+            res = remove_attrs(self.model.invisibleRootItem(), item,
+                               table=self.table, db=self.db)
+            if res == 'cannot delete root' or \
+               res == 'cannot delete db index 0' or \
+               res == 'retrieve failed':
+                title = 'Internal Attribute Database Failure'
+                label_txt  = f'{res.capitalize()}'
+                button = QMessageBox.critical(self, title, label_txt)
+                return
+            self.tree.setExpanded(parent.index(), True)
+            module_logger.debug(
+                f'remove_attr: removed "{value}" from "{parent.text()}"')
         else:
-            response = 'No'
-        module_logger.debug(f'remove_attr? {response}')
+            module_logger.debug(f'remove_attr? No')
+
         module_logger.debug(f'remove_attr done: {self.table}')
 
