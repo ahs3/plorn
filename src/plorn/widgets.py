@@ -17,6 +17,7 @@ from PyQt6.QtSql import (
 )
 
 from PyQt6.QtGui import (
+    QFont,
     QStandardItem,
     QStandardItemModel,
 )
@@ -37,8 +38,13 @@ from PyQt6.QtWidgets import (
 )
 
 from plorn.config import PlornConfig
-from plorn.db import AttrFields
-from plorn.model import populate_attrs, add_attrs, remove_attrs
+from plorn.db import AlbumFields, AttrFields
+from plorn.model import (
+    populate_albums,
+    populate_attrs,
+    add_attrs,
+    remove_attrs,
+)
 
 module_logger = logging.getLogger('plorn.widgets')
 module_logger.setLevel(logging.DEBUG)
@@ -285,3 +291,208 @@ class PlornAttrView(QDialog):
 
         module_logger.debug(f'remove_attr done: {self.table}')
 
+
+class PlornAlbumView(QWidget):
+    '''
+    widget class for displaying and editing albums and their photos
+    '''
+    def __init__(self, db=None, *args, **kwargs):
+        global module_logger
+        super().__init__(*args, **kwargs)
+
+        module_logger.debug('entering PlornAlbumView')
+        self.db = db
+        self.model = QStandardItemModel()
+        self.root = self.model.invisibleRootItem()
+
+        layout = QGridLayout()
+        self.setSizePolicy(QSizePolicy.Policy.Expanding,
+                           QSizePolicy.Policy.Expanding)
+
+        font = QFont()
+        font.setBold(True)
+        self.model.setColumnCount(5)
+        hdr_id = QStandardItem('ID')
+        hdr_id.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        hdr_id.setFont(font)
+        self.model.setHorizontalHeaderItem(1, hdr_id)
+        hdr_album = QStandardItem('Album')
+        hdr_album.setTextAlignment(Qt.AlignmentFlag.AlignLeft |
+                                   Qt.AlignmentFlag.AlignVCenter)
+        hdr_album.setFont(font)
+        self.model.setHorizontalHeaderItem(2, hdr_album)
+        hdr_count = QStandardItem('Photo\nCount')
+        hdr_count.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        hdr_count.setFont(font)
+        self.model.setHorizontalHeaderItem(3, hdr_count)
+        hdr_path = QStandardItem('Path')
+        hdr_path.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        hdr_path.setFont(font)
+        self.model.setHorizontalHeaderItem(4, hdr_path)
+
+        tree = QTreeView(parent=self)
+        tree.setModel(self.model)
+        tree.setAlternatingRowColors(True)
+        tree.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Sunken)
+        tree.setItemsExpandable(True)
+        tree.setUniformRowHeights(True)
+        tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        tree.customContextMenuRequested.connect(self.context_menu)
+        tree.setToolTip('Right-click for actions')
+        self.tree = tree
+        layout.addWidget(self.tree, 0, 0)
+
+        tree.setHeaderHidden(False)
+        tree.header().setSectionHidden(0, True)
+        tree.header().resizeSection(1, 100)
+        tree.header().resizeSection(2, 400)
+        tree.header().resizeSection(3, 150)
+
+        self.setLayout(layout)
+        populate_albums(root=self.root, db=self.db)
+        module_logger.debug('PlornAlbumView all done')
+ 
+    def context_menu(self, position):
+        global module_logger
+
+        module_logger.debug(f'context_menu entered: {self.table}')
+        index = self.tree.indexAt(position)
+        menu = QMenu()
+        menu.setTitle('Actions')
+        if not index.isValid():
+            module_logger.debug('context_menu: assume invisible root')
+            add_sib_action = menu.addAction('Add',
+                     lambda: self.add_album_sib(self.model.invisibleRootItem()))
+        else:
+            item = self.model.itemFromIndex(index)
+            add_sib_action = menu.addAction('Add Sibling',
+                                   lambda: self.add_album_sib(item))
+            add_child_action = menu.addAction('Add Child',
+                                   lambda: self.add_album_child(item))
+            remove_action = menu.addAction('Remove',
+                                   lambda: self.remove_album(item))
+        expand_action = menu.addAction('Expand All', self.tree.expandAll)
+        collapse_action = menu.addAction('Collapse All', self.tree.collapseAll)
+        action = menu.exec(self.tree.viewport().mapToGlobal(position))
+        module_logger.debug(f'context_menu done: {self.table}')
+
+    def add_album_sib(self, item):
+        global module_logger
+
+        module_logger.debug(f'add_album_sib entered: {self.table}')
+        title = f'Add Sibling {self.title.capitalize()}'
+        label_txt = f'Add {self.title.capitalize()}:'
+        if self.title[-1] == 's':    # English specific ...
+            label_txt = f'Add {self.title[0:-1].capitalize()}:'
+
+        ptxt = 'invisibleRoot'
+        parent = self.model.invisibleRootItem()
+        if item and item != self.model.invisibleRootItem():
+            parent = item.parent()
+            if parent and parent != self.model.invisibleRootItem():
+                ptxt = f' parent = {parent.text()}'
+
+        input_value, ok = QInputDialog.getText(self, title, label_txt)
+        if ok and input_value:
+            res = add_albums(self.model.invisibleRootItem(), parent, input_value,
+                            table=self.table, db=self.db)
+            if res == 'cannot insert' or res == 'retrieve failed':
+                title = 'Internal Attribute Database Failure'
+                label_txt  = f'{res.capitalize()} "{input_value}"'
+                button = QMessageBox.critical(self, title, label_txt)
+                return
+            if res == 'duplicate albumibute':
+                title = 'Duplicate Attribute'
+                label_txt  = f'"{input_value}" is already a sibling'
+                if parent and parent != self.model.invisibleRootItem():
+                    label_txt += f' of "{parent.text()}"'
+                else:
+                    label_txt += f' at the top most level'
+                button = QMessageBox.critical(self, title, label_txt)
+                return
+            if parent != None:
+                self.tree.setExpanded(parent.index(), True)
+            module_logger.debug(f'add_album_sib {res}: {input_value}, {ptxt}')
+        else:
+            module_logger.debug(f'add_album_sib canceled: {input_value}, {ptxt}')
+
+        module_logger.debug(f'add_album_sib done: {self.table}')
+
+    def add_album_child(self, item):
+        global module_logger
+
+        module_logger.debug(f'add_album_child entered: {self.table}')
+        title = f'Add Child {self.title.capitalize()}'
+        if self.title[-1] == 's':    # English specific ...
+            label_txt = f'Add {self.title[0:-1].capitalize()}:'
+        msg  = f'add_album_child {self.table}:'
+        msg += f' add child to {item.text()}'
+        module_logger.debug(msg)
+        label_txt = f'Add child to {item.text()}:'
+
+        ptxt = 'invisibleRoot'
+        if item and item != self.model.invisibleRootItem():
+            ptxt = f' parent = {item.text()}'
+        input_value, ok = QInputDialog.getText(self, title, label_txt)
+        if ok and input_value:
+            res = add_albums(self.model.invisibleRootItem(), item, input_value,
+                            table=self.table, db=self.db)
+            if res == 'cannot insert' or res == 'retrieve failed':
+                title = 'Internal Attribute Database Failure'
+                label_txt  = f'{res.capitalize()} "{input_value}"'
+                button = QMessageBox.critical(self, title, label_txt)
+                return
+            if res == 'duplicate albumibute':
+                title = 'Duplicate Attribute'
+                label_txt  = f'"{input_value} is already a child'
+                if item and item != self.model.invisibleRootItem():
+                    label_txt += f' of {item.text()}'
+                else:
+                    label_txt += f' at the top most level'
+                button = QMessageBox.critical(self, title, label_txt)
+                return
+            self.tree.setExpanded(item.index(), True)
+            module_logger.debug(
+                f'add_album_child add {res}: {input_value}, {ptxt}')
+        else:
+            module_logger.debug(
+                f'add_album_child canceled: {input_value}, {ptxt}')
+
+        module_logger.debug(f'add_album_child done: {self.table}')
+
+    def remove_album(self, item):
+        global module_logger
+
+        module_logger.debug(f'remove_album entered: {self.table}')
+        title = f'Remove {self.title.capitalize()}'
+        if self.title[-1] == 's':    # English specific ...
+            label_txt = f'Add {self.title[0:-1].capitalize()}:'
+        msg  = f'remove_album "{item.text()}" from {self.table}:'
+        module_logger.debug(msg)
+        label_txt = f'Remove "{item.text()}"'
+        if item.hasChildren():
+            label_txt += ' and children'
+        label_txt += '?'
+        parent = item.parent()
+        if not parent:
+            parent = self.model.invisibleRootItem()
+        value = item.text()
+        button = QMessageBox.question(self, title, label_txt)
+        if button == QMessageBox.StandardButton.Yes:
+            module_logger.debug(f'remove_album? Yes')
+            res = remove_albums(self.model.invisibleRootItem(), item,
+                               table=self.table, db=self.db)
+            if res == 'cannot delete root' or \
+               res == 'cannot delete db index 0' or \
+               res == 'retrieve failed':
+                title = 'Internal Attribute Database Failure'
+                label_txt  = f'{res.capitalize()}'
+                button = QMessageBox.critical(self, title, label_txt)
+                return
+            self.tree.setExpanded(parent.index(), True)
+            module_logger.debug(
+                f'remove_album: removed "{value}" from "{parent.text()}"')
+        else:
+            module_logger.debug(f'remove_album? No')
+
+        module_logger.debug(f'remove_album done: {self.table}')

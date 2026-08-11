@@ -22,6 +22,7 @@ from PyQt6.QtGui import (
     QIcon,
     QPalette,
     QPixmap,
+    QStandardItem,
     QValidator,
 )
 
@@ -62,9 +63,10 @@ from PyQt6.QtWidgets import (
 from plorn.album_widgets import PlornNewAlbumDialog
 from plorn.config import PlornConfig
 from plorn.db import AlbumFields
-from plorn.model import PlornAlbumModel
+from plorn.model import album_stats
 from plorn.widgets import (
     IDDelegate,
+    PlornAlbumView,
     PlornAttrView,
     PlornSizePolicy,
 )
@@ -462,7 +464,6 @@ class Plorn(QMainWindow):
         tree.setItemsExpandable(False)
 
         tree.header().setDefaultAlignment(Qt.AlignmentFlag.AlignLeft)
-        #tree.header().setSectionHidden(AlbumFields.DATED, True)
         tree.header().setSectionHidden(AlbumFields.NOTES, True)
 
         chunk = 25
@@ -473,7 +474,7 @@ class Plorn(QMainWindow):
         tree.header().resizeSection(AlbumFields.PHOTO_COUNT, int(4*chunk))
 
         tree.setItemDelegateForColumn(AlbumFields.ID, IDDelegate())
-        tree.setItemDelegate(QSqlRelationalDelegate(tree))
+        #tree.setItemDelegate(QSqlRelationalDelegate(tree))
 
 
     def build_catalog(self):
@@ -494,11 +495,8 @@ class Plorn(QMainWindow):
         layout.addWidget(cathdr, 1, 0)
 
         #--- build the album tree view
-        tree = QTreeView()
         db = self.open_db()
-        model = PlornAlbumModel(parent=tree, db=db)
-        tree.setModel(model)
-        self.prettify_album_tree(tree)
+        tree = PlornAlbumView(db=db)
         layout.addWidget(tree, 2, 0)
 
         return frame, layout, tree, cathdr
@@ -524,21 +522,10 @@ class Plorn(QMainWindow):
         config = PlornConfig()
         catalog, datadir, dbname = config.get_current_catalog()
         self.catalog_header.setText(f'**Catalog:** {catalog}')
-        db = QSqlDatabase.database(catalog)
-        db.open()
-        module_logger.debug(f'set cat info: db open? {db.isOpen()}')
-        nalbums = self.album_tree.model().rowCount()
+        nalbums, nphotos = album_stats()
         asuffix = 's'
         if nalbums == 1:
             asuffix = ''
-
-        nphotos = 0
-        model = self.album_tree.model()
-        for row in range(model.rowCount()):
-            item = model.index(row, AlbumFields.PHOTO_COUNT)
-            module_logger.debug(f'row {row} = {item.data()}')
-            nphotos += item.data()
-        module_logger.debug(f'nphotos = {nphotos}')
         psuffix = 's'
         if nphotos == 1:
             psuffix = ''

@@ -107,7 +107,7 @@ class PlornNewAlbumDialog(QDialog):
             QMessageBox.warning(self, 'Album Name Error',
                         'A name must be provided.')
             return QDialog.DialogCode.Rejected
-        
+       
         module_logger.debug('check_inputs returns accepted')
         return QDialog.DialogCode.Accepted
 

@@ -13,8 +13,6 @@ from plorn.config import PlornConfig
 from plorn.db import AlbumFields, PhotoFields
 
 from PyQt6.QtCore import (
-    QAbstractItemModel,
-    QAbstractTableModel,
     QModelIndex,
     Qt,
 )
@@ -82,6 +80,116 @@ class PlornAlbumModel(QSqlRelationalTableModel):
         elif section > AttrFields.ID:
             return Qt.AlignmentFlag.AlignLeft
         
+##########################################################################
+#
+#   data model for Attributes -- use QStandardItem model directly, so
+#   these are helper functions to populate the model
+#
+
+_ALBUM_DATA = {}
+
+def populate_albums(root, db=QSqlDatabase()):
+    global module_logger, _ALBUM_DATA
+
+    msg  = f'populate_albums: init: db {db.connectionName()}'
+    module_logger.debug(msg)
+
+    root.setColumnCount(5)
+    dbdata = _collect_album_dbdata(db)
+    _ALBUM_DATA = dbdata
+    dbtree = _build_album_tree(root, dbdata)
+    _dump_album_tree(root, dbtree)
+    module_logger.debug(f'populate_albums: init done')
+
+def album_stats():
+    global module_logger, _ALBUM_DATA
+
+    album_count = len(_ALBUM_DATA)
+    photo_count = 0
+    for ii in _ALBUM_DATA.keys():
+        module_logger.debug(f'album_stats: {_ALBUM_DATA[ii][AlbumFields.NAME]}')
+        nphotos = _ALBUM_DATA[ii][AlbumFields.PHOTO_COUNT]
+        photo_count += nphotos
+    return album_count, photo_count
+
+def _build_album_id_item(dbrow):
+    id = dbrow[AlbumFields.ID]
+    item = QStandardItem(f'{id:04}')
+    item.setEditable(False)
+    item.setCheckable(False)
+    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+    return item
+
+def _build_album_name_item(dbrow):
+    name = dbrow[AlbumFields.NAME]
+    item = QStandardItem(str(name))
+    item.setEditable(True)
+    item.setCheckable(False)
+    return item
+
+def _build_album_count_item(dbrow):
+    count = dbrow[AlbumFields.PHOTO_COUNT]
+    item = QStandardItem(str(count))
+    item.setEditable(False)
+    item.setCheckable(False)
+    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+    return item
+
+def _build_photo_path_item(dbrow):
+    #id = dbrow[AlbumFields.ID]
+    #item = QStandardItem(f'{id:04}')
+    item = QStandardItem('')
+    item.setEditable(False)
+    item.setCheckable(False)
+    item.setTextAlignment(Qt.AlignmentFlag.AlignLeft)
+    return item
+
+def _collect_album_dbdata(db):
+    global module_logger
+
+    module_logger.debug('_collect_album_dbdata: entered')
+    dbdata = {}
+    query = QSqlQuery(f'SELECT * FROM albums;', db=db)
+    while query.next():
+        row_data = [query.value(AlbumFields.ID),
+                    query.value(AlbumFields.NAME),
+                    query.value(AlbumFields.DATED),
+                    query.value(AlbumFields.NOTES),
+                    query.value(AlbumFields.PHOTO_COUNT)]
+        dbdata[query.value(AlbumFields.ID)] = row_data
+    module_logger.debug(f'_collect_album_dbdata: keys {str(dbdata.keys())}')
+    module_logger.debug(f'_collect_album_dbdata: done, {len(dbdata)} records')
+    return dbdata
+
+def _build_album_tree(root, dbdata):
+    global module_logger
+    '''
+        NB: whilst the database itself if a 1-based array,
+        with ID pointing to parents, Qt expects an actual tree
+        structure when working with QTreeView.  So, build the
+        structure up from our dbdata.
+    '''
+    module_logger.debug('_build_albumr_tree: entered')
+    dbtree = {}
+    row = 0
+    for ii, dbrow in dbdata.items():
+        id_item = _build_album_id_item(dbrow)
+        root.model().setItem(row, 1, id_item)
+        name_item = _build_album_name_item(dbrow)
+        root.model().setItem(row, 2, name_item)
+        count_item = _build_album_count_item(dbrow)
+        root.model().setItem(row, 3, count_item)
+
+        #-- the model is zero-based, but the db fields are one-based,
+        #   and we only want certain columns anyway
+        id = dbrow[AlbumFields.ID]
+        dbtree[id] = [id_item, name_item, count_item]
+        row += 1
+    module_logger.debug('_build_album_tree: done')
+    return dbtree
+
+def _dump_album_tree(root, dbtree):
+    pass
 
 
 ##########################################################################
@@ -90,22 +198,22 @@ class PlornAlbumModel(QSqlRelationalTableModel):
 #   these are helper functions to populate the model
 #
 
-_DBDATA = {}
+_ATTR_DATA = {}
 
 def populate_attrs(root, table='names', db=QSqlDatabase()):
-    global module_logger, _DBDATA
+    global module_logger, _ATTR_DATA
 
     msg  = f'populate_attrs:{table} init: db {db.connectionName()}'
     module_logger.debug(msg)
 
     dbdata = _collect_attr_dbdata(table, db)
-    _DBDATA = dbdata
+    _ATTR_DATA = dbdata
     dbtree = _build_attr_tree(root, dbdata)
     _dump_attr_tree(root, dbtree)
     module_logger.debug(f'populate_attrs: {table} init done')
 
 def add_attrs(root, parent, value, table='names', db=QSqlDatabase()):
-    global module_logger, _DBDATA
+    global module_logger, _ATTR_DATA
 
     msg  = f'add_attrs: add {value} to {table} in db {db.connectionName()}'
     module_logger.debug(msg)
@@ -152,12 +260,12 @@ def add_attrs(root, parent, value, table='names', db=QSqlDatabase()):
     module_logger.debug(f'add_attrs: added {row} to {table}')
     item = _build_attr_item(row)
     parent.appendRow(item)                          # add to treeview
-    _DBDATA[id] = item                              # save if for the "model"
+    _ATTR_DATA[id] = item                              # save if for the "model"
     module_logger.debug(f'add_attrs: okay and done')
     return 'okay'
 
 def remove_attrs(root, item, table='names', db=QSqlDatabase()):
-    global module_logger, _DBDATA
+    global module_logger, _ATTR_DATA
 
     if not item:
         module_logger.debug('remove_attrs: nothing to remove')
@@ -197,10 +305,10 @@ def remove_attrs(root, item, table='names', db=QSqlDatabase()):
     module_logger.debug(msg)
     value = item.text()
     parent.removeRow(item.row())                    # remove from treeview
-    if id in _DBDATA.keys():
-        msg = f'remove_attrs: deleting "{value}" from _DBDATA'
+    if id in _ATTR_DATA.keys():
+        msg = f'remove_attrs: deleting "{value}" from _ATTR_DATA'
         module_logger.debug(msg)
-        del _DBDATA[id]
+        del _ATTR_DATA[id]
     module_logger.debug(f'remove_attrs: okay and done')
     return 'okay'
 
