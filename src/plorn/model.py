@@ -56,16 +56,6 @@ class PlornAlbumModel(QSqlRelationalTableModel):
         self.setTable('albums')
         module_logger.debug(f'album model: valid? {db.isValid()}')
         self.setEditStrategy(QSqlTableModel.EditStrategy.OnFieldChange)
-        #self.setHeaderData(AlbumFields.ID,
-        #                   Qt.Orientation.Horizontal, 'ID')
-        #self.setHeaderData(AlbumFields.NAME,
-        #                   Qt.Orientation.Horizontal, 'Album')
-        #self.setHeaderData(AlbumFields.DATED,
-        #                   Qt.Orientation.Horizontal, 'Dated')
-        #self.setHeaderData(AlbumFields.NOTES,
-        #                   Qt.Orientation.Horizontal, 'Notes')
-        #self.setHeaderData(AlbumFields.PHOTO_COUNT,
-        #                   Qt.Orientation.Horizontal, 'Photo Count')
         res = self.select()
         module_logger.debug(f'album model init: select result {res}')
 

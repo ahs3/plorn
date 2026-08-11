@@ -104,26 +104,10 @@ class PlornNewAlbumDialog(QDialog):
         global module_logger
 
         if len(self.name_edit.text().strip()) < 1:
-            QMessageBox.warning(self, 'Albume Name Error',
+            QMessageBox.warning(self, 'Album Name Error',
                         'A name must be provided.')
             return QDialog.DialogCode.Rejected
-        name = self.name_edit.text()
-        config = PlornConfig()
-        catalog, datadir, dbname = config.get_catalog(name)
-        if catalog != None:
-            QMessageBox.warning(self, 'Albume Name Error',
-                     'There is already a catalog with that name.')
-            return QDialog.DialogCode.Rejected
-
-        #datadir = self.ddir_edit.text()
-        #if len(datadir) < 1:
-        #    datadir = None
-        #if len(self.dbname_edit.text().strip()) < 1:
-        #    QMessageBox.warning(self, 'Albume Database Name Error',
-        #                'A database name must be provided.')
-        #    return QDialog.DialogCode.Rejected
-        #dbname = self.dbname_edit.text()
-
+        
         module_logger.debug('check_inputs returns accepted')
         return QDialog.DialogCode.Accepted
 
@@ -131,15 +115,9 @@ class PlornNewAlbumDialog(QDialog):
         global module_logger
 
         info = {}
-        info['catalog'] = self.name_edit.text()
-        info['datadir'] = self.ddir_edit.text()
-        datadir = self.ddir_edit.text()
-        if len(datadir.strip()) < 1:
-            datadir = None
-        info['datadir'] = datadir
-        info['dbname'] = self.dbname_edit.text()
-        info['make_current'] = self.make_current.isChecked()
-        info['make_default'] = self.make_default.isChecked()
+        info['album'] = self.name_edit.text()
+        info['dated'] = self.dated_edit.text()
+        info['notes'] = self.notes_edit.text()
         module_logger.debug(f'get_inputs returns {info}')
         return info
 
