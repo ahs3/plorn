@@ -315,20 +315,24 @@ class PlornAlbumView(QWidget):
         hdr_id = QStandardItem('ID')
         hdr_id.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
         hdr_id.setFont(font)
-        self.model.setHorizontalHeaderItem(1, hdr_id)
-        hdr_album = QStandardItem('Album')
-        hdr_album.setTextAlignment(Qt.AlignmentFlag.AlignLeft |
-                                   Qt.AlignmentFlag.AlignVCenter)
-        hdr_album.setFont(font)
-        self.model.setHorizontalHeaderItem(2, hdr_album)
+        self.model.setHorizontalHeaderItem(0, hdr_id)
+        hdr_name = QStandardItem('Album/Photo')
+        hdr_name.setTextAlignment(Qt.AlignmentFlag.AlignLeft |
+                                  Qt.AlignmentFlag.AlignVCenter)
+        hdr_name.setFont(font)
+        self.model.setHorizontalHeaderItem(2, hdr_name)
+        hdr_dated = QStandardItem('Dated')
+        hdr_dated.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        hdr_dated.setFont(font)
+        self.model.setHorizontalHeaderItem(3, hdr_dated)
         hdr_count = QStandardItem('Photo\nCount')
         hdr_count.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
         hdr_count.setFont(font)
-        self.model.setHorizontalHeaderItem(3, hdr_count)
+        self.model.setHorizontalHeaderItem(4, hdr_count)
         hdr_path = QStandardItem('Path')
         hdr_path.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
         hdr_path.setFont(font)
-        self.model.setHorizontalHeaderItem(4, hdr_path)
+        self.model.setHorizontalHeaderItem(5, hdr_path)
 
         tree = QTreeView(parent=self)
         tree.setModel(self.model)
@@ -343,20 +347,23 @@ class PlornAlbumView(QWidget):
         layout.addWidget(self.tree, 0, 0)
 
         tree.setHeaderHidden(False)
-        tree.header().setSectionHidden(0, True)
-        tree.header().resizeSection(1, 100)
-        tree.header().resizeSection(2, 400)
-        tree.header().resizeSection(3, 150)
+        tree.header().setSectionHidden(1, True)
+        tree.header().resizeSection(0, 100)
+        tree.header().resizeSection(1, 10)
+        tree.header().resizeSection(2, 440)
+        tree.header().resizeSection(3, 240)
+        tree.header().resizeSection(4, 100)
 
         self.setLayout(layout)
         populate_albums(root=self.root, db=self.db)
+        self.tree.expandAll()
         module_logger.debug('PlornAlbumView all done')
  
     def context_menu(self, position):
         global module_logger
 
         module_logger.debug(f'context_menu entered: {self.table}')
-        index = self.tree.indexAt(position)
+        index = self.tree.indexAt(positi0n)
         menu = QMenu()
         menu.setTitle('Actions')
         if not index.isValid():

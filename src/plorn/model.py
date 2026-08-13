@@ -4,13 +4,11 @@
 # SPDX-FileCopyrightText: 2026 Albert H. Stone, III <ahs3@ahs3.net>
 #######################################################################
 
+from enum import IntEnum
 import logging
 import os.path
 import sys
 import traceback
-
-from plorn.config import PlornConfig
-from plorn.db import AlbumFields, PhotoFields
 
 from PyQt6.QtCore import (
     QModelIndex,
@@ -36,10 +34,12 @@ from PyQt6.QtWidgets import (
     QTreeWidgetItem,
 )
 
+from plorn.config import PlornConfig
+from plorn.db import AlbumFields, PhotoFields, AttrFields
+
 module_logger = logging.getLogger('plorn.model')
 module_logger.setLevel(logging.DEBUG)
 
-from plorn.db import AttrFields
 
 ##########################################################################
 #
@@ -87,6 +87,17 @@ class PlornAlbumModel(QSqlRelationalTableModel):
 #
 
 _ALBUM_DATA = {}
+_PHOTO_DATA = {}
+
+class AlbumViewColumn(IntEnum):
+    '''
+    column numbers used in the album tree view
+    '''
+    ROW   = 0
+    ID    = 1
+    NAME  = 2
+    COUNT = 3
+    PATH  = 4
 
 def populate_albums(root, db=QSqlDatabase()):
     global module_logger, _ALBUM_DATA
@@ -94,10 +105,9 @@ def populate_albums(root, db=QSqlDatabase()):
     msg  = f'populate_albums: init: db {db.connectionName()}'
     module_logger.debug(msg)
 
-    root.setColumnCount(5)
     dbdata = _collect_album_dbdata(db)
     _ALBUM_DATA = dbdata
-    dbtree = _build_album_tree(root, dbdata)
+    dbtree = _build_album_tree(root, db, dbdata)
     _dump_album_tree(root, dbtree)
     module_logger.debug(f'populate_albums: init done')
 
@@ -106,19 +116,28 @@ def album_stats():
 
     album_count = len(_ALBUM_DATA)
     photo_count = 0
-    for ii in _ALBUM_DATA.keys():
-        module_logger.debug(f'album_stats: {_ALBUM_DATA[ii][AlbumFields.NAME]}')
-        nphotos = _ALBUM_DATA[ii][AlbumFields.PHOTO_COUNT]
+    for ii, data in _ALBUM_DATA.items():
+        nphotos = data[AlbumFields.PHOTO_COUNT]
         photo_count += nphotos
+        album_name = data[AlbumFields.NAME]
+        module_logger.debug(f'album_stats: {ii} "{album_name}", {nphotos}')
+    module_logger.debug(f'album_stats: {album_count}, {photo_count}')
     return album_count, photo_count
 
-def _build_album_id_item(dbrow):
-    id = dbrow[AlbumFields.ID]
+def _build_id_item(id):
     item = QStandardItem(f'{id:04}')
     item.setEditable(False)
     item.setCheckable(False)
-    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+    item.setTextAlignment(Qt.AlignmentFlag.AlignLeft)
     return item
+
+def _build_album_id_item(dbrow):
+    id = dbrow[AlbumFields.ID]
+    return _build_id_item(id)
+
+def _build_photo_id_item(dbrow):
+    id = dbrow[PhotoFields.ID]
+    return _build_id_item(id)
 
 def _build_album_name_item(dbrow):
     name = dbrow[AlbumFields.NAME]
@@ -126,6 +145,20 @@ def _build_album_name_item(dbrow):
     item.setEditable(True)
     item.setCheckable(False)
     return item
+
+def _build_dated_item(dated):
+    item = QStandardItem(str(dated))
+    item.setEditable(True)
+    item.setCheckable(False)
+    return item
+
+def _build_album_dated_item(dbrow):
+    dated = dbrow[AlbumFields.DATED]
+    return _build_dated_item(dated)
+
+def _build_photo_dated_item(dbrow):
+    dated = dbrow[PhotoFields.DATED]
+    return _build_dated_item(dated)
 
 def _build_album_count_item(dbrow):
     count = dbrow[AlbumFields.PHOTO_COUNT]
@@ -135,10 +168,16 @@ def _build_album_count_item(dbrow):
     item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
     return item
 
+def _build_photo_name_item(dbrow):
+    name = dbrow[PhotoFields.NAME]
+    item = QStandardItem(str(name))
+    item.setEditable(True)
+    item.setCheckable(False)
+    return item
+
 def _build_photo_path_item(dbrow):
-    #id = dbrow[AlbumFields.ID]
-    #item = QStandardItem(f'{id:04}')
-    item = QStandardItem('')
+    name = dbrow[PhotoFields.PATH]
+    item = QStandardItem(str(name))
     item.setEditable(False)
     item.setCheckable(False)
     item.setTextAlignment(Qt.AlignmentFlag.AlignLeft)
@@ -161,35 +200,100 @@ def _collect_album_dbdata(db):
     module_logger.debug(f'_collect_album_dbdata: done, {len(dbdata)} records')
     return dbdata
 
-def _build_album_tree(root, dbdata):
-    global module_logger
+def _collect_photo_dbdata(db, album_id):
+    global module_logger, _PHOTO_DATA
+
+    module_logger.debug('_collect_photo_dbdata: entered')
+    dbdata = {}
+    actual_id = int(album_id)                       # paranoid conversion
+    sql = f'SELECT * FROM photos WHERE album_id = {actual_id};'
+    query = QSqlQuery(sql, db=db)
+    while query.next():
+        row_data = [query.value(PhotoFields.ID),
+                    query.value(PhotoFields.ALBUM_ID),
+                    query.value(PhotoFields.NAME),
+                    query.value(PhotoFields.PATH),
+                    query.value(PhotoFields.DATED),
+                    query.value(PhotoFields.NOTES)]
+        id = query.value(PhotoFields.ID)
+        dbdata[id] = row_data
+        if id not in _PHOTO_DATA:
+            _PHOTO_DATA[id] = row_data
+
+    module_logger.debug(f'_collect_photo_dbdata: keys {str(dbdata.keys())}')
+    module_logger.debug(f'_collect_photo_dbdata: done, {len(dbdata)} records')
+    return dbdata
+
+def _build_album_tree(root, db, dbdata):
+    global module_logger, _ALBUM_DATA, _PHOTO_DATA
     '''
         NB: whilst the database itself if a 1-based array,
         with ID pointing to parents, Qt expects an actual tree
         structure when working with QTreeView.  So, build the
         structure up from our dbdata.
     '''
-    module_logger.debug('_build_albumr_tree: entered')
+    module_logger.debug('_build_album_tree: entered')
     dbtree = {}
     row = 0
     for ii, dbrow in dbdata.items():
         id_item = _build_album_id_item(dbrow)
-        root.model().setItem(row, 1, id_item)
+        id = int(id_item.text())
+        row_item = QStandardItem(str(row))
         name_item = _build_album_name_item(dbrow)
-        root.model().setItem(row, 2, name_item)
+        dated_item = _build_album_dated_item(dbrow)
         count_item = _build_album_count_item(dbrow)
-        root.model().setItem(row, 3, count_item)
+        root.appendRow([id_item, row_item, name_item, dated_item, count_item])
+        current = root.child(row)
 
         #-- the model is zero-based, but the db fields are one-based,
         #   and we only want certain columns anyway
-        id = dbrow[AlbumFields.ID]
-        dbtree[id] = [id_item, name_item, count_item]
+        album_id = dbrow[AlbumFields.ID]
+        dbtree[album_id] = [id_item, name_item, dated_item, count_item]
         row += 1
+        
+        nphotos = 0
+        photos = _collect_photo_dbdata(db, album_id)
+        for jj, photo_row in photos.items():
+            msg  = f'_build_album_tree: photo row {nphotos}, '
+            msg += f'{photo_row}'
+            module_logger.debug(msg)
+            prow_item = QStandardItem(str(nphotos))
+            pid_item = _build_photo_id_item(photo_row)
+            pid = int(pid_item.text())
+            pname_item = _build_photo_name_item(photo_row)
+            pdated_item = _build_photo_dated_item(photo_row)
+            ppath_item = _build_photo_path_item(photo_row)
+            current.appendRow([pid_item, prow_item, pname_item,
+                               pdated_item, QStandardItem(), ppath_item])
+            nphotos += 1
+
+    root.model().setRowCount(len(_ALBUM_DATA) + len(_PHOTO_DATA) + 2)
     module_logger.debug('_build_album_tree: done')
     return dbtree
 
 def _dump_album_tree(root, dbtree):
-    pass
+    global module_logger, _ALBUM_DATA
+
+    if module_logger.isEnabledFor(logging.DEBUG):
+        module_logger.debug('=> _dump_album_tree start')
+        if root.hasChildren():
+            for row in range(len(_ALBUM_DATA)):
+                vrow = root.child(row, 0)
+                album = root.child(row, 1)
+                name = root.child(row, 2)
+                count = root.child(row, 3)
+                msg  = f'{album.text()}  {name.text()}  {count.text()}'
+                module_logger.debug(msg)
+
+                if vrow.hasChildren():
+                    for nphoto in range(vrow.rowCount()):
+                        photo = vrow.child(nphoto, 1)
+                        pname = vrow.child(nphoto, 2)
+                        ppath = vrow.child(nphoto, 3)
+                        msg  = f'    {photo.text()}  {pname.text()}  '
+                        msg += f'{ppath.text()}'
+                        module_logger.debug(msg)
+        module_logger.debug('<= _dump_album_tree end')
 
 
 ##########################################################################

@@ -237,7 +237,7 @@ class Plorn(QMainWindow):
         self.setWindowTitle('plorn')
         geometry = self.screen().availableGeometry()
         self.origin = QPoint(200, 200)
-        self.size = QSize(int(geometry.width()*0.6), int(geometry.height()*0.7))
+        self.size = QSize(int(geometry.width()*0.8), int(geometry.height()*0.7))
         self.setGeometry(QRect(self.origin, self.size))
         self.setWindowIcon(QIcon(config.get_default_photo()))
         self.setSizePolicy(PlornSizePolicy())
@@ -498,6 +498,7 @@ class Plorn(QMainWindow):
         db = self.open_db()
         tree = PlornAlbumView(db=db)
         layout.addWidget(tree, 2, 0)
+        layout.setRowStretch(2, 8)
 
         return frame, layout, tree, cathdr
 
