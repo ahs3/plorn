@@ -362,26 +362,38 @@ class PlornAlbumView(QWidget):
     def context_menu(self, position):
         global module_logger
 
-        module_logger.debug(f'context_menu entered: {self.table}')
-        index = self.tree.indexAt(positi0n)
+        module_logger.debug(f'context_menu entered: album view')
+        index = self.tree.indexAt(position)
         menu = QMenu()
         menu.setTitle('Actions')
         if not index.isValid():
             module_logger.debug('context_menu: assume invisible root')
-            add_sib_action = menu.addAction('Add',
+            add_album_action = menu.addAction('Add Album',
                      lambda: self.add_album_sib(self.model.invisibleRootItem()))
         else:
             item = self.model.itemFromIndex(index)
-            add_sib_action = menu.addAction('Add Sibling',
-                                   lambda: self.add_album_sib(item))
-            add_child_action = menu.addAction('Add Child',
-                                   lambda: self.add_album_child(item))
-            remove_action = menu.addAction('Remove',
-                                   lambda: self.remove_album(item))
+            if item.parent() == None:           # album selected
+                add_album_action = menu.addAction('Add Album',
+                                    lambda: self.add_album())
+                edit_album_action = menu.addAction('Edit Album',
+                                    lambda: self.edit_album())
+                remove_album_action = menu.addAction('Remove Album',
+                                    lambda: self.remove_album())
+                menu.addSeparator()
+                sshow_album_action = menu.addAction('Slide Show',
+                                    lambda: self.slide_show())
+            else:                               # photo selected
+                add_child_action = menu.addAction('Add Photo(s)',
+                                   lambda: self.add_photos(item.parent()))
+                edit_photo_action = menu.addAction('Edit Photo',
+                                    lambda: self.edit_photo(item))
+                remove_action = menu.addAction('Remove Photo',
+                                   lambda: self.remove_photo(item))
+
         expand_action = menu.addAction('Expand All', self.tree.expandAll)
         collapse_action = menu.addAction('Collapse All', self.tree.collapseAll)
         action = menu.exec(self.tree.viewport().mapToGlobal(position))
-        module_logger.debug(f'context_menu done: {self.table}')
+        module_logger.debug(f'context_menu done: album view')
 
     def add_album_sib(self, item):
         global module_logger

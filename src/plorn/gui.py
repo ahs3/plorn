@@ -320,36 +320,40 @@ class Plorn(QMainWindow):
 
     def _albums_menu(self, mb):
         albums = mb.addMenu('&Albums')
-        new_action = QAction('&New', parent=self)
+        new_action = QAction('&Add Album', parent=self)
         new_action.setObjectName('new_album_action')
-        new_action.triggered.connect(self.new_album_action)
+        new_action.triggered.connect(self.add_album)
         albums.addAction(new_action)
-
-        open_action = QAction('&Open', parent=self)
-        open_action.setObjectName('open_album_action')
-        albums.addAction(open_action)
-        edit_action = QAction('&Edit', parent=self)
+        edit_action = QAction('&Edit Album', parent=self)
         edit_action.setObjectName('edit_album_action')
+        edit_action.triggered.connect(self.edit_album)
         albums.addAction(edit_action)
-        del_action = QAction('&Delete', parent=self)
+        del_action = QAction('&Remove Album', parent=self)
         del_action.setObjectName('del_album_action')
+        del_action.triggered.connect(self.remove_album)
         albums.addAction(del_action)
+
+        albums.addSeparator()
+        sshow_action = QAction('&Slide Show', parent=self)
+        sshow_action.setObjectName('show_album_action')
+        sshow_action.triggered.connect(self.slide_show)
+        albums.addAction(sshow_action)
+
         return albums
 
     def _photos_menu(self, mb):
         photos = mb.addMenu('&Photos')
-        new_action = QAction('New', parent=self)
+        new_action = QAction('Add Photo(s)', parent=self)
         new_action.setObjectName('new_photo_action')
-        new_action.triggered.connect(self.new_photo_action)
+        new_action.triggered.connect(self.add_photos)
         photos.addAction(new_action)
-        open_action = QAction('Open', parent=self)
-        open_action.setObjectName('open_photo_action')
-        photos.addAction(open_action)
-        edit_action = QAction('Edit', parent=self)
+        edit_action = QAction('Edit Photo', parent=self)
         edit_action.setObjectName('edit_photo_action')
+        new_action.triggered.connect(self.edit_photo)
         photos.addAction(edit_action)
         del_action = QAction('Delete', parent=self)
         del_action.setObjectName('del_photo_action')
+        new_action.triggered.connect(self.remove_photo)
         photos.addAction(del_action)
         return photos
 
@@ -374,6 +378,8 @@ class Plorn(QMainWindow):
 
     def _tools_menu(self, mb):
         tools = mb.addMenu('&Tools')
+        dbcheck_action = QAction('Check Catalog Structures', parent=self)
+        tools.addAction(dbcheck_action)
         pref_action = QAction('Preferences', parent=self)
         tools.addAction(pref_action)
         return tools
@@ -453,27 +459,6 @@ class Plorn(QMainWindow):
             module_logger.debug(f'build_db: db open failed for {catalog}')
             module_logger.debug(f'build_db fail: {db.lastError().text()}')
         return db
-
-    def prettify_album_tree(self, tree):
-        global module_logger
-
-        tree.setAlternatingRowColors(True)
-        tree.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Sunken)
-        tree.setItemsExpandable(False)
-
-        tree.header().setDefaultAlignment(Qt.AlignmentFlag.AlignLeft)
-        tree.header().setSectionHidden(AlbumFields.NOTES, True)
-
-        chunk = 25
-        tree.header().setMaximumSectionSize(int(40*chunk))
-        tree.header().resizeSection(AlbumFields.ID, int(4*chunk))
-        tree.header().resizeSection(AlbumFields.NAME, int(24*chunk))
-        tree.header().resizeSection(AlbumFields.DATED, int(8*chunk))
-        tree.header().resizeSection(AlbumFields.PHOTO_COUNT, int(4*chunk))
-
-        tree.setItemDelegateForColumn(AlbumFields.ID, IDDelegate())
-        #tree.setItemDelegate(QSqlRelationalDelegate(tree))
-
 
     def build_catalog(self, layout):
         global module_logger
@@ -574,7 +559,6 @@ class Plorn(QMainWindow):
                 self.album_tree.setModel(new_model)
 
                 module_logger.debug(f'new cat: current is now {new_cat}')
-                self.prettify_album_tree(self.album_tree)
                 self.set_catalog_info()
 
         if len(info['catalog']) > 0 and info['make_default'] == True:
@@ -614,7 +598,6 @@ class Plorn(QMainWindow):
         db = self.open_db()
         model = PlornAlbumModel(parent=self.album_tree, db=db)
         self.album_tree.setModel(model)
-        self.prettify_album_tree(self.album_tree)
         self.set_catalog_info()
 
     def update_removable_catalogs(self):
@@ -657,7 +640,7 @@ class Plorn(QMainWindow):
         config.remove_catalog(action.data())
         config.write_config()
 
-    def new_album_action(self):
+    def add_album(self):
         global module_logger
 
         new_album_dlg = PlornNewAlbumDialog()
@@ -708,8 +691,25 @@ class Plorn(QMainWindow):
         #        config.write_config()
         #        module_logger.debug(f'new cat: {new_cat} is now default')
 
+    def edit_album(self):
+        global module_logger
+        pass
 
-    def new_photo_action(self):
+    def remove_album(self):
+        global module_logger
+        pass
+
+    def slide_show(self, album_item=None):
+        global module_logger
+        pass
+
+    def add_photos(self, parent_item):
+        pass
+
+    def edit_photo(self, item):
+        pass
+
+    def remove_photo(self, item):
         pass
 
     def names_attr_action(self):
