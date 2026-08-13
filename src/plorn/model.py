@@ -133,7 +133,12 @@ def _build_id_item(id):
 
 def _build_album_id_item(dbrow):
     id = dbrow[AlbumFields.ID]
-    return _build_id_item(id)
+    item = _build_id_item(id)
+    font = QFont()
+    font.setBold(True)
+    font.setItalic(True)
+    item.setFont(font)
+    return item
 
 def _build_photo_id_item(dbrow):
     id = dbrow[PhotoFields.ID]
@@ -144,6 +149,10 @@ def _build_album_name_item(dbrow):
     item = QStandardItem(str(name))
     item.setEditable(True)
     item.setCheckable(False)
+    font = QFont()
+    font.setBold(True)
+    font.setItalic(True)
+    item.setFont(font)
     return item
 
 def _build_dated_item(dated):
@@ -154,7 +163,12 @@ def _build_dated_item(dated):
 
 def _build_album_dated_item(dbrow):
     dated = dbrow[AlbumFields.DATED]
-    return _build_dated_item(dated)
+    item = _build_dated_item(dated)
+    font = QFont()
+    font.setBold(True)
+    font.setItalic(True)
+    item.setFont(font)
+    return item
 
 def _build_photo_dated_item(dbrow):
     dated = dbrow[PhotoFields.DATED]
@@ -166,6 +180,10 @@ def _build_album_count_item(dbrow):
     item.setEditable(False)
     item.setCheckable(False)
     item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+    font = QFont()
+    font.setBold(True)
+    font.setItalic(True)
+    item.setFont(font)
     return item
 
 def _build_photo_name_item(dbrow):
@@ -267,7 +285,6 @@ def _build_album_tree(root, db, dbdata):
                                pdated_item, QStandardItem(), ppath_item])
             nphotos += 1
 
-    root.model().setRowCount(len(_ALBUM_DATA) + len(_PHOTO_DATA) + 2)
     module_logger.debug('_build_album_tree: done')
     return dbtree
 

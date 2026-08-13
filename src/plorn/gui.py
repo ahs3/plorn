@@ -276,13 +276,11 @@ class Plorn(QMainWindow):
         layout.addLayout(hlayout)
         layout.addWidget(self.header, alignment=Qt.AlignmentFlag.AlignTop)
 
-        catalog, clayout, tree, hdr = self.build_catalog()
-        self.catalog = catalog
+        spacer = QSpacerItem(800, 50, hPolicy=QSizePolicy.Policy.Expanding)
+        layout.addItem(spacer)
+        tree, hdr = self.build_catalog(layout)
         self.album_tree = tree
         self.catalog_header = hdr
-        layout.addLayout(clayout)
-        layout.addWidget(self.catalog, alignment=Qt.AlignmentFlag.AlignCenter)
-        layout.addStretch(8)
 
         sb, counts, catname = self.build_statusbar()
         self.catname = catname                  # so it can be changed later
@@ -477,30 +475,23 @@ class Plorn(QMainWindow):
         #tree.setItemDelegate(QSqlRelationalDelegate(tree))
 
 
-    def build_catalog(self):
+    def build_catalog(self, layout):
         global module_logger
 
         module_logger.debug('entering build_catalog')
-        frame = QFrame()
-        layout = QGridLayout()
-        layout.setObjectName('catalog')
 
-        spacer = QSpacerItem(800, 50, hPolicy=QSizePolicy.Policy.Expanding)
-        layout.addItem(spacer, 0, 0)
         config = PlornConfig()
         catname, ddir, dbname = config.get_current_catalog()
         cathdr = QLabel(f'**Catalog:** {catname}',
-                      parent=frame,
                       textFormat=Qt.TextFormat.MarkdownText)
-        layout.addWidget(cathdr, 1, 0)
+        layout.addWidget(cathdr)
 
         #--- build the album tree view
         db = self.open_db()
         tree = PlornAlbumView(db=db)
-        layout.addWidget(tree, 2, 0)
-        layout.setRowStretch(2, 8)
+        layout.addWidget(tree, stretch=1)
 
-        return frame, layout, tree, cathdr
+        return tree, cathdr
 
     def build_statusbar(self):
         sb = self.statusBar()
