@@ -28,22 +28,32 @@ from PyQt6.QtWidgets import (
     QFrame,
     QGridLayout,
     QInputDialog,
+    QLabel,
+    QLineEdit,
     QMenu,
     QMessageBox,
     QPushButton,
     QSizePolicy,
     QStyledItemDelegate,
+    QTextEdit,
     QTreeView,
     QWidget,
 )
 
+from plorn import (
+    AlbumFields,
+    AttrFields,
+    PlornAlbum,
+)
+
 from plorn.config import PlornConfig
-from plorn.db import AlbumFields, AttrFields
+
 from plorn.model import (
     populate_albums,
     populate_attrs,
     add_attrs,
     remove_attrs,
+    model_add_album,
 )
 
 module_logger = logging.getLogger('plorn.widgets')
@@ -374,26 +384,49 @@ class PlornAlbumView(QWidget):
             item = self.model.itemFromIndex(index)
             if item.parent() == None:           # album selected
                 add_album_action = menu.addAction('Add Album',
-                                    lambda: self.add_album())
+                                    lambda: self.add_album_action())
                 edit_album_action = menu.addAction('Edit Album',
-                                    lambda: self.edit_album())
+                                    lambda: self.edit_album_action())
                 remove_album_action = menu.addAction('Remove Album',
-                                    lambda: self.remove_album())
+                                    lambda: self.remove_album_action())
                 menu.addSeparator()
                 sshow_album_action = menu.addAction('Slide Show',
-                                    lambda: self.slide_show())
+                                    lambda: self.slide_show_action())
             else:                               # photo selected
                 add_child_action = menu.addAction('Add Photo(s)',
-                                   lambda: self.add_photos(item.parent()))
+                                   lambda: self.add_photos_action(item.parent()))
                 edit_photo_action = menu.addAction('Edit Photo',
-                                    lambda: self.edit_photo(item))
+                                    lambda: self.edit_photo_action(item))
                 remove_action = menu.addAction('Remove Photo',
-                                   lambda: self.remove_photo(item))
+                                   lambda: self.remove_photo_action(item))
 
         expand_action = menu.addAction('Expand All', self.tree.expandAll)
         collapse_action = menu.addAction('Collapse All', self.tree.collapseAll)
         action = menu.exec(self.tree.viewport().mapToGlobal(position))
         module_logger.debug(f'context_menu done: album view')
+
+    def add_album(self, name, dated, notes):
+        global module_logger
+
+        module_logger.debug(f'add_album: entered "{name}" "{dated}"')
+        album = PlornAlbum(name, id=None, dated=dated, notes=notes)
+        root = self.model.invisibleRootItem()
+        res = model_add_album(root, album, db=self.db)
+        if res == 'cannot insert' or res == 'retrieve failed':
+            title = 'Internal Attribute Database Failure'
+            label_txt  = f'{res.capitalize()} "{name}"'
+            button = QMessageBox.critical(self, title, label_txt)
+            return
+        module_logger.debug(f'add_album: done "{name}"')
+
+    def add_album_action(self):
+        global module_logger
+
+        module_logger.debug(f'add_album_action: entered')
+        new_album_dlg = PlornNewAlbumDialog()
+        info = new_album_dlg.ask(self)
+        self.add_album(info['album'], info['dated'], info['notes'])
+        new_album_dlg.close()
 
     def add_album_sib(self, item):
         global module_logger
@@ -515,3 +548,107 @@ class PlornAlbumView(QWidget):
             module_logger.debug(f'remove_album? No')
 
         module_logger.debug(f'remove_album done: {self.table}')
+
+
+class PlornNewAlbumDialog(QDialog):
+    @classmethod
+    def ask(cls, parent):
+        global module_logger
+
+        dlg = cls(parent)
+        result = None
+        name = None
+        datadir = None
+        dbname = None
+        res = dlg.exec()
+        info = dlg.get_inputs()
+        return info
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setModal(True)
+        self.setWindowTitle('New Album')
+        layout = QGridLayout()
+        self.setSizePolicy(QSizePolicy.Policy.Expanding,
+                           QSizePolicy.Policy.Expanding)
+
+        config = PlornConfig()
+        catalog, datadir, dbname = config.get_current_catalog()
+        self.catalog_label = QLabel(f'***Catalog: {catalog}***',
+                                    textFormat=Qt.TextFormat.MarkdownText)
+        layout.addWidget(self.catalog_label, 0, 0)
+
+        self.name_label = QLabel('Album Name:',
+                                 alignment=Qt.AlignmentFlag.AlignRight)
+        layout.addWidget(self.name_label, 1, 0)
+        self.name_edit = QLineEdit()
+        self.name_edit.setText(f'{" ":>40}')
+        rect = self.name_edit.fontMetrics().boundingRect(self.name_edit.text())
+        self.name_edit.setMinimumWidth(2*rect.width())
+        self.name_edit.setText('')
+        layout.addWidget(self.name_edit, 1, 1)
+
+        self.dated_label = QLabel('Dated:',
+                                  alignment=Qt.AlignmentFlag.AlignRight)
+        layout.addWidget(self.dated_label, 2, 0)
+        self.dated_edit = QLineEdit()
+        self.dated_edit.setText(f'{" ":>40}')
+        rect = self.dated_edit.fontMetrics().boundingRect(self.dated_edit.text())
+        self.dated_edit.setMinimumWidth(2*rect.width())
+        self.dated_edit.setText('')
+        layout.addWidget(self.dated_edit, 2, 1)
+
+        self.notes_label = QLabel('Notes:',
+                                  alignment=Qt.AlignmentFlag.AlignRight)
+        layout.addWidget(self.notes_label, 3, 0,
+                         alignment=Qt.AlignmentFlag.AlignTop)
+        self.notes_edit = QTextEdit()
+        layout.addWidget(self.notes_edit, 3, 1)
+
+        self.bbox = QDialogButtonBox()
+        self.bbox.setStandardButtons(QDialogButtonBox.StandardButton.Ok |
+                                     QDialogButtonBox.StandardButton.Cancel
+        )
+        self.bbox.clicked.connect(self.dlg_done)
+        layout.addWidget(self.bbox, 4, 0, 1, 2)
+        self.setLayout(layout)
+
+    def check_inputs(self):
+        global module_logger
+
+        if len(self.name_edit.text().strip()) < 1:
+            QMessageBox.warning(self, 'Album Name Error',
+                        'A name must be provided.')
+            return QDialog.DialogCode.Rejected
+       
+        module_logger.debug('check_inputs returns accepted')
+        return QDialog.DialogCode.Accepted
+
+    def get_inputs(self):
+        global module_logger
+
+        info = {}
+        info['album'] = self.name_edit.text()
+        info['dated'] = self.dated_edit.text()
+        info['notes'] = self.notes_edit.toPlainText()
+        module_logger.debug(f'get_inputs returns {info}')
+        return info
+
+    def dlg_done(self, button):
+        global module_logger
+
+        role = self.bbox.standardButton(button)
+        if role == QDialogButtonBox.StandardButton.Ok:
+            module_logger.debug('new cat: Ok clicked')
+            if self.check_inputs() == QDialog.DialogCode.Rejected:
+                return
+            self.setResult(QDialog.DialogCode.Accepted)
+
+        elif role == QDialogButtonBox.StandardButton.Cancel:
+            module_logger.debug('new cat: Cancel clicked')
+            self.setResult(QDialog.DialogCode.Rejected)
+
+        module_logger.debug(f'dlg_done returns {self.result()}')
+        self.close()
+
+

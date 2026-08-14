@@ -35,7 +35,7 @@ from PyQt6.QtWidgets import (
 )
 
 from plorn.config import PlornConfig
-from plorn.db import AlbumFields, PhotoFields, AttrFields
+from plorn import AlbumFields, PhotoFields, AttrFields
 
 module_logger = logging.getLogger('plorn.model')
 module_logger.setLevel(logging.DEBUG)
@@ -312,6 +312,51 @@ def _dump_album_tree(root, dbtree):
                         module_logger.debug(msg)
         module_logger.debug('<= _dump_album_tree end')
 
+def model_add_album(root, album, db=QSqlDatabase()):
+    global module_logger, _ALBUM_DATA
+
+    msg  = f'model_add_album: {str(album)}'
+    module_logger.debug(msg)
+
+    # add to db to get an id and actual dbrow
+    # ...we do not care about duplicate names, so try adding it
+    module_logger.debug(f'model_add_album: adding item to db')
+    sql  = f'INSERT INTO albums (name,dated,notes,photo_count) VALUES '
+    sql += f'("{album.get_name()}", '
+    sql += f' "{album.get_dated()}", '
+    sql += f' "{album.get_notes()}", '
+    sql += f' "{album.get_photo_count()}"'
+    sql += f');'
+    query = QSqlQuery(sql, db=db)
+    if not query:
+        module_logger.debug(f'model_add_album: query to insert failed')
+        return 'cannot insert'
+
+    # ...we added it, so now tell the view
+    sql  = f'SELECT * FROM albums WHERE '
+    sql += f'name = "{album.get_name()}" AND photo_count = 0;'
+    query = QSqlQuery(sql, db=db)
+    if not query.next():
+        module_logger.debug(f'model_add_album: retrieval of row failed')
+        return 'retrieve failed'
+
+    id = query.value(AlbumFields.ID)
+    row_data = [query.value(AlbumFields.ID),
+                query.value(AlbumFields.NAME),
+                query.value(AlbumFields.DATED),
+                query.value(AlbumFields.NOTES),
+                query.value(AlbumFields.PHOTO_COUNT)]
+    _ALBUM_DATA[id] = row_data
+    module_logger.debug(f'model_add_album: added {row_data}')
+    row_item = QStandardItem(str(root.rowCount()+1))
+    id_item = _build_album_id_item(row_data)
+    name_item = _build_album_name_item(row_data)
+    dated_item = _build_album_dated_item(row_data)
+    count_item = _build_album_count_item(row_data)
+    root.appendRow([id_item, row_item, name_item, dated_item, count_item])
+    module_logger.debug(f'model_add_album: okay and done')
+    return 'okay'
+    
 
 ##########################################################################
 #

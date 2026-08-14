@@ -117,7 +117,7 @@ class PlornNewAlbumDialog(QDialog):
         info = {}
         info['album'] = self.name_edit.text()
         info['dated'] = self.dated_edit.text()
-        info['notes'] = self.notes_edit.text()
+        info['notes'] = self.notes_edit.toPlainText()
         module_logger.debug(f'get_inputs returns {info}')
         return info
 

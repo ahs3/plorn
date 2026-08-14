@@ -52,22 +52,20 @@ from PyQt6.QtWidgets import (
     QSpacerItem,
     QSizePolicy,
     QStatusBar,
-    QTreeView,
-    QTreeWidgetItem,
     QToolBar,
     QVBoxLayout,
     QWidget,
     QWidgetItem,
 )
 
-from plorn.album_widgets import PlornNewAlbumDialog
+from plorn import AlbumFields
 from plorn.config import PlornConfig
-from plorn.db import AlbumFields
 from plorn.model import album_stats
 from plorn.widgets import (
     IDDelegate,
     PlornAlbumView,
     PlornAttrView,
+    PlornNewAlbumDialog,
     PlornSizePolicy,
 )
 
@@ -643,53 +641,12 @@ class Plorn(QMainWindow):
     def add_album(self):
         global module_logger
 
+        module_logger.debug('add_album: entered in gui')
         new_album_dlg = PlornNewAlbumDialog()
         info = new_album_dlg.ask(self)
-        #msg  = f'new cat action: '
-        #msg += f'cat {info['catalog']}, '
-        #msg += f'ddir {info['datadir']}, '
-        #msg += f'db {info['dbname']}, '
-        #msg += f'chg {info['make_current']}, '
-        #msg += f'def {info['make_default']}'
-        #module_logger.debug(msg)
-
-        #-- input values have already been checked for validity
-        #config = PlornConfig()
-        #new_cat = info['catalog']
-        #new_ddir = info['datadir']
-        #new_dbnm = info['dbname']
-        #if new_ddir != None and len(new_ddir.strip()) < 1:
-        #    new_ddir = None
-        #config.set_catalog(name=new_cat, datadir=new_ddir, dbname=new_dbnm)
-        #config.write_config()
-        #if info['make_current']:
-        #    catalog, datadir, dbname = config.get_current_catalog()
-        #    module_logger.debug(f'new cat: current is {catalog}')
-        #    if catalog != new_cat:
-        #        module_logger.debug(f'new cat: make {new_cat} current')
-        #        config.set_current_catalog(new_cat)
-        #        config.write_config()
-
-        #        model = self.album_tree.model()
-        #        model.setFilter('')
-        #        model.setSort(-1, Qt.SortOrder.AscendingOrder)
-        #        model.submitAll()
-        #        model.select()
-        #        db = self.open_db()
-        #        new_model = PlornAlbumModel(parent=self.album_tree, db=db)
-        #        self.album_tree.setModel(new_model)
-
-        #        module_logger.debug(f'new cat: current is now {new_cat}')
-        #        self.prettify_album_tree(self.album_tree)
-        #        self.set_catalog_info()
-
-        #if info['make_default']:
-        #    catalog, datadir, dbname = config.get_default_catalog()
-        #    module_logger.debug(f'new cat: default is {catalog}')
-        #    if catalog != new_cat:
-        #        config.set_default_catalog(new_cat)
-        #        config.write_config()
-        #        module_logger.debug(f'new cat: {new_cat} is now default')
+        self.album_tree.add_album(info['album'], info['dated'], info['notes'])
+        new_album_dlg.close()
+        self.set_catalog_info()
 
     def edit_album(self):
         global module_logger
