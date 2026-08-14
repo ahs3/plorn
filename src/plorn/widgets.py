@@ -5,6 +5,7 @@
 # SPDX-FileCopyrightText: 2025 Albert H. Stone, III <ahs3@ahs3.net>
 #######################################################################
 
+from enum import IntEnum
 import logging
 
 from PyQt6.QtCore import (
@@ -18,11 +19,13 @@ from PyQt6.QtSql import (
 
 from PyQt6.QtGui import (
     QFont,
+    QIcon,
     QStandardItem,
     QStandardItemModel,
 )
 
 from PyQt6.QtWidgets import (
+    QButtonGroup,
     QDialog,
     QDialogButtonBox,
     QFrame,
@@ -30,6 +33,7 @@ from PyQt6.QtWidgets import (
     QInputDialog,
     QLabel,
     QLineEdit,
+    QListView,
     QMenu,
     QMessageBox,
     QPushButton,
@@ -550,6 +554,46 @@ class PlornAlbumView(QWidget):
         module_logger.debug(f'remove_album done: {self.table}')
 
 
+class PlornAttrListView(QWidget):
+    '''
+    widget class to be used for adding/removing attributes to
+    an album or photo, best embedded as part of the album/photo view
+    when adding or editing albums/photos
+    '''
+    ADD    = 42
+    REMOVE = 99
+
+    def __init__(self, table, title, allow_edit=True, *args, **kwargs):
+        global module_logger
+        super().__init__(*args, **kwargs)
+
+        module_logger.debug('entering PlornAttListView')
+        self.table = table
+        self.title = title
+        self.allow_edit = allow_edit
+
+        self.setWindowTitle(self.title)
+        layout = QGridLayout()
+        name_label = QLabel(self.title, alignment=Qt.AlignmentFlag.AlignCenter)
+        self.name_list = QListView()
+        model = QStandardItemModel()
+        self.name_list.setModel(model)
+        layout.addWidget(name_label, 0, 0)
+        layout.addWidget(self.name_list, 1, 0)
+
+        blayout = QGridLayout()
+        plus = QIcon.fromTheme(QIcon.ThemeIcon.ListAdd)
+        self.add_attr = QPushButton(plus, None)
+        blayout.addWidget(self.add_attr, 0, 0)
+        minus = QIcon.fromTheme(QIcon.ThemeIcon.ListRemove)
+        self.remove_attr = QPushButton(minus, None)
+        blayout.addWidget(self.remove_attr, 1, 0)
+        layout.addLayout(blayout, 1, 1)
+
+        self.setLayout(layout)
+        module_logger.debug('PlornAttListView done')
+
+
 class PlornNewAlbumDialog(QDialog):
     @classmethod
     def ask(cls, parent):
@@ -578,39 +622,50 @@ class PlornNewAlbumDialog(QDialog):
                                     textFormat=Qt.TextFormat.MarkdownText)
         layout.addWidget(self.catalog_label, 0, 0)
 
+        album_layout = QGridLayout()
         self.name_label = QLabel('Album Name:',
                                  alignment=Qt.AlignmentFlag.AlignRight)
-        layout.addWidget(self.name_label, 1, 0)
+        album_layout.addWidget(self.name_label, 0, 0)
         self.name_edit = QLineEdit()
         self.name_edit.setText(f'{" ":>40}')
         rect = self.name_edit.fontMetrics().boundingRect(self.name_edit.text())
         self.name_edit.setMinimumWidth(2*rect.width())
         self.name_edit.setText('')
-        layout.addWidget(self.name_edit, 1, 1)
+        album_layout.addWidget(self.name_edit, 0, 1)
 
         self.dated_label = QLabel('Dated:',
                                   alignment=Qt.AlignmentFlag.AlignRight)
-        layout.addWidget(self.dated_label, 2, 0)
+        album_layout.addWidget(self.dated_label, 1, 0)
         self.dated_edit = QLineEdit()
         self.dated_edit.setText(f'{" ":>40}')
         rect = self.dated_edit.fontMetrics().boundingRect(self.dated_edit.text())
         self.dated_edit.setMinimumWidth(2*rect.width())
         self.dated_edit.setText('')
-        layout.addWidget(self.dated_edit, 2, 1)
+        album_layout.addWidget(self.dated_edit, 1, 1)
 
         self.notes_label = QLabel('Notes:',
                                   alignment=Qt.AlignmentFlag.AlignRight)
-        layout.addWidget(self.notes_label, 3, 0,
+        album_layout.addWidget(self.notes_label, 2, 0,
                          alignment=Qt.AlignmentFlag.AlignTop)
         self.notes_edit = QTextEdit()
-        layout.addWidget(self.notes_edit, 3, 1)
+        album_layout.addWidget(self.notes_edit, 2, 1)
+        layout.addLayout(album_layout, 1, 0)
+
+        attr_layout = QGridLayout()
+        self.name_list = PlornAttrListView('names', 'Name Attributes')
+        attr_layout.addWidget(self.name_list, 1, 0)
+        self.place_list = PlornAttrListView('places', 'Place Attributes')
+        attr_layout.addWidget(self.place_list, 2, 0)
+        self.tag_list = PlornAttrListView('tags', 'Tag Attributes')
+        attr_layout.addWidget(self.tag_list, 3, 0)
+        layout.addLayout(attr_layout, 1, 1)
 
         self.bbox = QDialogButtonBox()
         self.bbox.setStandardButtons(QDialogButtonBox.StandardButton.Ok |
                                      QDialogButtonBox.StandardButton.Cancel
         )
         self.bbox.clicked.connect(self.dlg_done)
-        layout.addWidget(self.bbox, 4, 0, 1, 2)
+        layout.addWidget(self.bbox, 2, 1, 1, 2)
         self.setLayout(layout)
 
     def check_inputs(self):
