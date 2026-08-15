@@ -3,6 +3,7 @@
 archive
 __pycache__
 plorn.log
+tb.log
 completely_bogus_test.cfg
 junk
 fred

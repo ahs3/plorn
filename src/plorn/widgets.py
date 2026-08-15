@@ -14,6 +14,7 @@ from PyQt6.QtCore import (
 )
 
 from PyQt6.QtSql import (
+    QSqlDatabase,
     QSqlRelationalDelegate,
 )
 
@@ -420,8 +421,9 @@ class PlornAlbumView(QWidget):
             title = 'Internal Attribute Database Failure'
             label_txt  = f'{res.capitalize()} "{name}"'
             button = QMessageBox.critical(self, title, label_txt)
-            return
+            return False
         module_logger.debug(f'add_album: done "{name}"')
+        return True
 
     def add_album_action(self):
         global module_logger
@@ -429,7 +431,8 @@ class PlornAlbumView(QWidget):
         module_logger.debug(f'add_album_action: entered')
         new_album_dlg = PlornNewAlbumDialog()
         info = new_album_dlg.ask(self)
-        self.add_album(info['album'], info['dated'], info['notes'])
+        if info:
+            self.add_album(info['album'], info['dated'], info['notes'])
         new_album_dlg.close()
 
     def add_album_sib(self, item):
@@ -554,15 +557,52 @@ class PlornAlbumView(QWidget):
         module_logger.debug(f'remove_album done: {self.table}')
 
 
+class PlornAttrSelection(QDialog):
+    @classmethod
+    def ask(cls):
+        global module_logger
+
+        dlg = cls()
+        result = None
+        name = None
+        datadir = None
+        dbname = None
+        res = dlg.exec()
+        info = 'hiya'
+        return info
+
+    def __init__(self, table='names', db=QSqlDatabase(), *args, **kwargs):
+        global module_logger
+        super().__init__(*args, **kwargs)
+
+        self.table = table
+        config = PlornConfig()
+        catalog, datadir, dbname = config.get_current_catalog()
+        self.db = QSqlDatabase.database(catalog)
+        self.db.open()
+
+        self.setModal(True)
+        self.setWindowTitle(f'Select {self.table.capitalize()}')
+        layout = QGridLayout()
+        self.setSizePolicy(QSizePolicy.Policy.Expanding,
+                           QSizePolicy.Policy.Expanding)
+        self.tree = QTreeView()
+        self.tree.setHeaderHidden(True)
+        model = QStandardItemModel()
+        self.tree.setModel(model)
+        layout.addWidget(self.tree, 0, 0)
+
+        root = self.tree.model().invisibleRootItem()
+        populate_attrs(root, self.table, db=self.db)
+        self.setLayout(layout)
+
+
 class PlornAttrListView(QWidget):
     '''
     widget class to be used for adding/removing attributes to
     an album or photo, best embedded as part of the album/photo view
     when adding or editing albums/photos
     '''
-    ADD    = 42
-    REMOVE = 99
-
     def __init__(self, table, title, allow_edit=True, *args, **kwargs):
         global module_logger
         super().__init__(*args, **kwargs)
@@ -571,7 +611,7 @@ class PlornAttrListView(QWidget):
         self.table = table
         self.title = title
         self.allow_edit = allow_edit
-
+        
         self.setWindowTitle(self.title)
         layout = QGridLayout()
         name_label = QLabel(self.title, alignment=Qt.AlignmentFlag.AlignCenter)
@@ -581,17 +621,34 @@ class PlornAttrListView(QWidget):
         layout.addWidget(name_label, 0, 0)
         layout.addWidget(self.name_list, 1, 0)
 
-        blayout = QGridLayout()
-        plus = QIcon.fromTheme(QIcon.ThemeIcon.ListAdd)
-        self.add_attr = QPushButton(plus, None)
-        blayout.addWidget(self.add_attr, 0, 0)
-        minus = QIcon.fromTheme(QIcon.ThemeIcon.ListRemove)
-        self.remove_attr = QPushButton(minus, None)
-        blayout.addWidget(self.remove_attr, 1, 0)
-        layout.addLayout(blayout, 1, 1)
+        if self.allow_edit:
+            blayout = QGridLayout()
+            plus = QIcon.fromTheme(QIcon.ThemeIcon.ListAdd)
+            self.add_attr = QPushButton(plus, None)
+            self.add_attr.clicked.connect(self.add_selected)
+            blayout.addWidget(self.add_attr, 0, 0)
+            minus = QIcon.fromTheme(QIcon.ThemeIcon.ListRemove)
+            self.remove_attr = QPushButton(minus, None)
+            self.remove_attr.clicked.connect(self.remove_selected)
+            blayout.addWidget(self.remove_attr, 1, 0)
+            layout.addLayout(blayout, 1, 1)
 
         self.setLayout(layout)
         module_logger.debug('PlornAttListView done')
+
+    def add_selected(self):
+        global module_logger
+
+        module_logger.debug('add_selected: entered')
+        dlg = PlornAttrSelection(table=self.table)
+        info = dlg.ask()
+        module_logger.debug(f'add_selected: info {info}')
+
+    def remove_selected(self):
+        global module_logger
+
+        module_logger.debug('remove_selected: entered')
+        pass
 
 
 class PlornNewAlbumDialog(QDialog):
@@ -605,6 +662,8 @@ class PlornNewAlbumDialog(QDialog):
         datadir = None
         dbname = None
         res = dlg.exec()
+        if res == QDialog.DialogCode.Rejected:
+            return None
         info = dlg.get_inputs()
         return info
 
@@ -618,6 +677,7 @@ class PlornNewAlbumDialog(QDialog):
 
         config = PlornConfig()
         catalog, datadir, dbname = config.get_current_catalog()
+        self.db = QSqlDatabase.database(catalog)
         self.catalog_label = QLabel(f'***Catalog: {catalog}***',
                                     textFormat=Qt.TextFormat.MarkdownText)
         layout.addWidget(self.catalog_label, 0, 0)
@@ -694,13 +754,14 @@ class PlornNewAlbumDialog(QDialog):
 
         role = self.bbox.standardButton(button)
         if role == QDialogButtonBox.StandardButton.Ok:
-            module_logger.debug('new cat: Ok clicked')
+            module_logger.debug('new album: Ok clicked')
             if self.check_inputs() == QDialog.DialogCode.Rejected:
+                self.setResult(QDialog.DialogCode.Rejected)
                 return
             self.setResult(QDialog.DialogCode.Accepted)
 
         elif role == QDialogButtonBox.StandardButton.Cancel:
-            module_logger.debug('new cat: Cancel clicked')
+            module_logger.debug('new album: Cancel clicked')
             self.setResult(QDialog.DialogCode.Rejected)
 
         module_logger.debug(f'dlg_done returns {self.result()}')

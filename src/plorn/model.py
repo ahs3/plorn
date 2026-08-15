@@ -369,9 +369,7 @@ _ATTR_DATA = {}
 def populate_attrs(root, table='names', db=QSqlDatabase()):
     global module_logger, _ATTR_DATA
 
-    msg  = f'populate_attrs:{table} init: db {db.connectionName()}'
-    module_logger.debug(msg)
-
+    module_logger.debug(f'populate_attrs: {table} init')
     dbdata = _collect_attr_dbdata(table, db)
     _ATTR_DATA = dbdata
     dbtree = _build_attr_tree(root, dbdata)
