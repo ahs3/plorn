@@ -51,7 +51,7 @@ if args.major:
     bugfix = 0
 if args.minor:
     minor += 1
-    bugfix = 0
+    bugfix = 1
 if args.bugfix:
     bugfix += 1
 
