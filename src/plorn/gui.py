@@ -60,7 +60,7 @@ from PyQt6.QtWidgets import (
 
 from plorn import AlbumFields
 from plorn.config import PlornConfig
-from plorn.model import album_stats
+from plorn.model import album_stats, PlornDbOperations
 from plorn.widgets import (
     IDDelegate,
     PlornAlbumView,
@@ -223,15 +223,8 @@ class Plorn(QMainWindow):
         global module_logger
         super().__init__(*args, **kwargs)
 
-        #-- open up the data base
-        config = PlornConfig()
-        catname, datadir, dbname = config.get_current_catalog()
-        if not catname:
-            catname, datadir, dbname = config.get_default_catalog()
-        self.dbname = dbname
-        dbpath = os.path.join(datadir, dbname)
-
         #-- define the primary windows
+        config = PlornConfig()
         self.setWindowTitle('plorn')
         geometry = self.screen().availableGeometry()
         self.origin = QPoint(200, 200)
@@ -276,14 +269,16 @@ class Plorn(QMainWindow):
 
         spacer = QSpacerItem(800, 50, hPolicy=QSizePolicy.Policy.Expanding)
         layout.addItem(spacer)
-        tree, hdr = self.build_catalog(layout)
+        tree, hdr, db = self.build_catalog(layout)
         self.album_tree = tree
         self.catalog_header = hdr
+        self.db = db
 
         sb, counts, catname = self.build_statusbar()
         self.catname = catname                  # so it can be changed later
         self.sbcounts = counts                  # so it can be changed later
         self.setCentralWidget(frame)
+        self.db = self.open_db()
         self.set_catalog_info()
         self.set_status_message('ready')
 
@@ -437,25 +432,29 @@ class Plorn(QMainWindow):
     def open_db(self):
         global module_logger
 
-        module_logger.debug('entering build_db')
-        module_logger.debug(f'build_db: {QSqlDatabase.connectionNames()}')
+        module_logger.debug('entering open_db')
+        module_logger.debug(f'open_db: {QSqlDatabase.connectionNames()}')
         config = PlornConfig()
         catalog, datadir, dbname = config.get_current_catalog()
         
-        olddb = QSqlDatabase.database(catalog)
+        olddb = QSqlDatabase.database(connectionName=catalog)
         if olddb.isOpen() and olddb.isValid():
-            module_logger.debug(f'build_db: using {olddb.connectionName()}')
-            return olddb
+            if olddb.connectionName() == catalog:
+                module_logger.debug(f'open_db: using {olddb.connectionName()}')
+                return olddb
 
-        db = QSqlDatabase.addDatabase('QSQLITE', connectionName=catalog)
-        dbpath = os.path.join(datadir, dbname)
-        db.setDatabaseName(dbpath)
-        res = db.open()
-        if res:
-            module_logger.debug(f'build_db: db opened for {catalog}')
+        if catalog not in QSqlDatabase.connectionNames():
+            db = QSqlDatabase.addDatabase('QSQLITE', connectionName=catalog)
+            dbpath = os.path.expanduser(os.path.join(datadir, dbname))
+            db.setDatabaseName(dbpath)
+            res = db.open()
+        db = QSqlDatabase.database(connectionName=catalog)
+        if db.isOpen():
+            module_logger.debug(f'open_db: db opened for {catalog}')
+            PlornDbOperations.initialize(db)
         else:
-            module_logger.debug(f'build_db: db open failed for {catalog}')
-            module_logger.debug(f'build_db fail: {db.lastError().text()}')
+            module_logger.debug(f'open_db: db open failed for {catalog}')
+            module_logger.debug(f'open_db fail: {db.lastError().text()}')
         return db
 
     def build_catalog(self, layout):
@@ -474,7 +473,7 @@ class Plorn(QMainWindow):
         tree = PlornAlbumView(db=db)
         layout.addWidget(tree, stretch=1)
 
-        return tree, cathdr
+        return tree, cathdr, db
 
     def build_statusbar(self):
         sb = self.statusBar()
@@ -546,15 +545,8 @@ class Plorn(QMainWindow):
                 module_logger.debug(f'new cat: make {new_cat} current')
                 config.set_current_catalog(new_cat)
                 config.write_config()
-
-                model = self.album_tree.model()
-                model.setFilter('')
-                model.setSort(-1, Qt.SortOrder.AscendingOrder)
-                model.submitAll()
-                model.select()
-                db = self.open_db()
-                new_model = PlornAlbumModel(parent=self.album_tree, db=db)
-                self.album_tree.setModel(new_model)
+                module_logger.debug(f'new cat: config file {config.get_filename()}')
+                self.db = self.album_tree.switch_model()
 
                 module_logger.debug(f'new cat: current is now {new_cat}')
                 self.set_catalog_info()
@@ -582,6 +574,7 @@ class Plorn(QMainWindow):
         catlist = config.get_catalog_list()
         for name in catlist:
             open_action = self.open_catalog_menu.addAction(f'{name}')
+            open_action.setObjectName(f'open_action_{name}')
             open_action.setCheckable(True)
             if name == current:
                 open_action.setChecked(True)
@@ -593,9 +586,7 @@ class Plorn(QMainWindow):
         config = PlornConfig()
         config.set_current_catalog(action.data())
         config.write_config()
-        db = self.open_db()
-        model = PlornAlbumModel(parent=self.album_tree, db=db)
-        self.album_tree.setModel(model)
+        self.db = self.album_tree.switch_model()
         self.set_catalog_info()
 
     def update_removable_catalogs(self):
@@ -620,7 +611,7 @@ class Plorn(QMainWindow):
         make sure they _really_ want to do this ....
         '''
         config = PlornConfig()
-        catalog, ddir, dbname = self.get_catalog(action.data())
+        catalog, ddir, dbname = config.get_catalog(action.data())
 
         mbox = QMessageBox(self)
         mbox.setIcon(QMessageBox.Icon.Warning)
@@ -642,13 +633,12 @@ class Plorn(QMainWindow):
         global module_logger
 
         module_logger.debug('add_album: entered in gui')
-        new_album_dlg = PlornNewAlbumDialog()
-        info = new_album_dlg.ask(self)
-        if info:
-            self.album_tree.add_album(info['album'], info['dated'],
-                                      info['notes'])
-        new_album_dlg.close()
-        self.set_catalog_info()
+        new_album_dlg = PlornNewAlbumDialog(tree=self.album_tree)
+        info = new_album_dlg.get_inputs()
+        if len(info) > 0 and new_album_dlg.was_added():
+            # need to add the album here....
+            self.set_catalog_info()
+        module_logger.debug('add_album: done in gui')
 
     def edit_album(self):
         global module_logger

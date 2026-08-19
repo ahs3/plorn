@@ -107,6 +107,14 @@ class TagFields(IntEnum):
 
 ################################################################
 #
+#   plorn exceptions
+#
+class PlornDbException(Exception):
+    pass
+
+
+################################################################
+#
 #   object structures
 #
 class PlornBaseObj:

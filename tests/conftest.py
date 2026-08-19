@@ -30,6 +30,7 @@ if os.path.join(',', 'src', 'plorn') not in sys.path:
 
 from plorn.config import PlornConfig
 from plorn.gui import user_interface
+from plorn.model import PlornDbOperations
 
 def get_test_cfgname(tmpdir):
     return os.path.join(tmpdir, 'completely_bogus.cfg')
@@ -60,8 +61,8 @@ default_config_data = [
          '[DEFAULT]',
          'user = fred',
          'full_name = Fred Flintstone',
-         'config_dir = TMP_CFG_DIR',
-         'data_dir = TMP_DATA_DIR',
+         'config_dir = ~/.config/plorn',
+         'data_dir = ~/.local/share/plorn',
          'default_catalog = Plorn',
          'current_catalog = Plorn',
          '',
@@ -159,17 +160,16 @@ def plorn_db_test_env(monkeymodule):
     yield tmpdir, cfgdir, datadir
 
     #-- paranoid cleanup
-    # DO NOTHING for now -- still useful for debugging
-    #cfgname = os.path.join(cfgdir, 'plorn.cfg')
-    #if os.path.exists(cfgname):
-    #    os.remove(cfgname)
-    #dataname = os.path.join(datadir, 'plorn.db')
-    #if os.path.exists(dataname):
-    #    os.remove(dataname)
-    #if not os.path.exists(cfgdir):
-    #    os.remove(cfgdir)
-    #if not os.path.exists(datadir):
-    #    os.remove(datadir)
+    cfgname = os.path.join(cfgdir, 'plorn.cfg')
+    if os.path.exists(cfgname):
+        os.remove(cfgname)
+    dataname = os.path.join(datadir, 'plorn.db')
+    if os.path.exists(dataname):
+        os.remove(dataname)
+    if not os.path.exists(cfgdir):
+        os.remove(cfgdir)
+    if not os.path.exists(datadir):
+        os.remove(datadir)
 
 @pytest.fixture(scope='session')
 def qapp_cls():
@@ -198,27 +198,32 @@ def GUI(request):
 def initial_db(plorn_db_test_env, monkeymodule):
     tmpdir, cfgdir, datadir = plorn_db_test_env
     monkeymodule.setenv('HOME', tmpdir)
-    dbname = os.path.join(datadir, 'plorn.db')
-    if os.path.exists(dbname):
-        os.remove(dbname)
+    dbname = 'plorn.db'
+    dbpath = os.path.expanduser(os.path.join(tmpdir, datadir, 'plorn.db'))
+    if os.path.exists(dbpath):
+        os.remove(dbpath)
     cfgname = os.path.join(cfgdir, 'plorn.cfg')
     if os.path.exists(cfgname):
         os.remove(cfgname)
+    write_test_config(cfgname, default_config_data)
     info = {}
     info['dbname'] = dbname
+    info['dbpath'] = dbpath
     info['homedir'] = tmpdir
     info['cfgdir'] = cfgdir
     info['datadir'] = datadir
 
     app, root = user_interface()
     qtbotbis = QtBot(app)
-    info['db'] = QSqlDatabase.database()
+    db = QSqlDatabase.addDatabase('QSQLITE')
+    db.setDatabaseName(dbpath)
+    db.open()
+    PlornDbOperations.initialize(db)
+    info['db'] = db
     info['app'] = app
     info['root'] = root
     info['qtbot'] = qtbotbis
     QtTest.QTest.qWait(2)
 
     yield info
-    #info['app'].exit(0)
-    #info['db'].close()
 

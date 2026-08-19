@@ -13,8 +13,8 @@ import pwd
 import sys
 
 MAJOR = 0
-MINOR = 31
-BUGFIX = 8
+MINOR = 32
+BUGFIX = 1
 __version__ = str(MAJOR) + '.' + str(MINOR) + '.' + str(BUGFIX)
 
 module_logger = logging.getLogger('plorn.config')

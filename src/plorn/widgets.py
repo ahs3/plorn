@@ -7,6 +7,7 @@
 
 from enum import IntEnum
 import logging
+import os
 
 from PyQt6.QtCore import (
     QSize,
@@ -108,7 +109,7 @@ class PlornAttrView(QDialog):
         global module_logger
         super().__init__(*args, **kwargs)
 
-        module_logger.debug('entering PlornAttrView')
+        module_logger.debug(f'entering PlornAttrView: table {table}')
         self.title = title
         self.table = table
         self.db = db
@@ -137,7 +138,7 @@ class PlornAttrView(QDialog):
         tree.setToolTip('Right-click for actions')
         self.tree = tree
         layout.addWidget(self.tree, 0, 0)
-        populate_attrs(root=self.root, table=self.table, db=self.db)
+        #populate_attrs(self.root, table=self.table, db=self.db)
 
         self.bbox = QDialogButtonBox()
         self.bbox.setStandardButtons(QDialogButtonBox.StandardButton.Ok |
@@ -145,7 +146,7 @@ class PlornAttrView(QDialog):
         self.bbox.clicked.connect(self.dlg_done)
         layout.addWidget(self.bbox, 1, 0)
         self.setLayout(layout)
-        module_logger.debug('PlornAttrView all done')
+        module_logger.debug(f'PlornAttrView all done: table {table}')
  
     def dlg_done(self, button):
         global module_logger
@@ -374,6 +375,29 @@ class PlornAlbumView(QWidget):
         self.tree.expandAll()
         module_logger.debug('PlornAlbumView all done')
  
+    def switch_model(self):
+        global module_logger
+
+        res = None
+        module_logger.debug('switch_model entered: album view')
+        self.model.removeRows(0, self.model.rowCount())
+        config = PlornConfig()
+        catalog, datadir, dbname = config.get_current_catalog()
+        if catalog not in QSqlDatabase.connectionNames():
+            self.db = QSqlDatabase.addDatabase('QSQLITE',
+                                               connectionName=catalog)
+            dbpath = os.path.expanduser(os.path.join(datadir, dbname))
+            self.db.setDatabaseName(dbpath)
+            self.db.open()
+        self.db = QSqlDatabase.database(connectionName=catalog)
+        if self.db.isOpen():
+            res = self.db
+        else:
+            module_logger.debug(f'switch_model db open? {self.db.isOpen()}')
+        populate_albums(root=self.root, db=self.db)
+        module_logger.debug('switch_model done: album view')
+        return res
+
     def context_menu(self, position):
         global module_logger
 
@@ -384,7 +408,7 @@ class PlornAlbumView(QWidget):
         if not index.isValid():
             module_logger.debug('context_menu: assume invisible root')
             add_album_action = menu.addAction('Add Album',
-                     lambda: self.add_album_sib(self.model.invisibleRootItem()))
+                                    lambda: self.add_album_action())
         else:
             item = self.model.itemFromIndex(index)
             if item.parent() == None:           # album selected
@@ -418,7 +442,7 @@ class PlornAlbumView(QWidget):
         root = self.model.invisibleRootItem()
         res = model_add_album(root, album, db=self.db)
         if res == 'cannot insert' or res == 'retrieve failed':
-            title = 'Internal Attribute Database Failure'
+            title = 'Internal Album Database Failure'
             label_txt  = f'{res.capitalize()} "{name}"'
             button = QMessageBox.critical(self, title, label_txt)
             return False
@@ -429,95 +453,95 @@ class PlornAlbumView(QWidget):
         global module_logger
 
         module_logger.debug(f'add_album_action: entered')
-        new_album_dlg = PlornNewAlbumDialog()
-        info = new_album_dlg.ask(self)
-        if info:
+        new_album_dlg = PlornNewAlbumDialog(tree=self.tree)
+        info = new_album_dlg.get_inputs()
+        if len(info) > 0:
             self.add_album(info['album'], info['dated'], info['notes'])
         new_album_dlg.close()
 
-    def add_album_sib(self, item):
-        global module_logger
-
-        module_logger.debug(f'add_album_sib entered: {self.table}')
-        title = f'Add Sibling {self.title.capitalize()}'
-        label_txt = f'Add {self.title.capitalize()}:'
-        if self.title[-1] == 's':    # English specific ...
-            label_txt = f'Add {self.title[0:-1].capitalize()}:'
-
-        ptxt = 'invisibleRoot'
-        parent = self.model.invisibleRootItem()
-        if item and item != self.model.invisibleRootItem():
-            parent = item.parent()
-            if parent and parent != self.model.invisibleRootItem():
-                ptxt = f' parent = {parent.text()}'
-
-        input_value, ok = QInputDialog.getText(self, title, label_txt)
-        if ok and input_value:
-            res = add_albums(self.model.invisibleRootItem(), parent, input_value,
-                            table=self.table, db=self.db)
-            if res == 'cannot insert' or res == 'retrieve failed':
-                title = 'Internal Attribute Database Failure'
-                label_txt  = f'{res.capitalize()} "{input_value}"'
-                button = QMessageBox.critical(self, title, label_txt)
-                return
-            if res == 'duplicate albumibute':
-                title = 'Duplicate Attribute'
-                label_txt  = f'"{input_value}" is already a sibling'
-                if parent and parent != self.model.invisibleRootItem():
-                    label_txt += f' of "{parent.text()}"'
-                else:
-                    label_txt += f' at the top most level'
-                button = QMessageBox.critical(self, title, label_txt)
-                return
-            if parent != None:
-                self.tree.setExpanded(parent.index(), True)
-            module_logger.debug(f'add_album_sib {res}: {input_value}, {ptxt}')
-        else:
-            module_logger.debug(f'add_album_sib canceled: {input_value}, {ptxt}')
-
-        module_logger.debug(f'add_album_sib done: {self.table}')
-
-    def add_album_child(self, item):
-        global module_logger
-
-        module_logger.debug(f'add_album_child entered: {self.table}')
-        title = f'Add Child {self.title.capitalize()}'
-        if self.title[-1] == 's':    # English specific ...
-            label_txt = f'Add {self.title[0:-1].capitalize()}:'
-        msg  = f'add_album_child {self.table}:'
-        msg += f' add child to {item.text()}'
-        module_logger.debug(msg)
-        label_txt = f'Add child to {item.text()}:'
-
-        ptxt = 'invisibleRoot'
-        if item and item != self.model.invisibleRootItem():
-            ptxt = f' parent = {item.text()}'
-        input_value, ok = QInputDialog.getText(self, title, label_txt)
-        if ok and input_value:
-            res = add_albums(self.model.invisibleRootItem(), item, input_value,
-                            table=self.table, db=self.db)
-            if res == 'cannot insert' or res == 'retrieve failed':
-                title = 'Internal Attribute Database Failure'
-                label_txt  = f'{res.capitalize()} "{input_value}"'
-                button = QMessageBox.critical(self, title, label_txt)
-                return
-            if res == 'duplicate albumibute':
-                title = 'Duplicate Attribute'
-                label_txt  = f'"{input_value} is already a child'
-                if item and item != self.model.invisibleRootItem():
-                    label_txt += f' of {item.text()}'
-                else:
-                    label_txt += f' at the top most level'
-                button = QMessageBox.critical(self, title, label_txt)
-                return
-            self.tree.setExpanded(item.index(), True)
-            module_logger.debug(
-                f'add_album_child add {res}: {input_value}, {ptxt}')
-        else:
-            module_logger.debug(
-                f'add_album_child canceled: {input_value}, {ptxt}')
-
-        module_logger.debug(f'add_album_child done: {self.table}')
+#    def add_album_sib(self, item):
+#        global module_logger
+#
+#        module_logger.debug('add_album_sib entered')
+#        title = f'Add Sibling {self.title.capitalize()}'
+#        label_txt = f'Add {self.title.capitalize()}:'
+#        if self.title[-1] == 's':    # English specific ...
+#            label_txt = f'Add {self.title[0:-1].capitalize()}:'
+#
+#        ptxt = 'invisibleRoot'
+#        parent = self.model.invisibleRootItem()
+#        if item and item != self.model.invisibleRootItem():
+#            parent = item.parent()
+#            if parent and parent != self.model.invisibleRootItem():
+#                ptxt = f' parent = {parent.text()}'
+#
+#        input_value, ok = QInputDialog.getText(self, title, label_txt)
+#        if ok and input_value:
+#            res = add_albums(self.model.invisibleRootItem(), parent, input_value,
+#                            table=self.table, db=self.db)
+#            if res == 'cannot insert' or res == 'retrieve failed':
+#                title = 'Internal Attribute Database Failure'
+#                label_txt  = f'{res.capitalize()} "{input_value}"'
+#                button = QMessageBox.critical(self, title, label_txt)
+#                return
+#            if res == 'duplicate albumibute':
+#                title = 'Duplicate Attribute'
+#                label_txt  = f'"{input_value}" is already a sibling'
+#                if parent and parent != self.model.invisibleRootItem():
+#                    label_txt += f' of "{parent.text()}"'
+#                else:
+#                    label_txt += f' at the top most level'
+#                button = QMessageBox.critical(self, title, label_txt)
+#                return
+#            if parent != None:
+#                self.tree.setExpanded(parent.index(), True)
+#            module_logger.debug(f'add_album_sib {res}: {input_value}, {ptxt}')
+#        else:
+#            module_logger.debug(f'add_album_sib canceled: {input_value}, {ptxt}')
+#
+#        module_logger.debug(f'add_album_sib done')
+#
+#    def add_album_child(self, item):
+#        global module_logger
+#
+#        module_logger.debug(f'add_album_child entered: {self.table}')
+#        title = f'Add Child {self.title.capitalize()}'
+#        if self.title[-1] == 's':    # English specific ...
+#            label_txt = f'Add {self.title[0:-1].capitalize()}:'
+#        msg  = f'add_album_child {self.table}:'
+#        msg += f' add child to {item.text()}'
+#        module_logger.debug(msg)
+#        label_txt = f'Add child to {item.text()}:'
+#
+#        ptxt = 'invisibleRoot'
+#        if item and item != self.model.invisibleRootItem():
+#            ptxt = f' parent = {item.text()}'
+#        input_value, ok = QInputDialog.getText(self, title, label_txt)
+#        if ok and input_value:
+#            res = add_albums(self.model.invisibleRootItem(), item, input_value,
+#                            table=self.table, db=self.db)
+#            if res == 'cannot insert' or res == 'retrieve failed':
+#                title = 'Internal Attribute Database Failure'
+#                label_txt  = f'{res.capitalize()} "{input_value}"'
+#                button = QMessageBox.critical(self, title, label_txt)
+#                return
+#            if res == 'duplicate albumibute':
+#                title = 'Duplicate Attribute'
+#                label_txt  = f'"{input_value} is already a child'
+#                if item and item != self.model.invisibleRootItem():
+#                    label_txt += f' of {item.text()}'
+#                else:
+#                    label_txt += f' at the top most level'
+#                button = QMessageBox.critical(self, title, label_txt)
+#                return
+#            self.tree.setExpanded(item.index(), True)
+#            module_logger.debug(
+#                f'add_album_child add {res}: {input_value}, {ptxt}')
+#        else:
+#            module_logger.debug(
+#                f'add_album_child canceled: {input_value}, {ptxt}')
+#
+#        module_logger.debug(f'add_album_child done: {self.table}')
 
     def remove_album(self, item):
         global module_logger
@@ -558,23 +582,11 @@ class PlornAlbumView(QWidget):
 
 
 class PlornAttrSelection(QDialog):
-    @classmethod
-    def ask(cls):
-        global module_logger
-
-        dlg = cls()
-        result = None
-        name = None
-        datadir = None
-        dbname = None
-        res = dlg.exec()
-        info = 'hiya'
-        return info
-
     def __init__(self, table='names', db=QSqlDatabase(), *args, **kwargs):
         global module_logger
         super().__init__(*args, **kwargs)
 
+        module_logger.debug(f'entering PlornAttrSelection: table {table}')
         self.table = table
         config = PlornConfig()
         catalog, datadir, dbname = config.get_current_catalog()
@@ -595,7 +607,14 @@ class PlornAttrSelection(QDialog):
         root = self.tree.model().invisibleRootItem()
         populate_attrs(root, self.table, db=self.db)
         self.setLayout(layout)
+        module_logger.debug(f'PlornAttrSelection done: table {table}')
 
+    def get_inputs(self):
+        res = self.exec()
+        info = {}
+        if res == QDialog.DialogCode.Accepted:
+            pass
+        return info
 
 class PlornAttrListView(QWidget):
     '''
@@ -604,6 +623,9 @@ class PlornAttrListView(QWidget):
     when adding or editing albums/photos
     '''
     def __init__(self, table, title, allow_edit=True, *args, **kwargs):
+        from plorn import DUMP_STACK
+        DUMP_STACK()
+
         global module_logger
         super().__init__(*args, **kwargs)
 
@@ -641,7 +663,7 @@ class PlornAttrListView(QWidget):
 
         module_logger.debug('add_selected: entered')
         dlg = PlornAttrSelection(table=self.table)
-        info = dlg.ask()
+        info = dlg.get_inputs()
         module_logger.debug(f'add_selected: info {info}')
 
     def remove_selected(self):
@@ -652,23 +674,17 @@ class PlornAttrListView(QWidget):
 
 
 class PlornNewAlbumDialog(QDialog):
-    @classmethod
-    def ask(cls, parent):
+    def __init__(self, tree=None, *args, **kwargs):
         global module_logger
-
-        dlg = cls(parent)
-        result = None
-        name = None
-        datadir = None
-        dbname = None
-        res = dlg.exec()
-        if res == QDialog.DialogCode.Rejected:
-            return None
-        info = dlg.get_inputs()
-        return info
-
-    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        module_logger.debug('entering PlornNewAlbumDialog: init')
+        self.was_new_album_added = False
+        if tree == None:
+            return
+        self.tree = tree
+
+        module_logger.debug('PlornNewAlbumDialog: started')
         self.setModal(True)
         self.setWindowTitle('New Album')
         layout = QGridLayout()
@@ -727,6 +743,10 @@ class PlornNewAlbumDialog(QDialog):
         self.bbox.clicked.connect(self.dlg_done)
         layout.addWidget(self.bbox, 2, 1, 1, 2)
         self.setLayout(layout)
+        module_logger.debug('PlornNewAlbumDialog: init done')
+
+    def was_added(self):
+        return self.was_new_album_added
 
     def check_inputs(self):
         global module_logger
@@ -742,10 +762,12 @@ class PlornNewAlbumDialog(QDialog):
     def get_inputs(self):
         global module_logger
 
+        res = self.exec()
         info = {}
-        info['album'] = self.name_edit.text()
-        info['dated'] = self.dated_edit.text()
-        info['notes'] = self.notes_edit.toPlainText()
+        if res == QDialog.DialogCode.Accepted:
+            info['album'] = self.name_edit.text()
+            info['dated'] = self.dated_edit.text()
+            info['notes'] = self.notes_edit.toPlainText()
         module_logger.debug(f'get_inputs returns {info}')
         return info
 
