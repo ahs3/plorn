@@ -236,10 +236,11 @@ class Plorn(QMainWindow):
         self.setWindowIcon(QIcon(photo_path))
 
         #-- menubar
-        mb, cats, albs, phos, tools, helpmenu = self.build_menubar()
+        mb, cats, albs, phos, attrs, tools, helpmenu = self.build_menubar()
         self.catalogs_menu = cats
         self.albums_menu = albs
         self.photos_menu = phos
+        self.attrs_menu = attrs
         self.tools_menu = tools
         self.help_menu = helpmenu
 
@@ -408,7 +409,7 @@ class Plorn(QMainWindow):
         helpmenu = self._help_menu(mb)
 
         mb.show()
-        return mb, catalogs, albums, photos, tools, helpmenu
+        return mb, catalogs, albums, photos, attrs, tools, helpmenu
 
     def build_header(self):
         config = PlornConfig()

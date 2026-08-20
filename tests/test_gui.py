@@ -6,6 +6,8 @@
 #######################################################################
 
 import os
+import random
+import string
 
 from PyQt6.QtGui import (
     QAction,
@@ -13,12 +15,17 @@ from PyQt6.QtGui import (
 from PyQt6.QtCore import (
     Qt,
 )
+from PyQt6.QtSql import (
+    QSqlQuery,
+)
 from PyQt6.QtWidgets import (
+    QInputDialog,
     QMessageBox,
 )
 
 from plorn import (
     AlbumFields,
+    AttrFields,
     ConfigFields,
     PlornAlbum,
 )
@@ -29,6 +36,7 @@ from plorn.gui import (
     user_interface,
 )
 from plorn.model import model_add_album
+from plorn.widgets import PlornAttrView
 
 
 ####################################################################
@@ -209,6 +217,19 @@ def test_catalog_quit(initial_db, monkeypatch):
     quit_item = root.findChild(QAction, 'quit_action')
     assert quit_item != None
 
+def test_attrs_menu(initial_db, monkeypatch):
+    info = initial_db
+    monkeypatch.setenv('HOME', info['homedir'])
+    root = info['root']
+    assert root.menuBar() != None
+    menus = menu_list(root.menuBar())
+    assert '&Attrbutes' in menus
+    assert root.attrs_menu != None
+    actions = action_list(root.attrs_menu)
+    assert '&Names' in actions
+    assert '&Places' in actions
+    assert '&Tags' in actions
+
 def test_tools_menu(initial_db, monkeypatch):
     info = initial_db
     monkeypatch.setenv('HOME', info['homedir'])
@@ -244,6 +265,7 @@ def test_about_window(initial_db, monkeypatch):
         PlornAboutDialog, 'ask', classmethod(lambda *args: True))
     mbox = PlornAboutDialog()
     assert mbox.ask() == True
+
 
 ####################################################################
 #
@@ -421,6 +443,526 @@ def test_catalog_deletion(initial_db, monkeypatch):
     assert dbname == None
     catalog, dirpath, dbname = config.get_current_catalog()
     assert catalog == 'Plorn'
+
+
+####################################################################
+#
+#   test attribute operations
+#
+def search_attr_tree(node, value):
+    if node and node.hasChildren():
+        for ii in range(node.rowCount()):
+            found = search_attr_tree(node.child(ii), value)
+            if found:
+                return found
+    if node and node.text() == value:
+        return True
+    return False
+
+def isValueInDb(db, table, value):
+    sql = f'SELECT * FROM {table} WHERE value = "{value}";'
+    query = QSqlQuery(sql, db=db)
+    query.next()
+    if query.value(AttrFields.VALUE) == value:
+        return True
+    return False
+
+def random_string(tree_root):
+    count = 100                     # ... just in case ....
+    clist = []
+    for ii in range(16):
+        clist.append(random.choice(string.ascii_letters + string.digits))
+    randstr = ''.join(clist)
+    while True and count > 0:
+        found = search_attr_tree(tree_root, randstr)
+        if not found:
+            return randstr
+        clist = []
+        for ii in range(16):
+            clist.append(random.choice(string.ascii_letters + string.digits))
+        randstr = ''.join(clist)
+        count -= 1
+    return 'foobar'
+
+def test_new_name_attr(initial_db, monkeypatch):
+    info = initial_db
+    monkeypatch.setenv('HOME', info['homedir'])
+    root = info['root']
+    assert root.menuBar() != None
+    newattr = root.attrs_menu
+    assert newattr != None
+
+    #-- create a new name
+    dlg = PlornAttrView(title='Names', table='names', db=info['db'])
+    tree_root = dlg.tree.model().invisibleRootItem()
+    name = random_string(tree_root)
+    monkeypatch.setattr(QInputDialog, 'getText', lambda *args: (name, True))
+    assert dlg != None
+    found = search_attr_tree(tree_root, name)
+    assert not found
+    dlg.add_attr_sib(tree_root)
+    found = search_attr_tree(tree_root, name)
+    assert found
+    assert isValueInDb(info['db'], 'names', name)
+
+    name = random_string(tree_root)
+    monkeypatch.setattr(QInputDialog, 'getText', lambda *args: (name, True))
+    found = search_attr_tree(tree_root, name)
+    assert not found
+    dlg.add_attr_sib(tree_root)
+    found = search_attr_tree(tree_root, name)
+    assert found
+    assert isValueInDb(info['db'], 'names', name)
+
+def test_new_child_name_attr(initial_db, monkeypatch):
+    info = initial_db
+    monkeypatch.setenv('HOME', info['homedir'])
+    root = info['root']
+    assert root.menuBar() != None
+    newattr = root.attrs_menu
+    assert newattr != None
+
+    #-- create a new name
+    dlg = PlornAttrView(title='Names', table='names', db=info['db'])
+    tree_root = dlg.tree.model().invisibleRootItem()
+    name = random_string(tree_root)
+    monkeypatch.setattr(QInputDialog, 'getText', lambda *args: (name, True))
+    assert dlg != None
+    found = search_attr_tree(tree_root, name)
+    assert not found
+    dlg.add_attr_sib(tree_root)
+    found = search_attr_tree(tree_root, name)
+    assert found
+    assert isValueInDb(info['db'], 'names', name)
+
+    name = random_string(tree_root)
+    monkeypatch.setattr(QInputDialog, 'getText', lambda *args: (name, True))
+    found = search_attr_tree(tree_root, name)
+    assert not found
+    dlg.add_attr_sib(tree_root)
+    found = search_attr_tree(tree_root, name)
+    assert found
+    assert isValueInDb(info['db'], 'names', name)
+    assert tree_root.hasChildren()
+
+    monkeypatch.setattr(QInputDialog, 'getText', lambda *args: ('Barney', True))
+    name = random_string(tree_root)
+    found = search_attr_tree(tree_root, 'Barney')
+    assert not found
+    node = tree_root.child(1)
+    dlg.add_attr_child(node)
+    found = search_attr_tree(tree_root, 'Barney')
+    assert found
+    assert isValueInDb(info['db'], 'names', 'Barney')
+
+def test_remove_name_attr(initial_db, monkeypatch):
+    info = initial_db
+    monkeypatch.setenv('HOME', info['homedir'])
+    root = info['root']
+    assert root.menuBar() != None
+    newattr = root.attrs_menu
+    assert newattr != None
+
+    #-- create a new name
+    dlg = PlornAttrView(title='Names', table='names', db=info['db'])
+    tree_root = dlg.tree.model().invisibleRootItem()
+    name = random_string(tree_root)
+    monkeypatch.setattr(QInputDialog, 'getText', lambda *args: (name, True))
+    assert dlg != None
+    found = search_attr_tree(tree_root, name)
+    assert not found
+    dlg.add_attr_sib(tree_root)
+    found = search_attr_tree(tree_root, name)
+    assert found
+    assert isValueInDb(info['db'], 'names', name)
+
+    name = random_string(tree_root)
+    monkeypatch.setattr(QInputDialog, 'getText', lambda *args: (name, True))
+    found = search_attr_tree(tree_root, name)
+    assert not found
+    dlg.add_attr_sib(tree_root)
+    found = search_attr_tree(tree_root, name)
+    assert found
+    assert isValueInDb(info['db'], 'names', name)
+
+    monkeypatch.setattr(QMessageBox, 'question',
+                        lambda *args: QMessageBox.StandardButton.Yes)
+    item = tree_root.child(1)
+    assert item != None
+    name = item.text()
+    res = dlg.remove_attr(item)
+    found = search_attr_tree(tree_root, name)
+    assert not found
+    assert not isValueInDb(info['db'], 'names', name)
+
+def test_remove_child_name_attr(initial_db, monkeypatch):
+    info = initial_db
+    monkeypatch.setenv('HOME', info['homedir'])
+    root = info['root']
+    assert root.menuBar() != None
+    newattr = root.attrs_menu
+    assert newattr != None
+
+    #-- create a new name
+    dlg = PlornAttrView(title='Names', table='names', db=info['db'])
+    tree_root = dlg.tree.model().invisibleRootItem()
+    name = random_string(tree_root)
+    monkeypatch.setattr(QInputDialog, 'getText', lambda *args: (name, True))
+    assert dlg != None
+    found = search_attr_tree(tree_root, name)
+    assert not found
+    dlg.add_attr_sib(tree_root)
+    found = search_attr_tree(tree_root, name)
+    assert found
+    assert isValueInDb(info['db'], 'names', name)
+
+    name = random_string(tree_root)
+    monkeypatch.setattr(QInputDialog, 'getText', lambda *args: (name, True))
+    found = search_attr_tree(tree_root, name)
+    assert not found
+    dlg.add_attr_sib(tree_root)
+    found = search_attr_tree(tree_root, name)
+    assert found
+    assert isValueInDb(info['db'], 'names', name)
+
+    monkeypatch.setattr(QInputDialog, 'getText', lambda *args: ('Barney', True))
+    name = random_string(tree_root)
+    found = search_attr_tree(tree_root, 'Barney')
+    assert not found
+    dlg.add_attr_child(tree_root)
+    found = search_attr_tree(tree_root, 'Barney')
+    assert found
+    assert isValueInDb(info['db'], 'names', 'Barney')
+
+    monkeypatch.setattr(QMessageBox, 'question',
+                        lambda *args: QMessageBox.StandardButton.Yes)
+    item = tree_root.child(1)
+    assert item != None
+    name = item.text()
+    res = dlg.remove_attr(item)
+    found = search_attr_tree(tree_root, name)
+    assert not found
+    assert not isValueInDb(info['db'], 'names', name)
+
+def test_new_place_attr(initial_db, monkeypatch):
+    info = initial_db
+    monkeypatch.setenv('HOME', info['homedir'])
+    root = info['root']
+    assert root.menuBar() != None
+    newattr = root.attrs_menu
+    assert newattr != None
+
+    #-- create a new name
+    dlg = PlornAttrView(title='places', table='places', db=info['db'])
+    tree_root = dlg.tree.model().invisibleRootItem()
+    name = random_string(tree_root)
+    monkeypatch.setattr(QInputDialog, 'getText', lambda *args: (name, True))
+    assert dlg != None
+    found = search_attr_tree(tree_root, name)
+    assert not found
+    dlg.add_attr_sib(tree_root)
+    found = search_attr_tree(tree_root, name)
+    assert found
+    assert isValueInDb(info['db'], 'places', name)
+
+    name = random_string(tree_root)
+    monkeypatch.setattr(QInputDialog, 'getText', lambda *args: (name, True))
+    found = search_attr_tree(tree_root, name)
+    assert not found
+    dlg.add_attr_sib(tree_root)
+    found = search_attr_tree(tree_root, name)
+    assert found
+    assert isValueInDb(info['db'], 'places', name)
+
+def test_new_child_place_attr(initial_db, monkeypatch):
+    info = initial_db
+    monkeypatch.setenv('HOME', info['homedir'])
+    root = info['root']
+    assert root.menuBar() != None
+    newattr = root.attrs_menu
+    assert newattr != None
+
+    #-- create a new name
+    dlg = PlornAttrView(title='places', table='places', db=info['db'])
+    tree_root = dlg.tree.model().invisibleRootItem()
+    name = random_string(tree_root)
+    monkeypatch.setattr(QInputDialog, 'getText', lambda *args: (name, True))
+    assert dlg != None
+    found = search_attr_tree(tree_root, name)
+    assert not found
+    dlg.add_attr_sib(tree_root)
+    found = search_attr_tree(tree_root, name)
+    assert found
+    assert isValueInDb(info['db'], 'places', name)
+
+    name = random_string(tree_root)
+    monkeypatch.setattr(QInputDialog, 'getText', lambda *args: (name, True))
+    found = search_attr_tree(tree_root, name)
+    assert not found
+    dlg.add_attr_sib(tree_root)
+    found = search_attr_tree(tree_root, name)
+    assert found
+    assert isValueInDb(info['db'], 'places', name)
+    assert tree_root.hasChildren()
+
+    monkeypatch.setattr(QInputDialog, 'getText', lambda *args: ('Barney', True))
+    name = random_string(tree_root)
+    found = search_attr_tree(tree_root, 'Barney')
+    assert not found
+    node = tree_root.child(1)
+    dlg.add_attr_child(node)
+    found = search_attr_tree(tree_root, 'Barney')
+    assert found
+    assert isValueInDb(info['db'], 'places', 'Barney')
+
+def test_remove_place_attr(initial_db, monkeypatch):
+    info = initial_db
+    monkeypatch.setenv('HOME', info['homedir'])
+    root = info['root']
+    assert root.menuBar() != None
+    newattr = root.attrs_menu
+    assert newattr != None
+
+    #-- create a new name
+    dlg = PlornAttrView(title='places', table='places', db=info['db'])
+    tree_root = dlg.tree.model().invisibleRootItem()
+    name = random_string(tree_root)
+    monkeypatch.setattr(QInputDialog, 'getText', lambda *args: (name, True))
+    assert dlg != None
+    found = search_attr_tree(tree_root, name)
+    assert not found
+    dlg.add_attr_sib(tree_root)
+    found = search_attr_tree(tree_root, name)
+    assert found
+    assert isValueInDb(info['db'], 'places', name)
+
+    name = random_string(tree_root)
+    monkeypatch.setattr(QInputDialog, 'getText', lambda *args: (name, True))
+    found = search_attr_tree(tree_root, name)
+    assert not found
+    dlg.add_attr_sib(tree_root)
+    found = search_attr_tree(tree_root, name)
+    assert found
+    assert isValueInDb(info['db'], 'places', name)
+
+    monkeypatch.setattr(QMessageBox, 'question',
+                        lambda *args: QMessageBox.StandardButton.Yes)
+    item = tree_root.child(1)
+    assert item != None
+    name = item.text()
+    res = dlg.remove_attr(item)
+    found = search_attr_tree(tree_root, name)
+    assert not found
+    assert not isValueInDb(info['db'], 'places', name)
+
+def test_remove_child_place_attr(initial_db, monkeypatch):
+    info = initial_db
+    monkeypatch.setenv('HOME', info['homedir'])
+    root = info['root']
+    assert root.menuBar() != None
+    newattr = root.attrs_menu
+    assert newattr != None
+
+    #-- create a new name
+    dlg = PlornAttrView(title='places', table='places', db=info['db'])
+    tree_root = dlg.tree.model().invisibleRootItem()
+    name = random_string(tree_root)
+    monkeypatch.setattr(QInputDialog, 'getText', lambda *args: (name, True))
+    assert dlg != None
+    found = search_attr_tree(tree_root, name)
+    assert not found
+    dlg.add_attr_sib(tree_root)
+    found = search_attr_tree(tree_root, name)
+    assert found
+    assert isValueInDb(info['db'], 'places', name)
+
+    name = random_string(tree_root)
+    monkeypatch.setattr(QInputDialog, 'getText', lambda *args: (name, True))
+    found = search_attr_tree(tree_root, name)
+    assert not found
+    dlg.add_attr_sib(tree_root)
+    found = search_attr_tree(tree_root, name)
+    assert found
+    assert isValueInDb(info['db'], 'places', name)
+
+    monkeypatch.setattr(QInputDialog, 'getText', lambda *args: ('Barney', True))
+    name = random_string(tree_root)
+    found = search_attr_tree(tree_root, 'Barney')
+    assert not found
+    dlg.add_attr_child(tree_root)
+    found = search_attr_tree(tree_root, 'Barney')
+    assert found
+    assert isValueInDb(info['db'], 'places', 'Barney')
+
+    monkeypatch.setattr(QMessageBox, 'question',
+                        lambda *args: QMessageBox.StandardButton.Yes)
+    item = tree_root.child(1)
+    assert item != None
+    name = item.text()
+    res = dlg.remove_attr(item)
+    found = search_attr_tree(tree_root, name)
+    assert not found
+    assert not isValueInDb(info['db'], 'places', name)
+
+def test_new_tag_attr(initial_db, monkeypatch):
+    info = initial_db
+    monkeypatch.setenv('HOME', info['homedir'])
+    root = info['root']
+    assert root.menuBar() != None
+    newattr = root.attrs_menu
+    assert newattr != None
+
+    #-- create a new name
+    dlg = PlornAttrView(title='tags', table='tags', db=info['db'])
+    tree_root = dlg.tree.model().invisibleRootItem()
+    name = random_string(tree_root)
+    monkeypatch.setattr(QInputDialog, 'getText', lambda *args: (name, True))
+    assert dlg != None
+    found = search_attr_tree(tree_root, name)
+    assert not found
+    dlg.add_attr_sib(tree_root)
+    found = search_attr_tree(tree_root, name)
+    assert found
+    assert isValueInDb(info['db'], 'tags', name)
+
+    name = random_string(tree_root)
+    monkeypatch.setattr(QInputDialog, 'getText', lambda *args: (name, True))
+    found = search_attr_tree(tree_root, name)
+    assert not found
+    dlg.add_attr_sib(tree_root)
+    found = search_attr_tree(tree_root, name)
+    assert found
+    assert isValueInDb(info['db'], 'tags', name)
+
+def test_new_child_tag_attr(initial_db, monkeypatch):
+    info = initial_db
+    monkeypatch.setenv('HOME', info['homedir'])
+    root = info['root']
+    assert root.menuBar() != None
+    newattr = root.attrs_menu
+    assert newattr != None
+
+    #-- create a new name
+    dlg = PlornAttrView(title='tags', table='tags', db=info['db'])
+    tree_root = dlg.tree.model().invisibleRootItem()
+    name = random_string(tree_root)
+    monkeypatch.setattr(QInputDialog, 'getText', lambda *args: (name, True))
+    assert dlg != None
+    found = search_attr_tree(tree_root, name)
+    assert not found
+    dlg.add_attr_sib(tree_root)
+    found = search_attr_tree(tree_root, name)
+    assert found
+    assert isValueInDb(info['db'], 'tags', name)
+
+    name = random_string(tree_root)
+    monkeypatch.setattr(QInputDialog, 'getText', lambda *args: (name, True))
+    found = search_attr_tree(tree_root, name)
+    assert not found
+    dlg.add_attr_sib(tree_root)
+    found = search_attr_tree(tree_root, name)
+    assert found
+    assert isValueInDb(info['db'], 'tags', name)
+    assert tree_root.hasChildren()
+
+    monkeypatch.setattr(QInputDialog, 'getText', lambda *args: ('Barney', True))
+    name = random_string(tree_root)
+    found = search_attr_tree(tree_root, 'Barney')
+    assert not found
+    node = tree_root.child(1)
+    dlg.add_attr_child(node)
+    found = search_attr_tree(tree_root, 'Barney')
+    assert found
+    assert isValueInDb(info['db'], 'tags', 'Barney')
+
+def test_remove_tag_attr(initial_db, monkeypatch):
+    info = initial_db
+    monkeypatch.setenv('HOME', info['homedir'])
+    root = info['root']
+    assert root.menuBar() != None
+    newattr = root.attrs_menu
+    assert newattr != None
+
+    #-- create a new name
+    dlg = PlornAttrView(title='tags', table='tags', db=info['db'])
+    tree_root = dlg.tree.model().invisibleRootItem()
+    name = random_string(tree_root)
+    monkeypatch.setattr(QInputDialog, 'getText', lambda *args: (name, True))
+    assert dlg != None
+    found = search_attr_tree(tree_root, name)
+    assert not found
+    dlg.add_attr_sib(tree_root)
+    found = search_attr_tree(tree_root, name)
+    assert found
+    assert isValueInDb(info['db'], 'tags', name)
+
+    name = random_string(tree_root)
+    monkeypatch.setattr(QInputDialog, 'getText', lambda *args: (name, True))
+    found = search_attr_tree(tree_root, name)
+    assert not found
+    dlg.add_attr_sib(tree_root)
+    found = search_attr_tree(tree_root, name)
+    assert found
+    assert isValueInDb(info['db'], 'tags', name)
+
+    monkeypatch.setattr(QMessageBox, 'question',
+                        lambda *args: QMessageBox.StandardButton.Yes)
+    item = tree_root.child(1)
+    assert item != None
+    name = item.text()
+    res = dlg.remove_attr(item)
+    found = search_attr_tree(tree_root, name)
+    assert not found
+    assert not isValueInDb(info['db'], 'tags', name)
+
+def test_remove_child_tag_attr(initial_db, monkeypatch):
+    info = initial_db
+    monkeypatch.setenv('HOME', info['homedir'])
+    root = info['root']
+    assert root.menuBar() != None
+    newattr = root.attrs_menu
+    assert newattr != None
+
+    #-- create a new name
+    dlg = PlornAttrView(title='tags', table='tags', db=info['db'])
+    tree_root = dlg.tree.model().invisibleRootItem()
+    name = random_string(tree_root)
+    monkeypatch.setattr(QInputDialog, 'getText', lambda *args: (name, True))
+    assert dlg != None
+    found = search_attr_tree(tree_root, name)
+    assert not found
+    dlg.add_attr_sib(tree_root)
+    found = search_attr_tree(tree_root, name)
+    assert found
+    assert isValueInDb(info['db'], 'tags', name)
+
+    name = random_string(tree_root)
+    monkeypatch.setattr(QInputDialog, 'getText', lambda *args: (name, True))
+    found = search_attr_tree(tree_root, name)
+    assert not found
+    dlg.add_attr_sib(tree_root)
+    found = search_attr_tree(tree_root, name)
+    assert found
+    assert isValueInDb(info['db'], 'tags', name)
+
+    monkeypatch.setattr(QInputDialog, 'getText', lambda *args: ('Barney', True))
+    name = random_string(tree_root)
+    found = search_attr_tree(tree_root, 'Barney')
+    assert not found
+    dlg.add_attr_child(tree_root)
+    found = search_attr_tree(tree_root, 'Barney')
+    assert found
+    assert isValueInDb(info['db'], 'tags', 'Barney')
+
+    monkeypatch.setattr(QMessageBox, 'question',
+                        lambda *args: QMessageBox.StandardButton.Yes)
+    item = tree_root.child(1)
+    assert item != None
+    name = item.text()
+    res = dlg.remove_attr(item)
+    found = search_attr_tree(tree_root, name)
+    assert not found
+    assert not isValueInDb(info['db'], 'tags', name)
 
 ####################################################################
 #

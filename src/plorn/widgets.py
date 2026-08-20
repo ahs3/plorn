@@ -292,6 +292,7 @@ class PlornAttrView(QDialog):
             module_logger.debug(f'remove_attr? Yes')
             res = remove_attrs(self.model.invisibleRootItem(), item,
                                table=self.table, db=self.db)
+            module_logger.debug(f'remove_attr: remove_attrs result "{res}"')
             if res == 'cannot delete root' or \
                res == 'cannot delete db index 0' or \
                res == 'retrieve failed':
