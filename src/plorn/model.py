@@ -262,9 +262,10 @@ class PlornDbOperations:
 
     @staticmethod
     def get_config(self):
-        sql = f'SELECT * FROM config'
-        res = self.cursor.execute(sql)
-        return res.fetchone()
+        global _current_db
+
+        query = QSqlQuery(f'SELECT * FROM config;', db=_current_db)
+        return query.next()
 
     def album_exists(self, album):
         sql = f'SELECT * FROM albums WHERE name = \'{album.get_name()}\''
@@ -725,20 +726,19 @@ class PlornDbOperations:
         return PlornName(row['name'], id=row['id'],
                                     parent_id=row['parent_id'])
 
-    def get_full_name(self, name_id):
-        sql = f'SELECT * FROM names WHERE id = \'{name_id}\''
-        res = self.cursor.execute(sql)
-        row = res.fetchone()
-        fullname = []
-        fullname.append(row['name'])
-        while row != None and row['parent_id'] != None:
-            pid = row['parent_id']
-            sql = f'SELECT * FROM names WHERE id = \'{pid}\''
-            res = self.cursor.execute(sql)
-            row = res.fetchone()
-            if row != None:
-                fullname.append(row['name'])
-        return fullname
+    @staticmethod
+    def get_full_attr(table='names', id=0):
+        global _current_db
+
+        sql = f'SELECT * from {table} WHERE id = {id};'
+        fullattr = []
+        query = QSqlQuery(sql, db=_current_db)
+        while query.next() and query.value(AttrFields.PARENT_ID) != None:
+            fullattr.append(query.value(AttrFields.VALUE))
+            pid = query.value(AttrFields.PARENT_ID)
+            sql = f'SELECT * from {table} WHERE id = {pid};'
+            query = QSqlQuery(sql, db=_current_db)
+        return fullattr[::-1]
 
     def remove_name(self, name_id, parent_id):
         sql  = f'DELETE FROM names WHERE id = \'{name_id}\''
@@ -796,21 +796,6 @@ class PlornDbOperations:
                                       parent_id=ii['parent_id'])
             result.append(p)
         return result
-
-    def get_full_place(self, place_id, parent_id=0):
-        sql = f'SELECT * FROM places WHERE id = {place_id}'
-        res = self.cursor.execute(sql)
-        row = res.fetchone()
-        fullplace = []
-        fullplace.append(row['place'])
-        while row != None and row['parent_id'] != 0:
-            pid = row['parent_id']
-            sql = f'SELECT * FROM places WHERE id = {pid}'
-            res = self.cursor.execute(sql)
-            row = res.fetchone()
-            if row:
-                fullplace.append(row['place'])
-        return fullplace
 
     def get_places(self):
         sql = f'SELECT * FROM places'
@@ -964,35 +949,6 @@ class PlornDbOperations:
                                     parent_id=ii['parent_id'])
             result.append(p)
         return result
-
-    def get_full_attr(self, attr):
-        table_name = attr.get_db_table_name()
-        attr_id = attr.get_id()
-        sql = f'SELECT * FROM {table_name} WHERE id = \'{attr_id}\''
-        res = self.cursor.execute(sql)
-        row = res.fetchone()
-        fullattr = []
-        fullattr.append(row['value'])
-        while row and row['parent_id'] != 0:
-            pid = row['parent_id']
-            sql = f'SELECT * FROM {table_name} WHERE id = \'{pid}\''
-            res = self.cursor.execute(sql)
-            row = res.fetchone()
-            if row:
-                fullattr.append(row['value'])
-        return fullattr
-
-    def get_full_name(self, name):
-        fullattr = self.get_full_attr(name)
-        return fullattr[::-1]
-
-    def get_full_place(self, place):
-        fullattr = self.get_full_attr(place)
-        return fullattr[::-1]
-
-    def get_full_tag(self, tag):
-        fullattr = self.get_full_attr(tag)
-        return fullattr[::-1]
 
     def get_all_attrs(self, table_name=''):
         sql = f'SELECT * FROM {table_name}'

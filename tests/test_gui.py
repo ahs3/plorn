@@ -625,14 +625,14 @@ def test_remove_child_name_attr(initial_db, monkeypatch):
     assert found
     assert isValueInDb(info['db'], 'names', name)
 
-    monkeypatch.setattr(QInputDialog, 'getText', lambda *args: ('Barney', True))
     name = random_string(tree_root)
-    found = search_attr_tree(tree_root, 'Barney')
+    monkeypatch.setattr(QInputDialog, 'getText', lambda *args: (name, True))
+    found = search_attr_tree(tree_root, name)
     assert not found
     dlg.add_attr_child(tree_root)
-    found = search_attr_tree(tree_root, 'Barney')
+    found = search_attr_tree(tree_root, name)
     assert found
-    assert isValueInDb(info['db'], 'names', 'Barney')
+    assert isValueInDb(info['db'], 'names', name)
 
     monkeypatch.setattr(QMessageBox, 'question',
                         lambda *args: QMessageBox.StandardButton.Yes)
@@ -785,14 +785,14 @@ def test_remove_child_place_attr(initial_db, monkeypatch):
     assert found
     assert isValueInDb(info['db'], 'places', name)
 
-    monkeypatch.setattr(QInputDialog, 'getText', lambda *args: ('Barney', True))
     name = random_string(tree_root)
-    found = search_attr_tree(tree_root, 'Barney')
+    monkeypatch.setattr(QInputDialog, 'getText', lambda *args: (name, True))
+    found = search_attr_tree(tree_root, name)
     assert not found
     dlg.add_attr_child(tree_root)
-    found = search_attr_tree(tree_root, 'Barney')
+    found = search_attr_tree(tree_root, name)
     assert found
-    assert isValueInDb(info['db'], 'places', 'Barney')
+    assert isValueInDb(info['db'], 'places', name)
 
     monkeypatch.setattr(QMessageBox, 'question',
                         lambda *args: QMessageBox.StandardButton.Yes)
@@ -945,14 +945,14 @@ def test_remove_child_tag_attr(initial_db, monkeypatch):
     assert found
     assert isValueInDb(info['db'], 'tags', name)
 
-    monkeypatch.setattr(QInputDialog, 'getText', lambda *args: ('Barney', True))
     name = random_string(tree_root)
-    found = search_attr_tree(tree_root, 'Barney')
+    monkeypatch.setattr(QInputDialog, 'getText', lambda *args: (name, True))
+    found = search_attr_tree(tree_root, name)
     assert not found
     dlg.add_attr_child(tree_root)
-    found = search_attr_tree(tree_root, 'Barney')
+    found = search_attr_tree(tree_root, name)
     assert found
-    assert isValueInDb(info['db'], 'tags', 'Barney')
+    assert isValueInDb(info['db'], 'tags', name)
 
     monkeypatch.setattr(QMessageBox, 'question',
                         lambda *args: QMessageBox.StandardButton.Yes)
@@ -968,3 +968,11 @@ def test_remove_child_tag_attr(initial_db, monkeypatch):
 #
 #   test album operations
 #
+def test_add_album(initial_db, monkeypatch):
+    info = initial_db
+    monkeypatch.setenv('HOME', info['homedir'])
+    root = info['root']
+    assert root.menuBar() != None
+    tree = root.album_tree
+    assert tree != None
+

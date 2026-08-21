@@ -5,6 +5,7 @@
 # SPDX-FileCopyrightText: 2025 Albert H. Stone, III <ahs3@ahs3.net>
 #######################################################################
 
+import copy
 from enum import IntEnum
 import logging
 import os
@@ -27,6 +28,7 @@ from PyQt6.QtGui import (
 )
 
 from PyQt6.QtWidgets import (
+    QAbstractItemView,
     QButtonGroup,
     QDialog,
     QDialogButtonBox,
@@ -55,11 +57,12 @@ from plorn import (
 from plorn.config import PlornConfig
 
 from plorn.model import (
+    add_attrs,
+    model_add_album,
+    PlornDbOperations,
     populate_albums,
     populate_attrs,
-    add_attrs,
     remove_attrs,
-    model_add_album,
 )
 
 module_logger = logging.getLogger('plorn.widgets')
@@ -138,7 +141,7 @@ class PlornAttrView(QDialog):
         tree.setToolTip('Right-click for actions')
         self.tree = tree
         layout.addWidget(self.tree, 0, 0)
-        #populate_attrs(self.root, table=self.table, db=self.db)
+        populate_attrs(self.root, table=self.table, db=self.db)
 
         self.bbox = QDialogButtonBox()
         self.bbox.setStandardButtons(QDialogButtonBox.StandardButton.Ok |
@@ -593,6 +596,7 @@ class PlornAttrSelection(QDialog):
         catalog, datadir, dbname = config.get_current_catalog()
         self.db = QSqlDatabase.database(catalog)
         self.db.open()
+        self.info = {}
 
         self.setModal(True)
         self.setWindowTitle(f'Select {self.table.capitalize()}')
@@ -601,21 +605,56 @@ class PlornAttrSelection(QDialog):
                            QSizePolicy.Policy.Expanding)
         self.tree = QTreeView()
         self.tree.setHeaderHidden(True)
+        self.tree.setSelectionMode(
+                            QAbstractItemView.SelectionMode.SingleSelection)
         model = QStandardItemModel()
         self.tree.setModel(model)
         layout.addWidget(self.tree, 0, 0)
 
         root = self.tree.model().invisibleRootItem()
         populate_attrs(root, self.table, db=self.db)
+
+        self.bbox = QDialogButtonBox()
+        self.bbox.addButton('Done', QDialogButtonBox.ButtonRole.RejectRole)
+        self.bbox.addButton('Apply', QDialogButtonBox.ButtonRole.ApplyRole)
+        self.bbox.clicked.connect(self.dlg_done)
+        layout.addWidget(self.bbox, 1, 0)
         self.setLayout(layout)
         module_logger.debug(f'PlornAttrSelection done: table {table}')
 
     def get_inputs(self):
+        global module_logger
+
+        module_logger.debug(f'{self.table} selection: get_inputs entered')
         res = self.exec()
-        info = {}
-        if res == QDialog.DialogCode.Accepted:
-            pass
-        return info
+        result = self.info
+        msg  = f'{self.table} selection: get_inputs returns '
+        msg += f'{len(self.info)} items'
+        module_logger.debug(msg)
+        return result
+
+    def dlg_done(self, button):
+        global module_logger
+
+        role = self.bbox.buttonRole(button)
+        if role == QDialogButtonBox.ButtonRole.ApplyRole:
+            module_logger.debug(f'{self.table} selection: Apply clicked')
+            msg  = f'dlg_done: {len(self.tree.selectedIndexes())} '
+            msg += f'from {self.table}'
+            module_logger.debug(msg)
+            for index in self.tree.selectedIndexes():
+                item = self.tree.model().itemFromIndex(index)
+                msg = f'dlg_done: selected {item.text()} from {self.table}'
+                module_logger.debug(msg)
+                self.info[item.text()] = item
+            self.setResult(QDialog.DialogCode.Accepted)
+
+        elif role == QDialogButtonBox.ButtonRole.RejectRole:
+            module_logger.debug(f'{self.table} selected: Done clicked')
+            self.setResult(QDialog.DialogCode.Rejected)
+
+        module_logger.debug(f'dlg_done returns {self.result()}')
+        self.close()
 
 class PlornAttrListView(QWidget):
     '''
@@ -637,13 +676,15 @@ class PlornAttrListView(QWidget):
         
         self.setWindowTitle(self.title)
         layout = QGridLayout()
-        name_label = QLabel(self.title, alignment=Qt.AlignmentFlag.AlignCenter)
-        self.name_list = QListView()
+        attr_label = QLabel(self.title, alignment=Qt.AlignmentFlag.AlignCenter)
+        self.attr_list = QListView()
         model = QStandardItemModel()
-        self.name_list.setModel(model)
-        layout.addWidget(name_label, 0, 0)
-        layout.addWidget(self.name_list, 1, 0)
+        self.attr_list.setModel(model)
+        layout.addWidget(attr_label, 0, 0)
+        layout.addWidget(self.attr_list, 1, 0)
 
+        self.add_attr = None
+        self.remove_attr = None
         if self.allow_edit:
             blayout = QGridLayout()
             plus = QIcon.fromTheme(QIcon.ThemeIcon.ListAdd)
@@ -665,13 +706,28 @@ class PlornAttrListView(QWidget):
         module_logger.debug('add_selected: entered')
         dlg = PlornAttrSelection(table=self.table)
         info = dlg.get_inputs()
-        module_logger.debug(f'add_selected: info {info}')
+        for value in info.keys():
+            if info[value] != None:
+                msg  = f'add_selected: data {info[value].data()}'
+                module_logger.debug(msg)
+                data = info[value].data()
+                fullattr = PlornDbOperations.get_full_attr(table=self.table,
+                                                         id=data[AttrFields.ID])
+                module_logger.debug(f'add_selected: full attr {fullattr}')
+                value = ', '.join(fullattr)
+                item = QStandardItem(value)
+                item.setData(data)
+                if len(self.attr_list.model().findItems(value)) < 1:
+                    self.attr_list.model().appendRow(item)
+        module_logger.debug(f'add_selected: info count {len(info)}')
 
     def remove_selected(self):
         global module_logger
 
         module_logger.debug('remove_selected: entered')
-        pass
+        for index in self.attr_list.selectedIndexes():
+            self.attr_list.model().removeRow(index.row())
+        module_logger.debug('remove_selected: entered')
 
 
 class PlornNewAlbumDialog(QDialog):
