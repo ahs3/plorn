@@ -35,12 +35,16 @@ from PyQt6.QtWidgets import (
 )
 
 from plorn.config import PlornConfig
+
 from plorn import (
-    PlornAlbum,
     AlbumFields,
     AttrFields,
     PhotoFields,
+    PlornAlbum,
     PlornDbException,
+    PlornName,
+    PlornPlace,
+    PlornTag,
 )
 
 module_logger = logging.getLogger('plorn.model')
@@ -109,12 +113,31 @@ class PlornDbOperations:
             if db and db.connectionName() == _current_db.connectionName():
                 return _current_db
 
-        if db.isOpen() and db.isValid():
+        if db and db.isOpen() and db.isValid():
             db = db
-            _current_db =db
+            _current_db = db
             PlornDbOperations.create_tables()
+            return _current_db
+
+        config = PlornConfig()
+        catalog, datadir, dbname = config.get_current_catalog()
+        if catalog not in QSqlDatabase.connectionNames():
+            db = QSqlDatabase.addDatabase('QSQLITE', connectionName=catalog)
+            dbpath = os.path.expanduser(os.path.join(datadir, dbname))
+            db.setDatabaseName(dbpath)
+            db.open()
+            _current_db = db
+            PlornDbOperations.create_tables()
+
+        elif catalog in QSqlDatabase.connectionNames():
+            db = QSqlDatabase.database(connectionName=catalog)
+            db.open()
+            _current_db = db
+
         else:
             raise PlornDbException(f'{db.connectionName()} is not valid')
+
+        return _current_db
 
     @staticmethod
     def close(db):
@@ -135,7 +158,7 @@ class PlornDbOperations:
             PlornDbOperations.create_attr_table(ii)
             for jj in ['albums', 'photos']:
                 PlornDbOperations.create_obj_attr_table(jj, ii)
-        module_logger.debug(f'created tables: {_current_db.tables()}')
+        #module_logger.debug(f'created tables: {_current_db.tables()}')
 
     @staticmethod
     def create_config_table():
@@ -146,21 +169,19 @@ class PlornDbOperations:
                 name text NOT NULL,
                 version text,
                 username text,
-                fullname text,
+                fullname text
             );
         '''
         query = QSqlQuery(sql_stmt, db=_current_db)
-        if query.isActive():
-            cfgq = QSqlQuery('SELECT * FROM config;', db=_current_db)
-            if cfgq.isActive() and not cfgq.next():
-                config = PlornConfig()
-                sql = 'INSERT INTO config VALUES ("plorn", '
-                sql += f'"{config.get_version()}", '
-                sql += f'"{config.get_username()}", '
-                sql += f'"{config.get_fullname()}");'
-                cfgadd = QSqlQuery(sql, db=_current_db)
-        #else:
-        #    raise PlornDbException('cannot create config table')
+        
+        cfgq = QSqlQuery('SELECT * FROM config;', db=_current_db)
+        if cfgq.size() < 1:
+            config = PlornConfig()
+            sql = 'INSERT INTO config VALUES ("plorn", '
+            sql += f'"{config.get_version()}", '
+            sql += f'"{config.get_username()}", '
+            sql += f'"{config.get_fullname()}");'
+            cfgadd = QSqlQuery(sql, db=_current_db)
 
     @staticmethod
     def create_albums_table():
@@ -176,8 +197,6 @@ class PlornDbOperations:
             );
         '''
         query = QSqlQuery(sql_stmt, db=_current_db)
-        #if not query.isActive():
-        #    raise PlornDbException('cannot create albums table')
 
     @staticmethod
     def create_photos_table():
@@ -198,8 +217,6 @@ class PlornDbOperations:
             );
         '''
         query = QSqlQuery(sql_stmt, db=_current_db)
-        #if not query.isActive():
-        #    raise PlornDbException('cannot create photos table')
 
     @staticmethod
     def create_attr_table(table_name):
@@ -217,8 +234,6 @@ class PlornDbOperations:
             );
         '''
         query = QSqlQuery(sql_stmt, db=_current_db)
-        #if not query.isActive():
-        #    raise PlornDbException(f'cannot create {table_name} table')
 
     @staticmethod
     def create_obj_attr_table(obj_name, attr_name):
@@ -231,7 +246,7 @@ class PlornDbOperations:
         if attr_name[-1] == 's':
             attr = attr_name[0:-1]
         sql_stmt = f'''
-            CREATE TABLE IF NOT EXISTS {obj_name}_{attr_name} (
+            CREATE TABLE IF NOT EXISTS {obj}_{attr_name} (
                 id INTEGER PRIMARY KEY,
                 {obj}_id INT NOT NULL,
                 {attr}_id INT NOT NULL,
@@ -279,15 +294,16 @@ class PlornDbOperations:
         rows = res.fetchone()
         return rows != None
 
+    @staticmethod
     def add_album_name_list(album):
-        global _current_album
+        global module_logger, _current_album
 
         res = False
         if len(album.get_name_list()) > 0:
             album_id = album.get_id()
             sql  = 'INSERT INTO album_names (name_id, album_id) VALUES '
             for ii in album.get_name_list():
-                #print(f'   {ii.get_value()}: {ii.get_id()}, {album_id}')
+                module_logger.debug(f'static add_album_name list {ii.get_value()}: {ii.get_id()}, {album_id}')
                 sql += f'({ii.get_id()}, {album_id}), '
             idx = sql.rfind(',')
             sql = sql[0:idx]
@@ -300,6 +316,7 @@ class PlornDbOperations:
         sql = f'DELETE FROM album_names WHERE album_id = \'{album.get_id()}\''
         return self.cursor.execute(sql)
 
+    @staticmethod
     def add_album_place_list(album):
         global _current_db
 
@@ -321,6 +338,7 @@ class PlornDbOperations:
         sql = f'DELETE FROM album_places WHERE album_id = \'{album.get_id()}\''
         return self.cursor.execute(sql)
 
+    @staticmethod
     def add_album_tag_list(album):
         global _current_db
 
@@ -393,9 +411,11 @@ class PlornDbOperations:
         sql = f'DELETE FROM photo_tags WHERE photo_id = \'{photo.get_id()}\''
         return self.cursor.execute(sql)
 
+    @staticmethod
     def add_album(db, album):
-        global _current_db
+        global module_logger, _current_db
 
+        module_logger.debug('static add_album: entered')
         sql = 'INSERT INTO albums (name,dated,notes,photo_count) VALUES '
         sql += f'("{album.get_name()}", '
         sql += f' "{album.get_dated()}", '
@@ -403,67 +423,70 @@ class PlornDbOperations:
         sql += f' {album.get_photo_count()}'
         sql += f');'
         query = QSqlQuery(sql, db=_current_db)
+        module_logger.debug(f'static add_album: album is {str(album)}')
 
-        sql = f'SELECT * FROM albums WHERE name = "{album.get_name()}"'
+        sql = f'SELECT * FROM albums WHERE name = "{album.get_name()}";'
         query = QSqlQuery(sql, db=_current_db)
-        result = None
-        if query.isActive():
-            query.next()
+        if query.next():
             id = query.value(AlbumFields.ID)
-            name = query.value(AlbumFields.NAME)
-            dated = query.value(AlbumFields.DATED)
-            notes = query.value(AlbumFields.NOTES)
-            count = query.value(AlbumFields.PHOTO_COUNT)
-            result = PlornAlbum(name, id=id, dated=dated, notes=notes,
-                                photo_count=count)
-            album_id = result.get_id()
-
-            result.set_name_list(album.get_name_list())
-            result.set_place_list(album.get_place_list())
-            result.set_tag_list(album.get_tag_list())
-
-            PlornDbOperations.add_album_name_list(result)
-            PlornDbOperations.add_album_place_list(result)
-            PlornDbOperations.add_album_tag_list(result)
+            album.set_id(id)
+            module_logger.debug('static add_album: adding attr lists')
+            PlornDbOperations.add_album_name_list(album)
+            PlornDbOperations.add_album_place_list(album)
+            PlornDbOperations.add_album_tag_list(album)
+            module_logger.debug(f'static add_album: attr lists done, album {str(album)}')
 
         else:
-            raise PlornDBException(f'cannot add album {album.get_name()}')
+            msg  = f'cannot add album {album.get_name()}'
+            msg += f'\n{query.lastError().text()}'
+            raise PlornDbException(msg)
 
-        return result
+        module_logger.debug('static add_album: done')
+        return album
 
     def get_album(self, album_id):
         return self.get_album_by_id(album_id)
 
-    def get_album_by_name(self, album_name):
-        sql = f'SELECT * FROM albums WHERE name = \'{album_name}\''
-        res = self.cursor.execute(sql)
-        row = res.fetchone()
-        return self.get_album_by_id(row['id'])
+    @staticmethod
+    def get_album_by_name(album_name):
+        global module_logger, _current_db
 
-    def get_album_row_by_id(self, album_id):
-        sql = f'SELECT * FROM albums WHERE id = \'{album_id}\''
-        res = self.cursor.execute(sql)
-        row = res.fetchone()
-        if row == None:
-            return None
-        row['names'] = self.get_names_for_album_by_id(album_id)
-        row['places'] = self.get_places_for_album_by_id(album_id)
-        row['tags'] = self.get_tags_for_album_by_id(album_id)
-        return row
+        module_logger.debug(f'static get_album_by_name: getting {album_name}')
+        album = None
+        sql = f'SELECT * FROM albums WHERE name = "{album_name}";'
+        query = QSqlQuery(sql, db=_current_db)
+        if query.next():
+            album_id = query.value(AlbumFields.ID)
+            names = PlornDbOperations.get_names_for_album_by_id(album_id)
+            module_logger.debug(f'static get_album_by_name: got names {names}')
+            places = PlornDbOperations.get_places_for_album_by_id(album_id)
+            module_logger.debug(f'static get_album_by_name: got places {places}')
+            tags = PlornDbOperations.get_tags_for_album_by_id(album_id)
+            module_logger.debug(f'static get_album_by_name: got tags {tags}')
+            album = PlornAlbum(query.value(AlbumFields.NAME),
+                               id=query.value(AlbumFields.ID),
+                               dated=query.value(AlbumFields.DATED),
+                               notes=query.value(AlbumFields.NOTES),
+                               names=names, places=places, tags=tags)
+        module_logger.debug(f'static get_album_by_name: done, album is {str(album)}')
+        return album
 
-    def get_album_by_id(self, album_id):
-        row = self.get_album_row_by_id(album_id)
-        if row == None:
-            return None
-        p = PlornAlbum(row['name'], id=row['id'],
-                                   dated=row['dated'], notes=row['notes'],
-                                   photo_count=row['photo_count'],
-                                  )
+    @staticmethod
+    def get_album_by_id(album_id):
+        global module_logger, _current_db
 
-        p.set_name_list(row['names'])
-        p.set_place_list(row['places'])
-        p.set_tag_list(row['tags'])
-        return p
+        album = None
+        sql = f'SELECT * FROM albums WHERE id = "{album_id}";'
+        query = QSqlQuery(sql, db=_current_db)
+        if query.next():
+            album = PlornAlbum(query.value(AlbumFields.NAME),
+                               id=query.value(AlbumFields.ID),
+                               dated=query.value(AlbumFields.DATED),
+                               notes=query.value(AlbumFields.NOTES),
+                               names=query.value(AlbumFields.NAMES),
+                               places=query.value(AlbumFields.PLACES),
+                               tags=query.value(AlbumFields.TAGS))
+        return album
 
     def remove_album_by_name(self, album_name):
         album = self.get_album_by_name(album_name)
@@ -488,20 +511,6 @@ class PlornDbOperations:
     def remove_album(self, album):
         self.remove_album_by_id(album.get_id())
         return 
-
-    def get_album_cursor(self):
-        cursor = self.db.cursor()
-        sql = f'SELECT * FROM albums'
-        res = cursor.execute(sql)
-        return cursor
-
-    def get_photo_cursor(self, album_id=None):
-        cursor = self.db.cursor()
-        sql  = 'SELECT * FROM photos'
-        if album_id != None:
-            sql += f' WHERE album_id = \'{album_id}\''
-        res = cursor.execute(sql)
-        return cursor
 
     def album_count(self):
         sql = f'SELECT id FROM albums'
@@ -677,21 +686,6 @@ class PlornDbOperations:
                 return True
         return False
 
-    def get_names_cursor(self):
-        sql = f'SELECT * FROM names'
-        res = self.cursor.execute(sql)
-        return self.cursor
-
-    def get_places_cursor(self):
-        sql = f'SELECT * FROM places'
-        res = self.cursor.execute(sql)
-        return self.cursor
-
-    def get_tags_cursor(self):
-        sql = f'SELECT * FROM tags'
-        res = self.cursor.execute(sql)
-        return self.cursor
-
     def get_name(self, name_id, parent_id=0):
         sql = f'SELECT * FROM names WHERE id = \'{name_id}\''
         res = self.cursor.execute(sql)
@@ -847,73 +841,109 @@ class PlornDbOperations:
         msg += f' to {row['place']}'
         return row['id']
 
-    def add_attr(self, attr):
+    @staticmethod
+    def add_attr(attr):
+        global module_logger, _current_db
+
         table_name = attr.get_db_table_name()
         sql = f'INSERT INTO {table_name} (value, parent_id) VALUES '
         value = attr.get_value()
         pid = attr.get_parent_id()
         if pid == None:
             pid = 0
-        sql += f'(\'{value}\', \'{pid}\')'
-        res = self.cursor.execute(sql)
-        self.db.commit()
-        sql = f'SELECT * FROM {table_name} WHERE value = \'{value}\''
-        res = self.cursor.execute(sql)
-        row = res.fetchone()
+        sql += f'(\'{value}\', \'{pid}\');'
+        query = QSqlQuery(sql, db=_current_db)
+        row = {}
+        sql = f'SELECT * FROM {table_name} WHERE value = "{value}";'
+        query = QSqlQuery(sql, db=_current_db)
+        if query.next():
+            row['id'] = query.value(AttrFields.ID)
+            row['parent_id'] = query.value(AttrFields.PARENT_ID)
+            row['value'] = query.value(AttrFields.VALUE)
         return row
 
-    def add_name(self, name):
-        row = self.add_attr(name)
-        return PlornName(row['value'], id=row['id'],
-                                    parent_id=row['parent_id'])
+    @staticmethod
+    def add_name(name):
+        row = PlornDbOperations.add_attr(name)
+        if len(row) > 0:
+            return PlornName(row['value'], id=row['id'],
+                             parent_id=row['parent_id'])
+        return None
 
-    def add_place(self, place):
-        row = self.add_attr(place)
-        return PlornPlace(row['value'], id=row['id'],
-                                     parent_id=row['parent_id'])
+    @staticmethod
+    def add_place(place):
+        row = PlornDbOperations.add_attr(place)
+        if len(row) > 0:
+            return PlornPlace(row['value'], id=row['id'],
+                              parent_id=row['parent_id'])
+        return None
 
-    def add_tag(self, tag):
-        row = self.add_attr(tag)
-        return PlornTag(row['value'], id=row['id'],
-                                   parent_id=row['parent_id'])
+    @staticmethod
+    def add_tag(tag):
+        row = PlornDbOperations.add_attr(tag)
+        if len(row) > 0:
+            return PlornTag(row['value'], id=row['id'],
+                            parent_id=row['parent_id'])
+        return None
 
-    def attr_exists(self, attr):
+    @staticmethod
+    def attr_exists(attr):
+        global module_logger, _current_db
+
         table_name = attr.get_db_table_name()
         value = attr.get_value()
-        sql = f'SELECT * FROM {table_name} WHERE value = \'{value}\''
-        res = self.cursor.execute(sql)
-        rows = res.fetchall()
-        return len(rows) > 0
+        sql = f'SELECT * FROM {table_name} WHERE value = "{value}";'
+        query = QSqlQuery(sql, db=_current_db)
+        return query.next()
 
-    def name_exists(self, name):
-        return self.attr_exists(name)
+    @staticmethod
+    def name_exists(name):
+        return PlornDbOperations.attr_exists(name)
 
-    def place_exists(self, place):
-        return self.attr_exists(place)
+    @staticmethod
+    def place_exists(place):
+        return PlornDbOperations.attr_exists(place)
 
-    def tag_exists(self, tag):
-        return self.attr_exists(tag)
+    @staticmethod
+    def tag_exists(tag):
+        return PlornDbOperations.attr_exists(tag)
 
-    def get_attr(self, attr_id, table_name):
-        sql = f'SELECT * FROM {table_name}  WHERE id = \'{attr_id}\''
-        res = self.cursor.execute(sql)
-        row = res.fetchone()
+    @staticmethod
+    def get_attr(attr_id, table_name):
+        global module_logger, _current_db
+
+        sql = f'SELECT * FROM {table_name}  WHERE id = "{attr_id}";'
+        query = QSqlQuery(sql, db=_current_db)
+        row = {}
+        if query.next():
+            row['id'] = query.value(AttrFields.ID)
+            row['parent_id'] = query.value(AttrFields.PARENT_ID)
+            row['value'] = query.value(AttrFields.VALUE)
         return row
 
-    def get_name(self, name_id):
-        row = self.get_attr(name_id, 'names')
-        return PlornName(row['value'], id=row['id'],
-                                    parent_id=row['parent_id'])
+    @staticmethod
+    def get_name(name_id):
+        row = PlornDbOperations.get_attr(name_id, 'names')
+        if len(row) > 0:
+            return PlornName(row['value'], id=row['id'],
+                             parent_id=row['parent_id'])
+        return None
 
-    def get_place(self, place_id):
-        row = self.get_attr(place_id, 'places')
-        return PlornPlace(row['value'], id=row['id'],
-                                     parent_id=row['parent_id'])
+    @staticmethod
+    def get_place(place_id):
+        row = PlornDbOperations.get_attr(place_id, 'places')
+        if len(row) > 0:
+            return PlornPlace(row['value'], id=row['id'],
+                              parent_id=row['parent_id'])
+        return None
 
-    def get_tag(self, tag_id):
-        row = self.get_attr(tag_id, 'tags')
-        return PlornTag(row['value'], id=row['id'],
-                                   parent_id=row['parent_id'])
+    @staticmethod
+    def get_tag(tag_id):
+        row = PlornDbOperations.get_attr(tag_id, 'tags')
+        if len(row) > 0:
+            return PlornTag(row['value'], id=row['id'],
+                            parent_id=row['parent_id'])
+        return None
 
     def get_attr_children(self, attr):
         table_name = attr.get_db_table_name()
@@ -950,13 +980,23 @@ class PlornDbOperations:
             result.append(p)
         return result
 
-    def get_all_attrs(self, table_name=''):
-        sql = f'SELECT * FROM {table_name}'
-        res = self.cursor.execute(sql)
-        rows = res.fetchall()
+    @staticmethod
+    def get_all_attrs(table_name=''):
+        global module_logger, _current_db
+
+        sql = f'SELECT * FROM {table_name};'
+        query = QSqlQuery(sql, db=_current_db)
+        rows = []
+        while query.next():
+            row = {}
+            row['id'] = query.value(AttrFields.ID)
+            row['parent_id'] = query.value(AttrFields.PARENT_ID)
+            row['value'] = query.value(AttrFields.VALUE)
+            rows.append(row)
         rows.sort(key=lambda x: x['value'])
         return rows
 
+    @staticmethod
     def get_all_names(self):
         rows = self.get_all_attrs('names')
         result = []
@@ -966,6 +1006,7 @@ class PlornDbOperations:
             result.append(p)
         return result
 
+    @staticmethod
     def get_all_places(self):
         rows = self.get_all_attrs('places')
         result = []
@@ -975,6 +1016,7 @@ class PlornDbOperations:
             result.append(p)
         return result
 
+    @staticmethod
     def get_all_tags(self):
         rows = self.get_all_attrs('tags')
         result = []
@@ -1038,50 +1080,68 @@ class PlornDbOperations:
             result.append(ii['name_id'])
         return result
 
-    def get_names_for_album_by_id(self, album_id):
-        sql  = f'SELECT * FROM album_names'
-        sql += f' WHERE album_id = {album_id}'
-        res = self.cursor.execute(sql)
-        rows = res.fetchall()
+    @staticmethod
+    def _get_obj_attr_by_id(obj_name, attr_name, id):
+        global module_logger, _current_db
+
+        msg  = '_get_obj_attr_by_id: entering with '
+        msg += f'{obj_name}, {attr_name}, {id}'
+        module_logger.debug(msg)
+        sql  = f'SELECT * FROM {obj_name}_{attr_name} '
+        sql += f'WHERE {obj_name}_id = {id};'
+        query = QSqlQuery(sql, db=_current_db)
         result = []
-        for ii in rows:
-            result.append(self.get_name(ii['name_id']))
+        while query.next():
+            result.append([query.value(AttrFields.ID),
+                           query.value(AttrFields.PARENT_ID),
+                           query.value(AttrFields.VALUE)])
+        module_logger.debug('_get_obj_attr_by_id: done')
         return result
 
-    def get_names_for_album(self, album):
+    @staticmethod
+    def get_names_for_album_by_id(album_id):
+        rows = PlornDbOperations._get_obj_attr_by_id('album','names',album_id)
+        names = []
+        for id, pid, value in rows:
+            name = PlornName(value, id=id, parent_id=pid)
+            names.append(name)
+        return names
+
+    @staticmethod
+    def get_names_for_album(album):
         if not album:
             return []
-        return self.get_names_for_album_by_id(album.get_id())
+        return PlornDbOperations.get_names_for_album_by_id(album.get_id())
 
-    def get_places_for_album_by_id(self, album_id):
-        sql  = f'SELECT * FROM album_places'
-        sql += f' WHERE album_id = {album_id}'
-        res = self.cursor.execute(sql)
-        rows = res.fetchall()
-        result = []
-        for ii in rows:
-            result.append(self.get_place(ii['place_id']))
-        return result
+    @staticmethod
+    def get_places_for_album_by_id(album_id):
+        rows = PlornDbOperations._get_obj_attr_by_id('album','places',album_id)
+        places = []
+        for id, pid, value in rows:
+            place = PlornPlace(value, id=id, parent_id=pid)
+            places.append(place)
+        return places
 
-    def get_places_for_album(self, album):
+    @staticmethod
+    def get_places_for_album(album):
         if not album:
             return []
-        return self.get_places_for_album_by_id(album.get_id())
+        return PlornDbOperations.get_places_for_album_by_id(album.get_id())
 
-    def get_tags_for_album_by_id(self, album_id):
-        sql  = f'SELECT * FROM album_tags'
-        sql += f' WHERE album_id = {album_id}'
-        res = self.cursor.execute(sql)
-        rows = res.fetchall()
-        result = []
-        for ii in rows:
-            result.append(self.get_tag(ii['tag_id']))
-        return result
+    @staticmethod
+    def get_tags_for_album_by_id(album_id):
+        rows = PlornDbOperations._get_obj_attr_by_id('album','tags',album_id)
+        tags = []
+        for id, pid, value in rows:
+            tag = PlornTag(value, id=id, parent_id=pid)
+            tags.append(tag)
+        return tags
 
-    def get_tags_for_album(self, album):
+    @staticmethod
+    def get_tags_for_album(album):
         if not album:
             return []
-        return self.get_tags_for_album_by_id(album.get_id())
+        return PlornDbOperations.get_tags_for_album_by_id(album.get_id())
 
     def get_names_for_photo_by_id(self, photo_id):
         sql  = f'SELECT * FROM photo_names'
@@ -1193,7 +1253,7 @@ def album_stats():
         nphotos = data[AlbumFields.PHOTO_COUNT]
         photo_count += nphotos
         album_name = data[AlbumFields.NAME]
-        module_logger.debug(f'album_stats: {ii} "{album_name}", {nphotos}')
+        module_logger.debug(f'album_stats: "{album_name}", {nphotos}')
     module_logger.debug(f'album_stats: {album_count}, {photo_count}')
     return album_count, photo_count
 
@@ -1385,11 +1445,18 @@ def _dump_album_tree(root, dbtree):
                         module_logger.debug(msg)
         module_logger.debug('<= _dump_album_tree end')
 
-def model_add_album(root, album, db=QSqlDatabase()):
+def model_add_album(root, album, db=None):
     global module_logger, _ALBUM_DATA
 
     msg  = f'model_add_album: {str(album)}'
     module_logger.debug(msg)
+
+    if db == None:
+        config = PlornConfig()
+        catalog, dirname, dbname = config.get_current_catalog()
+        db = QSqlDatabase.database(connectionName=catalog)
+        msg  = f'model_add_album: using db connection {catalog}'
+        module_logger.debug(msg)
 
     if not db.isOpen():
         msg  = 'model_add_album: cannot open database'
@@ -1404,6 +1471,7 @@ def model_add_album(root, album, db=QSqlDatabase()):
     # add to db to get an id and actual dbrow
     # ...we do not care about duplicate names, so try adding it
     added_album = PlornDbOperations.add_album(db, album)
+    module_logger.debug(f'model_add_album: added album is {str(added_album)}')
     assert added_album != None and added_album.get_id() != 0
 
     row_data = [added_album.get_id(),

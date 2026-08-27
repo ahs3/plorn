@@ -5,22 +5,29 @@
 # SPDX-FileCopyrightText: 2025 Albert H. Stone, III <ahs3@ahs3.net>
 #######################################################################
 
+import datetime
 import os
 import random
 import string
 
 from PyQt6.QtGui import (
     QAction,
+    QStandardItem,
 )
 from PyQt6.QtCore import (
     Qt,
+    QPoint,
 )
 from PyQt6.QtSql import (
     QSqlQuery,
 )
 from PyQt6.QtWidgets import (
+    QDialog,
+    QDialogButtonBox,
     QInputDialog,
+    QMenu,
     QMessageBox,
+    QPushButton,
 )
 
 from plorn import (
@@ -28,14 +35,26 @@ from plorn import (
     AttrFields,
     ConfigFields,
     PlornAlbum,
+    PlornName,
+    PlornPlace,
+    PlornTag,
 )
+
 from plorn.config import PlornConfig
+
 from plorn.gui import (
     PlornAboutDialog,
+    PlornAlbumView,
+    PlornNewAlbumDialog,
     PlornNewCatalogDialog,
     user_interface,
 )
-from plorn.model import model_add_album
+
+from plorn.model import (
+    model_add_album,
+    PlornDbOperations,
+)
+
 from plorn.widgets import PlornAttrView
 
 
@@ -968,11 +987,203 @@ def test_remove_child_tag_attr(initial_db, monkeypatch):
 #
 #   test album operations
 #
-def test_add_album(initial_db, monkeypatch):
+def test_add_album1(initial_db, monkeypatch):
+    '''
+    use the dialog directly to add a simple album with no attributes;
+    we're really just testing the dialog itself
+    '''
     info = initial_db
     monkeypatch.setenv('HOME', info['homedir'])
     root = info['root']
     assert root.menuBar() != None
     tree = root.album_tree
     assert tree != None
+    assert tree.model.rowCount() == 0
+
+    dlg = PlornNewAlbumDialog(tree=tree)
+    tree_root = tree.model.invisibleRootItem()
+    album = random_string(tree_root)
+    dated = datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%d')
+    notes = random_string(tree_root)
+
+    dlg.name_edit.setText(album)
+    dlg.dated_edit.setText(dated)
+    dlg.notes_edit.insertPlainText(notes)
+    dlg.apply_button.click()
+
+    dlginfo = dlg.get_inputs()
+    assert album == dlginfo['album']
+    assert dated == dlginfo['dated']
+    assert notes == dlginfo['notes']
+
+def test_add_album2(initial_db, monkeypatch):
+    '''
+    use the dialog directly to add a simple album with at least
+    one attribute of each type; we're really just testing the 
+    dialog itself
+    '''
+    info = initial_db
+    monkeypatch.setenv('HOME', info['homedir'])
+    root = info['root']
+    assert root.menuBar() != None
+    tree = root.album_tree
+    assert tree != None
+    assert tree.model.rowCount() == 0
+
+    dlg = PlornNewAlbumDialog(tree=tree)
+    tree_root = tree.model.invisibleRootItem()
+    album = random_string(tree_root)
+    dated = datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%d')
+    notes = random_string(tree_root)
+
+    dlg.name_edit.setText(album)
+    dlg.dated_edit.setText(dated)
+    dlg.notes_edit.insertPlainText(notes)
+
+    name = random_string(tree_root)
+    name_attr = PlornName(name)
+    name_attr = PlornDbOperations.add_name(name_attr)
+    assert name_attr.get_id() != 0
+    item = QStandardItem(name)
+    item.setData([name_attr.get_id(), name_attr.get_parent_id(),
+                  name_attr.get_value()])
+    dlg.name_list.appendRow(item)
+    assert dlg.name_list.rowCount() > 0
+
+    place = random_string(tree_root)
+    place_attr = PlornPlace(place)
+    place_attr = PlornDbOperations.add_place(place_attr)
+    assert place_attr.get_id() != 0
+    item = QStandardItem(place)
+    item.setData([place_attr.get_id(), place_attr.get_parent_id(),
+                  place_attr.get_value()])
+    dlg.place_list.appendRow(item)
+    assert dlg.place_list.rowCount() > 0
+
+    tag = random_string(tree_root)
+    tag_attr = PlornTag(tag)
+    tag_attr = PlornDbOperations.add_tag(tag_attr)
+    assert tag_attr.get_id() != 0
+    item = QStandardItem(tag)
+    item.setData([tag_attr.get_id(), tag_attr.get_parent_id(),
+                  tag_attr.get_value()])
+    dlg.tag_list.appendRow(item)
+    assert dlg.tag_list.rowCount() > 0
+
+    dlg.apply_button.click()
+    dlginfo = dlg.get_inputs()
+    print(str(dlginfo))
+    assert album  == dlginfo['album']
+    assert dated  == dlginfo['dated']
+    assert notes  == dlginfo['notes']
+    found = False
+    for ii in dlginfo['names']:
+        if ii.get_value() == name:
+            found = True
+            break
+    assert found, 'name list is not correct'
+    found = False
+    for ii in dlginfo['places']:
+        if ii.get_value() == place:
+            found = True
+            break
+    assert found, 'place list is not correct'
+    for ii in dlginfo['tags']:
+        if ii.get_value() == tag:
+            found = True
+            break
+    assert found, 'tags list is not correct'
+
+def test_add_album3(initial_db, monkeypatch):
+    '''
+    use the menubar to make sure we can invoke the add album dialog
+    and create a new album
+    '''
+    info = initial_db
+    monkeypatch.setenv('HOME', info['homedir'])
+    root = info['root']
+    tree = root.album_tree
+    assert tree != None
+    assert tree.model.rowCount() == 0
+    assert root.menuBar() != None
+    tree_root = tree.model.invisibleRootItem()
+    assert tree_root != None
+
+    name  = random_string(tree_root)
+    dated = datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%d')
+    notes = random_string(tree_root)
+
+    dlginfo = {}
+    dlginfo['album'] = name 
+    dlginfo['dated'] = dated
+    dlginfo['notes'] = notes
+    dlginfo['names'] = []
+    dlginfo['places'] = []
+    dlginfo['tags'] = []
+    monkeypatch.setattr(PlornNewAlbumDialog, 'get_inputs',
+                        lambda *args: dlginfo)
+    new_action = root.findChild(QAction, 'new_album_action')
+    assert new_action != None
+    new_action.trigger()
+
+    album = PlornDbOperations.get_album_by_name(name)
+    assert album != None
+    assert album.get_name() == name
+    assert album.get_dated() == dated
+    assert album.get_notes() == notes
+
+def test_add_album4(initial_db, monkeypatch):
+    '''
+    use the menubar to make sure we can invoke the add album dialog
+    and create a new album but this time with attributes, too
+    '''
+    info = initial_db
+    monkeypatch.setenv('HOME', info['homedir'])
+    root = info['root']
+    tree = root.album_tree
+    assert tree != None
+    row_count = tree.model.rowCount()
+    assert root.menuBar() != None
+    tree_root = tree.model.invisibleRootItem()
+    assert tree_root != None
+
+    album_name  = random_string(tree_root)
+    dated = datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%d')
+    notes = random_string(tree_root)
+    name = random_string(tree_root)
+    name_attr = PlornName(name)
+    name_attr = PlornDbOperations.add_name(name_attr)
+    place = random_string(tree_root)
+    place_attr = PlornPlace(place)
+    place_attr = PlornDbOperations.add_place(place_attr)
+    tag = random_string(tree_root)
+    tag_attr = PlornTag(tag)
+    tag_attr = PlornDbOperations.add_tag(tag_attr)
+
+    dlginfo = {}
+    dlginfo['album'] = album_name 
+    dlginfo['dated'] = dated
+    dlginfo['notes'] = notes
+    dlginfo['names'] = [name_attr]
+    dlginfo['places'] = [place_attr]
+    dlginfo['tags'] = [tag_attr]
+    monkeypatch.setattr(PlornNewAlbumDialog, 'get_inputs',
+                        lambda *args: dlginfo)
+    new_action = root.findChild(QAction, 'new_album_action')
+    assert new_action != None
+    new_action.trigger()
+
+    all_names = PlornDbOperations.get_all_attrs(table_name='names')
+    all_places = PlornDbOperations.get_all_attrs(table_name='places')
+    all_tags = PlornDbOperations.get_all_attrs(table_name='tags')
+    album = PlornDbOperations.get_album_by_name(album_name)
+
+    assert album != None
+    assert album.get_name() == album_name
+    assert album.get_dated() == dated
+    assert album.get_notes() == notes
+    assert len(album.get_name_list()) > 0
+    assert len(album.get_place_list()) > 0
+    assert len(album.get_tag_list()) > 0
+    assert row_count+1 == tree.model.rowCount()
 

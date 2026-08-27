@@ -205,14 +205,23 @@ class PlornBaseObj:
                 break
 
     def __str__(self):
-        val  = f'id: \'{self.id}\''
-        val += f', name: \'{self.name}\''
-        val += f', id: \'{self.id}\''
-        val += f', dated: \'{self.dated}\''
-        val += f', notes: \'{self.notes}\''
-        val += f', name_list: \'{str(self.name_list)}\''
-        val += f', place_list: \'{str(self.place_list)}\''
-        val += f', tag_list: \'{str(self.tag_list)}\''
+        val  = f'id: "{self.id}"'
+        val += f', name: "{self.name}"'
+        val += f', id: "{self.id}"'
+        val += f', dated: "{self.dated}"'
+        val += f', notes: "{self.notes}"'
+        val += f', name_list: n={len(self.name_list)}, ['
+        for ii in self.name_list:
+            val += f' "{ii.get_value()}",'
+        val += ']'
+        val += f', place_list: n={len(self.place_list)}, ['
+        for ii in self.place_list:
+            val += f' "{ii.get_value()}",'
+        val += ']'
+        val += f', tag_list: n={len(self.tag_list)}, ['
+        for ii in self.tag_list:
+            val += f' "{ii.get_value()}",'
+        val += ']'
         return val
 
 #######################################################################
@@ -231,14 +240,24 @@ class PlornAlbum(PlornBaseObj):
         return self.photo_count
 
     def __str__(self):
-        val  = f'id: \'{self.id}\''
-        val += f', name: \'{self.name}\''
-        val += f', dated: \'{self.dated}\''
-        val += f', notes: \'{self.notes}\''
+        val  = f'id: "{self.id}"'
+        val += f', name: "{self.name}"'
+        val += f', id: "{self.id}"'
+        val += f', dated: "{self.dated}"'
+        val += f', notes: "{self.notes}"'
         val += f', photo_count: \'{self.photo_count}\''
-        val += f', name_list: \'{str(self.name_list)}\''
-        val += f', place_list: \'{str(self.place_list)}\''
-        val += f', tag_list: \'{str(self.tag_list)}\''
+        val += f', name_list: n={len(self.name_list)}, ['
+        for ii in self.name_list:
+            val += f' "{ii.get_value()}",'
+        val += ']'
+        val += f', place_list: n={len(self.place_list)}, ['
+        for ii in self.place_list:
+            val += f' "{ii.get_value()}",'
+        val += ']'
+        val += f', tag_list: n={len(self.tag_list)}, ['
+        for ii in self.tag_list:
+            val += f' "{ii.get_value()}",'
+        val += ']'
         return val
 
 

@@ -7,6 +7,10 @@
 
 TODO
 ====
+-- Context menu in album view doesn't seem to work: using dlg.exec()
+   breaks testing, but works with context menu; using dlg.show() works
+   with menubar but not context menu -- ??
+
 -- How should icons actually be stored to make a distributable package?
    Having them in ./src/plorn seems iffy.
 
