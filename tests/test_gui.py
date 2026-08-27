@@ -17,6 +17,7 @@ from PyQt6.QtGui import (
 from PyQt6.QtCore import (
     Qt,
     QPoint,
+    QTimer,
 )
 from PyQt6.QtSql import (
     QSqlQuery,
@@ -28,6 +29,7 @@ from PyQt6.QtWidgets import (
     QMenu,
     QMessageBox,
     QPushButton,
+    QWidget,
 )
 
 from plorn import (
@@ -1009,7 +1011,6 @@ def test_add_album1(initial_db, monkeypatch):
     dlg.name_edit.setText(album)
     dlg.dated_edit.setText(dated)
     dlg.notes_edit.insertPlainText(notes)
-    dlg.apply_button.click()
 
     dlginfo = dlg.get_inputs()
     assert album == dlginfo['album']
@@ -1070,9 +1071,7 @@ def test_add_album2(initial_db, monkeypatch):
     dlg.tag_list.appendRow(item)
     assert dlg.tag_list.rowCount() > 0
 
-    dlg.apply_button.click()
     dlginfo = dlg.get_inputs()
-    print(str(dlginfo))
     assert album  == dlginfo['album']
     assert dated  == dlginfo['dated']
     assert notes  == dlginfo['notes']
@@ -1120,7 +1119,7 @@ def test_add_album3(initial_db, monkeypatch):
     dlginfo['names'] = []
     dlginfo['places'] = []
     dlginfo['tags'] = []
-    monkeypatch.setattr(PlornNewAlbumDialog, 'get_inputs',
+    monkeypatch.setattr(PlornNewAlbumDialog, 'ask',
                         lambda *args: dlginfo)
     new_action = root.findChild(QAction, 'new_album_action')
     assert new_action != None
@@ -1167,7 +1166,7 @@ def test_add_album4(initial_db, monkeypatch):
     dlginfo['names'] = [name_attr]
     dlginfo['places'] = [place_attr]
     dlginfo['tags'] = [tag_attr]
-    monkeypatch.setattr(PlornNewAlbumDialog, 'get_inputs',
+    monkeypatch.setattr(PlornNewAlbumDialog, 'ask',
                         lambda *args: dlginfo)
     new_action = root.findChild(QAction, 'new_album_action')
     assert new_action != None
