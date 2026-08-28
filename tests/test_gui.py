@@ -1186,3 +1186,75 @@ def test_add_album4(initial_db, monkeypatch):
     assert len(album.get_tag_list()) > 0
     assert row_count+1 == tree.model.rowCount()
 
+def test_remove_album1(initial_db, monkeypatch):
+    '''
+    use the menubar directly to remove an album with at least
+    one attribute of each type; we're really just testing the 
+    removal function
+    '''
+    info = initial_db
+    monkeypatch.setenv('HOME', info['homedir'])
+    root = info['root']
+    assert root.menuBar() != None
+    tree = root.album_tree
+    assert tree != None
+    row_count = tree.model.rowCount()
+
+    #-- add an album directly to the db
+    tree_root = tree.model.invisibleRootItem()
+    album = random_string(tree_root)
+    dated = datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%d')
+    notes = random_string(tree_root)
+    album = PlornAlbum(album, id=None, dated=dated, notes=notes)
+
+    name = random_string(tree_root)
+    name_attr = PlornName(name)
+    name_attr = PlornDbOperations.add_name(name_attr)
+    assert name_attr.get_id() != 0
+    album.set_name_list([name_attr])
+
+    place = random_string(tree_root)
+    place_attr = PlornPlace(place)
+    place_attr = PlornDbOperations.add_place(place_attr)
+    assert place_attr.get_id() != 0
+    album.set_place_list([place_attr])
+
+    tag = random_string(tree_root)
+    tag_attr = PlornTag(tag)
+    tag_attr = PlornDbOperations.add_tag(tag_attr)
+    assert tag_attr.get_id() != 0
+    album.set_tag_list([tag_attr])
+
+    #album = PlornDbOperations.add_album(album)
+    res = model_add_album(tree_root, album, db=info['db'])
+    assert res, 'album did not get added'
+    assert album.get_id() != 0
+
+    #-- make sure the album is in the view
+    items = tree.model.findItems(album.get_name(), column=2)
+    assert len(items) > 0
+    row_count = tree.model.rowCount()
+
+    #-- select the album and remove it
+    id_item = tree_root.child(0, 0)
+    id_index = id_item.index()
+    id = int(id_item.text())
+    name_item = tree_root.child(0, 2)
+    name_index = name_item.index()
+    name = name_item.text()
+    indices = [id_index, name_index]
+    monkeypatch.setattr(PlornAlbumView, 'selected_rows', lambda *args: indices)
+
+    root.remove_album()
+    assert tree.model.rowCount() + 1 == row_count
+    album = PlornDbOperations.get_album_by_id(id)
+    assert album == None
+    album = PlornDbOperations.get_album_by_name(name)
+    assert album == None
+    names = PlornDbOperations.get_names_for_album_by_id(id)
+    assert len(names) <= 0
+    places = PlornDbOperations.get_places_for_album_by_id(id)
+    assert len(places) <= 0
+    tags = PlornDbOperations.get_tags_for_album_by_id(id)
+    assert len(tags) <= 0
+

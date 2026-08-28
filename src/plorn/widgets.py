@@ -69,39 +69,12 @@ from plorn.model import (
 module_logger = logging.getLogger('plorn.widgets')
 module_logger.setLevel(logging.DEBUG)
 
-class IDDelegate(QStyledItemDelegate):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def displayText(self, value, locale):
-        return f'{value:04}'
-
-class SizeHintDelegate(QStyledItemDelegate):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def sizeHint(self, option, index):
-        return QSize(100, 20)
 
 class PlornSizePolicy(QSizePolicy):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.horizontalPolicy = QSizePolicy.Policy.Expanding
         self.verticalPolicy = QSizePolicy.Policy.Expanding
-
-class PlornButtonSize(QSize):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.setHeight(200)
-        self.setWidth(500)
-
-class PlornPushButton(QPushButton):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.sizeHint = PlornButtonSize()
-        self.setSizePolicy(PlornSizePolicy())
-        self.flat = False
 
 class PlornAttrView(QDialog):
     '''
@@ -363,6 +336,7 @@ class PlornAlbumView(QWidget):
         tree.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Sunken)
         tree.setItemsExpandable(True)
         tree.setUniformRowHeights(True)
+        tree.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         tree.customContextMenuRequested.connect(self.context_menu)
         tree.setToolTip('Right-click for actions')
@@ -382,6 +356,24 @@ class PlornAlbumView(QWidget):
         self.tree.expandAll()
         module_logger.debug('PlornAlbumView all done')
  
+    def selected_rows(self):
+        return self.tree.selectedIndexes()
+
+    def item_from_index(self, index):
+        return self.tree.model().itemFromIndex(index)
+
+    def current_index(self):
+        return self.tree.currentIndex()
+
+    def select_all(self):
+        return self.tree.selectAll()
+
+    def set_focus(self):
+        return self.tree.setFocus()
+
+    def has_focus(self):
+        return self.tree.hasFocus()
+
     def switch_model(self):
         global module_logger
 
@@ -468,11 +460,20 @@ class PlornAlbumView(QWidget):
 
         module_logger.debug(f'add_album_action: entered')
         new_album_dlg = PlornNewAlbumDialog(tree=self.tree)
-        #info = new_album_dlg.get_inputs()
         info = PlornNewAlbumDialog.ask(self)
         if len(info) > 0:
             res = self.add_album(info['album'], info['dated'], info['notes'])
         new_album_dlg.close()
+
+    def remove_album_action(self):
+        global module_logger
+
+        module_logger.debug(f'remove_album_action: entered')
+        #new_album_dlg = PlornNewAlbumDialog(tree=self.tree)
+        #info = PlornNewAlbumDialog.ask(self)
+        #if len(info) > 0:
+        #    res = self.add_album(info['album'], info['dated'], info['notes'])
+        #new_album_dlg.close()
 
 #    def add_album_sib(self, item):
 #        global module_logger
@@ -698,10 +699,12 @@ class PlornAttrListView(QWidget):
             blayout = QGridLayout()
             plus = QIcon.fromTheme(QIcon.ThemeIcon.ListAdd)
             self.add_attr = QPushButton(plus, None)
+            self.add_attr.setDefault(False)
             self.add_attr.clicked.connect(self.add_selected)
             blayout.addWidget(self.add_attr, 0, 0)
             minus = QIcon.fromTheme(QIcon.ThemeIcon.ListRemove)
             self.remove_attr = QPushButton(minus, None)
+            self.remove_attr.setDefault(False)
             self.remove_attr.clicked.connect(self.remove_selected)
             blayout.addWidget(self.remove_attr, 1, 0)
             layout.addLayout(blayout, 1, 1)
@@ -765,8 +768,9 @@ class PlornNewAlbumDialog(QDialog):
     @classmethod
     def ask(cls, parent):
         dlg = cls(parent)
-        dlg.exec()
-        return dlg.get_inputs()
+        if dlg.exec() != QDialog.DialogCode.Rejected:
+            return dlg.get_inputs()
+        return {}
 
     def __init__(self, tree=None, *args, **kwargs):
         global module_logger
@@ -820,6 +824,17 @@ class PlornNewAlbumDialog(QDialog):
         album_layout.addWidget(self.notes_edit, 2, 1)
         layout.addLayout(album_layout, 1, 0)
 
+        self.bbox = QDialogButtonBox()
+        self.bbox.setObjectName('add_album_bbox')
+        done=self.bbox.addButton('Done', QDialogButtonBox.ButtonRole.RejectRole)
+        doit=self.bbox.addButton('Apply', QDialogButtonBox.ButtonRole.ApplyRole)
+        self.done_button = done
+        self.done_button.setDefault(True)
+        self.apply_button = doit
+        self.apply_button.setObjectName('add_album_apply_button')
+        self.bbox.clicked.connect(self.dlg_done)
+        layout.addWidget(self.bbox, 2, 1, 1, 2)
+
         attr_layout = QGridLayout()
         self.name_list = PlornAttrListView('names', 'Name Attributes')
         attr_layout.addWidget(self.name_list, 1, 0)
@@ -829,15 +844,6 @@ class PlornNewAlbumDialog(QDialog):
         attr_layout.addWidget(self.tag_list, 3, 0)
         layout.addLayout(attr_layout, 1, 1)
 
-        self.bbox = QDialogButtonBox()
-        self.bbox.setObjectName('add_album_bbox')
-        done=self.bbox.addButton('Done', QDialogButtonBox.ButtonRole.RejectRole)
-        doit=self.bbox.addButton('Apply', QDialogButtonBox.ButtonRole.ApplyRole)
-        self.done_button = done
-        self.apply_button = doit
-        self.apply_button.setObjectName('add_album_apply_button')
-        self.bbox.clicked.connect(self.dlg_done)
-        layout.addWidget(self.bbox, 2, 1, 1, 2)
         self.setLayout(layout)
         module_logger.debug('PlornNewAlbumDialog: init done')
 

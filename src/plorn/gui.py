@@ -68,11 +68,11 @@ from plorn.config import PlornConfig
 from plorn.model import (
     album_stats,
     model_add_album,
+    model_remove_album,
     PlornDbOperations,
 )
 
 from plorn.widgets import (
-    IDDelegate,
     PlornAlbumView,
     PlornAttrView,
     PlornNewAlbumDialog,
@@ -651,7 +651,34 @@ class Plorn(QMainWindow):
 
     def remove_album(self):
         global module_logger
-        pass
+
+        module_logger.debug('remove_album: entered in gui')
+        indices = self.album_tree.selected_rows()
+        msg = f'remove_album: {len(indices)/5} selection(s) in gui'
+        module_logger.debug(msg)
+        if len(indices) < 1:
+            title = 'Remove an Album'
+            text = 'No album has been selected for removal.'
+            button = QMessageBox.critical(self, title, text)
+        else:
+            album_name = ''
+            album_id = 0
+            album_row = -1
+            for index in indices:
+                item = self.album_tree.item_from_index(index)
+                if item.column() == 0:
+                    album_id = int(item.text())
+                    album_row = item.row()
+                if item.column() == 2:
+                    album_name = item.text()
+
+            root = self.album_tree.model.invisibleRootItem()
+            res = model_remove_album(root, album_id, album_name)
+            msg = f'remove_album: {album_name} removed from gui {res}'
+            module_logger.debug(msg)
+        self.set_catalog_info()
+
+        module_logger.debug('remove_album: done in gui')
 
     def slide_show(self, album_item=None):
         global module_logger

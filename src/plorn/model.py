@@ -175,7 +175,10 @@ class PlornDbOperations:
         query = QSqlQuery(sql_stmt, db=_current_db)
         
         cfgq = QSqlQuery('SELECT * FROM config;', db=_current_db)
-        if cfgq.size() < 1:
+        count = 0
+        while cfgq.next():
+            count += 1
+        if count < 1:
             config = PlornConfig()
             sql = 'INSERT INTO config VALUES ("plorn", '
             sql += f'"{config.get_version()}", '
@@ -412,7 +415,7 @@ class PlornDbOperations:
         return self.cursor.execute(sql)
 
     @staticmethod
-    def add_album(db, album):
+    def add_album(album):
         global module_logger, _current_db
 
         module_logger.debug('static add_album: entered')
@@ -488,39 +491,40 @@ class PlornDbOperations:
                                tags=query.value(AlbumFields.TAGS))
         return album
 
-    def remove_album_by_name(self, album_name):
-        album = self.get_album_by_name(album_name)
+    @staticmethod
+    def remove_album_by_id(album_id):
+        global module_logger, _current_db
+
+        module_logger.debug(f'remove_album_by_id: entered, id {album_id}')
+        module_logger.debug(f'remove_album_by_id: tables {_current_db.tables()}')
+
+        res = False
+        _current_db.transaction()
+        sql = f'DELETE FROM albums WHERE id = "{album_id}";'
+        query = QSqlQuery(sql, db=_current_db)
+        sql = f'DELETE FROM photos WHERE album_id = "{album_id}";'
+        query = QSqlQuery(sql, db=_current_db)
+        sql = f'DELETE FROM album_names WHERE album_id = "{album_id}";'
+        query = QSqlQuery(sql, db=_current_db)
+        sql = f'DELETE FROM album_places WHERE album_id = "{album_id}";'
+        query = QSqlQuery(sql, db=_current_db)
+        sql = f'DELETE FROM album_tags WHERE album_id = "{album_id}";'
+        query = QSqlQuery(sql, db=_current_db)
+        module_logger.debug(f'remove_album_by_id: done, id {album_id}')
+        res = _current_db.commit()
+        return res 
+
+    @staticmethod
+    def remove_album_by_name(album_name):
+        album = PlornDbOperations.get_album_by_name(album_name)
+        res = False
         if album != None:
-            self.remove_album_by_id(album.get_id())
-        return 
+            res = PlornDbOperations.remove_album_by_id(album.get_id())
+        return res
 
-    def remove_album_by_id(self, album_id):
-        sql = f'DELETE FROM albums WHERE id = \'{album_id}\''
-        res = self.cursor.execute(sql)
-        sql = f'DELETE FROM photos WHERE album_id = \'{album_id}\''
-        res = self.cursor.execute(sql)
-        sql = f'DELETE FROM album_names WHERE album_id = \'{album_id}\''
-        res = self.cursor.execute(sql)
-        sql = f'DELETE FROM album_places WHERE album_id = \'{album_id}\''
-        res = self.cursor.execute(sql)
-        sql = f'DELETE FROM album_tags WHERE album_id = \'{album_id}\''
-        res = self.cursor.execute(sql)
-        self.db.commit()
-        return 
-
-    def remove_album(self, album):
-        self.remove_album_by_id(album.get_id())
-        return 
-
-    def album_count(self):
-        sql = f'SELECT id FROM albums'
-        res = self.cursor.execute(sql)
-        return len(res.fetchall())
-
-    def photo_count(self):
-        sql = f'SELECT id FROM photos'
-        res = self.cursor.execute(sql)
-        return len(res.fetchall())
+    @staticmethod
+    def remove_album(album):
+        return PlornDbOperations.remove_album_by_id(album.get_id())
 
     def add_name_to_album_by_id(self, name_id, album_id):
         sql  = 'INSERT INTO album_names '
@@ -1470,7 +1474,7 @@ def model_add_album(root, album, db=None):
 
     # add to db to get an id and actual dbrow
     # ...we do not care about duplicate names, so try adding it
-    added_album = PlornDbOperations.add_album(db, album)
+    added_album = PlornDbOperations.add_album(album)
     module_logger.debug(f'model_add_album: added album is {str(added_album)}')
     assert added_album != None and added_album.get_id() != 0
 
@@ -1479,7 +1483,7 @@ def model_add_album(root, album, db=None):
                 added_album.get_dated(),
                 added_album.get_notes(),
                 added_album.get_photo_count()]
-    _ALBUM_DATA[id] = row_data
+    _ALBUM_DATA[added_album.get_id()] = row_data
     module_logger.debug(f'model_add_album: added {row_data}')
     row_item = QStandardItem(str(root.rowCount()+1))
     id_item = _build_album_id_item(row_data)
@@ -1488,6 +1492,46 @@ def model_add_album(root, album, db=None):
     count_item = _build_album_count_item(row_data)
     root.appendRow([id_item, row_item, name_item, dated_item, count_item])
     module_logger.debug(f'model_add_album: okay and done')
+    return 'okay'
+    
+def model_remove_album(root, album_id, album_name, db=None):
+    global module_logger, _ALBUM_DATA
+
+    msg  = f'model_remove_album: {album_name}'
+    module_logger.debug(msg)
+
+    if db == None:
+        config = PlornConfig()
+        catalog, dirname, dbname = config.get_current_catalog()
+        db = QSqlDatabase.database(connectionName=catalog)
+        msg  = f'model_remove_album: using db connection {catalog}'
+        module_logger.debug(msg)
+
+    if not db.isOpen():
+        msg  = 'model_remove_album: cannot open database'
+        module_logger.debug(msg)
+        return 'cannot open db'
+
+    if not db.isValid():
+        msg  = 'model_remove_album: database is not valid'
+        module_logger.debug(msg)
+        return 'db is invalid'
+
+    # remove from db and model
+    items = root.model().findItems(album_name, column=2)
+    module_logger.debug(f'model_remove_album: items {str(items)}')
+    res = PlornDbOperations.remove_album_by_id(album_id)
+    if res:
+        module_logger.debug(f'model_remove_album: album {album_name} gone')
+    if len(items) > 0:
+        module_logger.debug(f'model_remove_album: found {len(items)}')
+        row = items[0].row()
+        root.model().beginRemoveRows(root.index(), row, row)
+        root.model().removeRow(row, root.index())
+        root.model().endRemoveRows()
+    row_data = _ALBUM_DATA[album_id]
+    del _ALBUM_DATA[album_id]
+    module_logger.debug(f'model_remove_album: okay and done')
     return 'okay'
     
 
