@@ -75,8 +75,11 @@ from plorn.model import (
 from plorn.widgets import (
     PlornAlbumView,
     PlornAttrView,
-    PlornNewAlbumDialog,
     PlornSizePolicy,
+)
+
+from plorn.widgets.albums import (
+    PlornNewAlbumDialog,
 )
 
 #-- set up logging

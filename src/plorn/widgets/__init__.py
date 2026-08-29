@@ -5,62 +5,43 @@
 # SPDX-FileCopyrightText: 2025 Albert H. Stone, III <ahs3@ahs3.net>
 #######################################################################
 
-import copy
-from enum import IntEnum
 import logging
 import os
 
 from PyQt6.QtCore import (
-    QSize,
     Qt,
 )
 
 from PyQt6.QtSql import (
     QSqlDatabase,
-    QSqlRelationalDelegate,
 )
 
 from PyQt6.QtGui import (
     QFont,
-    QIcon,
     QStandardItem,
     QStandardItemModel,
 )
 
 from PyQt6.QtWidgets import (
     QAbstractItemView,
-    QButtonGroup,
     QDialog,
     QDialogButtonBox,
     QFrame,
     QGridLayout,
     QInputDialog,
-    QLabel,
-    QLineEdit,
-    QListView,
     QMenu,
     QMessageBox,
-    QPushButton,
     QSizePolicy,
-    QStyledItemDelegate,
-    QTextEdit,
     QTreeView,
     QWidget,
 )
 
-from plorn import (
-    AlbumFields,
-    AttrFields,
-    PlornAlbum,
-    PlornAttr,
-)
-
+from plorn import PlornAlbum
 from plorn.config import PlornConfig
 
 from plorn.model import (
     add_attrs,
     model_add_album,
-    PlornDbOperations,
     populate_albums,
     populate_attrs,
     remove_attrs,
@@ -70,12 +51,20 @@ module_logger = logging.getLogger('plorn.widgets')
 module_logger.setLevel(logging.DEBUG)
 
 
+#####################################################################
+#
+#   Generally useful widgets
+#
 class PlornSizePolicy(QSizePolicy):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.horizontalPolicy = QSizePolicy.Policy.Expanding
         self.verticalPolicy = QSizePolicy.Policy.Expanding
 
+######################################################################
+#
+#   Widgets used directly by the main application window
+#
 class PlornAttrView(QDialog):
     '''
     common widget class for displaying and editing attributes, one
@@ -469,95 +458,6 @@ class PlornAlbumView(QWidget):
         global module_logger
 
         module_logger.debug(f'remove_album_action: entered')
-        #new_album_dlg = PlornNewAlbumDialog(tree=self.tree)
-        #info = PlornNewAlbumDialog.ask(self)
-        #if len(info) > 0:
-        #    res = self.add_album(info['album'], info['dated'], info['notes'])
-        #new_album_dlg.close()
-
-#    def add_album_sib(self, item):
-#        global module_logger
-#
-#        module_logger.debug('add_album_sib entered')
-#        title = f'Add Sibling {self.title.capitalize()}'
-#        label_txt = f'Add {self.title.capitalize()}:'
-#        if self.title[-1] == 's':    # English specific ...
-#            label_txt = f'Add {self.title[0:-1].capitalize()}:'
-#
-#        ptxt = 'invisibleRoot'
-#        parent = self.model.invisibleRootItem()
-#        if item and item != self.model.invisibleRootItem():
-#            parent = item.parent()
-#            if parent and parent != self.model.invisibleRootItem():
-#                ptxt = f' parent = {parent.text()}'
-#
-#        input_value, ok = QInputDialog.getText(self, title, label_txt)
-#        if ok and input_value:
-#            res = add_albums(self.model.invisibleRootItem(), parent, input_value,
-#                            table=self.table, db=self.db)
-#            if res == 'cannot insert' or res == 'retrieve failed':
-#                title = 'Internal Attribute Database Failure'
-#                label_txt  = f'{res.capitalize()} "{input_value}"'
-#                button = QMessageBox.critical(self, title, label_txt)
-#                return
-#            if res == 'duplicate albumibute':
-#                title = 'Duplicate Attribute'
-#                label_txt  = f'"{input_value}" is already a sibling'
-#                if parent and parent != self.model.invisibleRootItem():
-#                    label_txt += f' of "{parent.text()}"'
-#                else:
-#                    label_txt += f' at the top most level'
-#                button = QMessageBox.critical(self, title, label_txt)
-#                return
-#            if parent != None:
-#                self.tree.setExpanded(parent.index(), True)
-#            module_logger.debug(f'add_album_sib {res}: {input_value}, {ptxt}')
-#        else:
-#            module_logger.debug(f'add_album_sib canceled: {input_value}, {ptxt}')
-#
-#        module_logger.debug(f'add_album_sib done')
-#
-#    def add_album_child(self, item):
-#        global module_logger
-#
-#        module_logger.debug(f'add_album_child entered: {self.table}')
-#        title = f'Add Child {self.title.capitalize()}'
-#        if self.title[-1] == 's':    # English specific ...
-#            label_txt = f'Add {self.title[0:-1].capitalize()}:'
-#        msg  = f'add_album_child {self.table}:'
-#        msg += f' add child to {item.text()}'
-#        module_logger.debug(msg)
-#        label_txt = f'Add child to {item.text()}:'
-#
-#        ptxt = 'invisibleRoot'
-#        if item and item != self.model.invisibleRootItem():
-#            ptxt = f' parent = {item.text()}'
-#        input_value, ok = QInputDialog.getText(self, title, label_txt)
-#        if ok and input_value:
-#            res = add_albums(self.model.invisibleRootItem(), item, input_value,
-#                            table=self.table, db=self.db)
-#            if res == 'cannot insert' or res == 'retrieve failed':
-#                title = 'Internal Attribute Database Failure'
-#                label_txt  = f'{res.capitalize()} "{input_value}"'
-#                button = QMessageBox.critical(self, title, label_txt)
-#                return
-#            if res == 'duplicate albumibute':
-#                title = 'Duplicate Attribute'
-#                label_txt  = f'"{input_value} is already a child'
-#                if item and item != self.model.invisibleRootItem():
-#                    label_txt += f' of {item.text()}'
-#                else:
-#                    label_txt += f' at the top most level'
-#                button = QMessageBox.critical(self, title, label_txt)
-#                return
-#            self.tree.setExpanded(item.index(), True)
-#            module_logger.debug(
-#                f'add_album_child add {res}: {input_value}, {ptxt}')
-#        else:
-#            module_logger.debug(
-#                f'add_album_child canceled: {input_value}, {ptxt}')
-#
-#        module_logger.debug(f'add_album_child done: {self.table}')
 
     def remove_album(self, item):
         global module_logger
@@ -595,299 +495,5 @@ class PlornAlbumView(QWidget):
             module_logger.debug(f'remove_album? No')
 
         module_logger.debug(f'remove_album done: {self.table}')
-
-
-class PlornAttrSelection(QDialog):
-    def __init__(self, table='names', db=QSqlDatabase(), *args, **kwargs):
-        global module_logger
-        super().__init__(*args, **kwargs)
-
-        module_logger.debug(f'entering PlornAttrSelection: table {table}')
-        self.table = table
-        config = PlornConfig()
-        catalog, datadir, dbname = config.get_current_catalog()
-        self.db = QSqlDatabase.database(catalog)
-        self.db.open()
-        self.info = {}
-
-        self.setModal(True)
-        self.setWindowTitle(f'Select {self.table.capitalize()}')
-        layout = QGridLayout()
-        self.setSizePolicy(QSizePolicy.Policy.Expanding,
-                           QSizePolicy.Policy.Expanding)
-        self.tree = QTreeView()
-        self.tree.setHeaderHidden(True)
-        self.tree.setSelectionMode(
-                            QAbstractItemView.SelectionMode.SingleSelection)
-        model = QStandardItemModel()
-        self.tree.setModel(model)
-        layout.addWidget(self.tree, 0, 0)
-
-        root = self.tree.model().invisibleRootItem()
-        populate_attrs(root, self.table, db=self.db)
-
-        self.bbox = QDialogButtonBox()
-        self.bbox.addButton('Done', QDialogButtonBox.ButtonRole.RejectRole)
-        self.bbox.addButton('Apply', QDialogButtonBox.ButtonRole.ApplyRole)
-        self.bbox.clicked.connect(self.dlg_done)
-        layout.addWidget(self.bbox, 1, 0)
-        self.setLayout(layout)
-        module_logger.debug(f'PlornAttrSelection done: table {table}')
-
-    def get_inputs(self):
-        global module_logger
-
-        module_logger.debug(f'{self.table} selection: get_inputs entered')
-        res = self.exec()
-        result = self.info
-        msg  = f'{self.table} selection: get_inputs returns '
-        msg += f'{len(self.info)} items'
-        module_logger.debug(msg)
-        return result
-
-    def dlg_done(self, button):
-        global module_logger
-
-        role = self.bbox.buttonRole(button)
-        if role == QDialogButtonBox.ButtonRole.ApplyRole:
-            module_logger.debug(f'{self.table} selection: Apply clicked')
-            msg  = f'dlg_done: {len(self.tree.selectedIndexes())} '
-            msg += f'from {self.table}'
-            module_logger.debug(msg)
-            for index in self.tree.selectedIndexes():
-                item = self.tree.model().itemFromIndex(index)
-                msg = f'dlg_done: selected {item.text()} from {self.table}'
-                module_logger.debug(msg)
-                self.info[item.text()] = item
-            self.setResult(QDialog.DialogCode.Accepted)
-
-        elif role == QDialogButtonBox.ButtonRole.RejectRole:
-            module_logger.debug(f'{self.table} selected: Done clicked')
-            self.setResult(QDialog.DialogCode.Rejected)
-
-        module_logger.debug(f'dlg_done returns {self.result()}')
-        self.close()
-
-class PlornAttrListView(QWidget):
-    '''
-    widget class to be used for adding/removing attributes to
-    an album or photo, best embedded as part of the album/photo view
-    when adding or editing albums/photos
-    '''
-    def __init__(self, table, title, allow_edit=True, *args, **kwargs):
-        global module_logger
-        super().__init__(*args, **kwargs)
-
-        module_logger.debug('entering PlornAttListView')
-        self.table = table
-        self.title = title
-        self.allow_edit = allow_edit
-        
-        self.setWindowTitle(self.title)
-        layout = QGridLayout()
-        attr_label = QLabel(self.title, alignment=Qt.AlignmentFlag.AlignCenter)
-        self.attr_list = QListView()
-        self.attr_list.setAlternatingRowColors(True)
-        model = QStandardItemModel()
-        self.attr_list.setModel(model)
-        layout.addWidget(attr_label, 0, 0)
-        layout.addWidget(self.attr_list, 1, 0)
-
-        self.add_attr = None
-        self.remove_attr = None
-        if self.allow_edit:
-            blayout = QGridLayout()
-            plus = QIcon.fromTheme(QIcon.ThemeIcon.ListAdd)
-            self.add_attr = QPushButton(plus, None)
-            self.add_attr.setDefault(False)
-            self.add_attr.clicked.connect(self.add_selected)
-            blayout.addWidget(self.add_attr, 0, 0)
-            minus = QIcon.fromTheme(QIcon.ThemeIcon.ListRemove)
-            self.remove_attr = QPushButton(minus, None)
-            self.remove_attr.setDefault(False)
-            self.remove_attr.clicked.connect(self.remove_selected)
-            blayout.addWidget(self.remove_attr, 1, 0)
-            layout.addLayout(blayout, 1, 1)
-
-        self.setLayout(layout)
-        module_logger.debug('PlornAttListView done')
-
-    def add_selected(self):
-        global module_logger
-
-        module_logger.debug('add_selected: entered')
-        dlg = PlornAttrSelection(table=self.table)
-        info = dlg.get_inputs()
-        for value in info.keys():
-            if info[value] != None:
-                msg  = f'add_selected: data {info[value].data()}'
-                module_logger.debug(msg)
-                data = info[value].data()
-                fullattr = PlornDbOperations.get_full_attr(table=self.table,
-                                                         id=data[AttrFields.ID])
-                module_logger.debug(f'add_selected: full attr {fullattr}')
-                value = ', '.join(fullattr)
-                item = QStandardItem(value)
-                item.setData(data)
-                if len(self.attr_list.model().findItems(value)) < 1:
-                    self.attr_list.model().appendRow(item)
-        module_logger.debug(f'add_selected: info count {len(info)}')
-
-    def appendRow(self, item):
-        self.attr_list.model().appendRow(item)
-
-    def rowCount(self):
-        return self.attr_list.model().rowCount()
-
-    def remove_selected(self):
-        global module_logger
-
-        module_logger.debug('remove_selected: entered')
-        for index in self.attr_list.selectedIndexes():
-            self.attr_list.model().removeRow(index.row())
-        module_logger.debug('remove_selected: entered')
-
-    def get_items(self):
-        global module_logger
-
-        module_logger.debug('get_items: entered')
-        res = []
-        model = self.attr_list.model()
-        for ii in range(model.rowCount()):
-            item = model.item(ii)
-            dbrow = item.data()
-            attr = PlornAttr(dbrow[AttrFields.VALUE],
-                             id=dbrow[AttrFields.ID],
-                             parent_id=dbrow[AttrFields.PARENT_ID],
-                             table_name=self.table)
-            res.append(attr)
-        module_logger.debug(f'get_items: res {str(res)}')
-        return res
-
-class PlornNewAlbumDialog(QDialog):
-    @classmethod
-    def ask(cls, parent):
-        dlg = cls(parent)
-        if dlg.exec() != QDialog.DialogCode.Rejected:
-            return dlg.get_inputs()
-        return {}
-
-    def __init__(self, tree=None, *args, **kwargs):
-        global module_logger
-        super().__init__(*args, **kwargs)
-
-        module_logger.debug('entering PlornNewAlbumDialog: init')
-        self.setObjectName('plorn_new_album_dialog')
-        if tree == None:
-            return
-        self.tree = tree
-
-        module_logger.debug('PlornNewAlbumDialog: started')
-        self.setWindowTitle('New Album')
-        layout = QGridLayout()
-        self.setSizePolicy(QSizePolicy.Policy.Expanding,
-                           QSizePolicy.Policy.Expanding)
-
-        config = PlornConfig()
-        catalog, datadir, dbname = config.get_current_catalog()
-        self.db = QSqlDatabase.database(catalog)
-        self.catalog_label = QLabel(f'***Catalog: {catalog}***',
-                                    textFormat=Qt.TextFormat.MarkdownText)
-        layout.addWidget(self.catalog_label, 0, 0)
-
-        album_layout = QGridLayout()
-        self.name_label = QLabel('Album Name:',
-                                 alignment=Qt.AlignmentFlag.AlignRight)
-        album_layout.addWidget(self.name_label, 0, 0)
-        self.name_edit = QLineEdit()
-        self.name_edit.setText(f'{" ":>40}')
-        rect = self.name_edit.fontMetrics().boundingRect(self.name_edit.text())
-        self.name_edit.setMinimumWidth(2*rect.width())
-        self.name_edit.setText('')
-        album_layout.addWidget(self.name_edit, 0, 1)
-
-        self.dated_label = QLabel('Dated:',
-                                  alignment=Qt.AlignmentFlag.AlignRight)
-        album_layout.addWidget(self.dated_label, 1, 0)
-        self.dated_edit = QLineEdit()
-        self.dated_edit.setText(f'{" ":>40}')
-        rect = self.dated_edit.fontMetrics().boundingRect(self.dated_edit.text())
-        self.dated_edit.setMinimumWidth(2*rect.width())
-        self.dated_edit.setText('')
-        album_layout.addWidget(self.dated_edit, 1, 1)
-
-        self.notes_label = QLabel('Notes:',
-                                  alignment=Qt.AlignmentFlag.AlignRight)
-        album_layout.addWidget(self.notes_label, 2, 0,
-                         alignment=Qt.AlignmentFlag.AlignTop)
-        self.notes_edit = QTextEdit()
-        album_layout.addWidget(self.notes_edit, 2, 1)
-        layout.addLayout(album_layout, 1, 0)
-
-        self.bbox = QDialogButtonBox()
-        self.bbox.setObjectName('add_album_bbox')
-        done=self.bbox.addButton('Done', QDialogButtonBox.ButtonRole.RejectRole)
-        doit=self.bbox.addButton('Apply', QDialogButtonBox.ButtonRole.ApplyRole)
-        self.done_button = done
-        self.done_button.setDefault(True)
-        self.apply_button = doit
-        self.apply_button.setObjectName('add_album_apply_button')
-        self.bbox.clicked.connect(self.dlg_done)
-        layout.addWidget(self.bbox, 2, 1, 1, 2)
-
-        attr_layout = QGridLayout()
-        self.name_list = PlornAttrListView('names', 'Name Attributes')
-        attr_layout.addWidget(self.name_list, 1, 0)
-        self.place_list = PlornAttrListView('places', 'Place Attributes')
-        attr_layout.addWidget(self.place_list, 2, 0)
-        self.tag_list = PlornAttrListView('tags', 'Tag Attributes')
-        attr_layout.addWidget(self.tag_list, 3, 0)
-        layout.addLayout(attr_layout, 1, 1)
-
-        self.setLayout(layout)
-        module_logger.debug('PlornNewAlbumDialog: init done')
-
-    def check_inputs(self):
-        global module_logger
-
-        if len(self.name_edit.text().strip()) < 1:
-            QMessageBox.warning(self, 'Album Name Error',
-                        'A name must be provided.')
-            return QDialog.DialogCode.Rejected
-       
-        module_logger.debug('check_inputs returns accepted')
-        return QDialog.DialogCode.Accepted
-
-    def get_inputs(self):
-        global module_logger
-
-        module_logger.debug('PlornNewAlbumDialog: get_inputs entered')
-        info = {}
-        info['album'] = self.name_edit.text()
-        info['dated'] = self.dated_edit.text()
-        info['notes'] = self.notes_edit.toPlainText()
-        info['names'] = self.name_list.get_items()
-        info['places'] = self.place_list.get_items()
-        info['tags'] = self.tag_list.get_items()
-        module_logger.debug(f'PlornNewAlbumDialog: get_inputs returns {info}')
-        return info
-
-    def dlg_done(self, button):
-        global module_logger
-
-        role = self.bbox.buttonRole(button)
-        if role == QDialogButtonBox.ButtonRole.ApplyRole:
-            module_logger.debug('new album: Apply clicked')
-            if self.check_inputs() == QDialog.DialogCode.Rejected:
-                self.setResult(QDialog.DialogCode.Rejected)
-                return
-            self.setResult(QDialog.DialogCode.Accepted)
-
-        elif role == QDialogButtonBox.ButtonRole.RejectRole:
-            module_logger.debug('new album: Done clicked')
-            self.setResult(QDialog.DialogCode.Rejected)
-
-        module_logger.debug(f'dlg_done returns {self.result()}')
-        self.close()
 
 
