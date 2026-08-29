@@ -14,6 +14,7 @@ from PyQt6.QtCore import (
     QRect,
     QSize,
     Qt,
+    pyqtSlot,
 )
 
 from PyQt6.QtGui import (
@@ -79,7 +80,7 @@ from plorn.widgets import (
 )
 
 from plorn.widgets.albums import (
-    PlornNewAlbumDialog,
+    PlornAlbumDialog,
 )
 
 #-- set up logging
@@ -467,6 +468,7 @@ class Plorn(QMainWindow):
         db = self.open_db()
         module_logger.debug(f'build_catalog: db open? {db.isOpen()}')
         tree = PlornAlbumView(db=db)
+        tree.catalogChanged.connect(self.set_catalog_info)
         layout.addWidget(tree, stretch=1)
 
         return tree, cathdr, db
@@ -629,9 +631,9 @@ class Plorn(QMainWindow):
         global module_logger
 
         module_logger.debug('add_album: entered in gui')
-        new_album_dlg = PlornNewAlbumDialog(tree=self.album_tree)
-        #info = new_album_dlg.get_inputs()
-        info = PlornNewAlbumDialog.ask(new_album_dlg)
+        new_album_dlg = PlornAlbumDialog(tree=self.album_tree,
+                                         title='New Album')
+        info = PlornAlbumDialog.ask(new_album_dlg)
         module_logger.debug(f'add_album: info is {str(info)}')
         if len(info) > 0:
             album = PlornAlbum(info['album'],

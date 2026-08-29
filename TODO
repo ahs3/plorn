@@ -7,6 +7,9 @@
 
 TODO
 ====
+-- Column numbers and count of columns in main window album view should
+   not be hard-coded values.
+
 -- How should icons actually be stored to make a distributable package?
    Having them in ./src/plorn seems iffy.
 

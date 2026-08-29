@@ -37,26 +37,25 @@ module_logger.setLevel(logging.DEBUG)
 #
 #   widgets/views specific to manipulating albums and their contents
 #
-class PlornNewAlbumDialog(QDialog):
+class PlornAlbumDialog(QDialog):
     @classmethod
-    def ask(cls, parent):
-        dlg = cls(parent)
-        if dlg.exec() != QDialog.DialogCode.Rejected:
-            return dlg.get_inputs()
-        return {}
+    #def ask(cls, parent):
+    def ask(cls, dlg):
+        dlg.exec()
+        return dlg.get_inputs()
 
-    def __init__(self, tree=None, *args, **kwargs):
+    def __init__(self, tree=None, title='Album Dialog', *args, **kwargs):
         global module_logger
         super().__init__(*args, **kwargs)
 
-        module_logger.debug('entering PlornNewAlbumDialog: init')
-        self.setObjectName('plorn_new_album_dialog')
+        module_logger.debug('entering PlornAlbumDialog: init')
+        self.setObjectName('plorn_album_dialog')
         if tree == None:
             return
         self.tree = tree
 
-        module_logger.debug('PlornNewAlbumDialog: started')
-        self.setWindowTitle('New Album')
+        module_logger.debug('PlornAlbumDialog: started')
+        self.setWindowTitle(title)
         layout = QGridLayout()
         self.setSizePolicy(QSizePolicy.Policy.Expanding,
                            QSizePolicy.Policy.Expanding)
@@ -118,7 +117,7 @@ class PlornNewAlbumDialog(QDialog):
         layout.addLayout(attr_layout, 1, 1)
 
         self.setLayout(layout)
-        module_logger.debug('PlornNewAlbumDialog: init done')
+        module_logger.debug('PlornAlbumDialog: init done')
 
     def check_inputs(self):
         global module_logger
@@ -134,7 +133,7 @@ class PlornNewAlbumDialog(QDialog):
     def get_inputs(self):
         global module_logger
 
-        module_logger.debug('PlornNewAlbumDialog: get_inputs entered')
+        module_logger.debug('PlornAlbumDialog: get_inputs entered')
         info = {}
         info['album'] = self.name_edit.text()
         info['dated'] = self.dated_edit.text()
@@ -142,7 +141,7 @@ class PlornNewAlbumDialog(QDialog):
         info['names'] = self.name_list.get_items()
         info['places'] = self.place_list.get_items()
         info['tags'] = self.tag_list.get_items()
-        module_logger.debug(f'PlornNewAlbumDialog: get_inputs returns {info}')
+        module_logger.debug(f'PlornAlbumDialog: get_inputs returns {info}')
         return info
 
     def dlg_done(self, button):
@@ -150,17 +149,21 @@ class PlornNewAlbumDialog(QDialog):
 
         role = self.bbox.buttonRole(button)
         if role == QDialogButtonBox.ButtonRole.ApplyRole:
-            module_logger.debug('new album: Apply clicked')
+            module_logger.debug('album dialog: Apply clicked')
             if self.check_inputs() == QDialog.DialogCode.Rejected:
+                module_logger.debug('album dialog: Apply clicked, but rejected')
                 self.setResult(QDialog.DialogCode.Rejected)
                 return
             self.setResult(QDialog.DialogCode.Accepted)
+            module_logger.debug('album dialog: Apply clicked, and accepted')
 
         elif role == QDialogButtonBox.ButtonRole.RejectRole:
-            module_logger.debug('new album: Done clicked')
+            module_logger.debug('album dialog: Done clicked')
             self.setResult(QDialog.DialogCode.Rejected)
+            module_logger.debug('album dialog: Done clicked, and rejected')
 
+        module_logger.debug(f'dlg_done: Accepted == {QDialog.DialogCode.Accepted}')
+        module_logger.debug(f'dlg_done: Rejected == {QDialog.DialogCode.Rejected}')
         module_logger.debug(f'dlg_done returns {self.result()}')
         self.close()
-
 

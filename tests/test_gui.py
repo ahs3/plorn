@@ -47,7 +47,6 @@ from plorn.config import PlornConfig
 from plorn.gui import (
     PlornAboutDialog,
     PlornAlbumView,
-    PlornNewAlbumDialog,
     PlornNewCatalogDialog,
     user_interface,
 )
@@ -58,6 +57,7 @@ from plorn.model import (
 )
 
 from plorn.widgets import PlornAttrView
+from plorn.widgets.albums import PlornAlbumDialog
 
 
 ####################################################################
@@ -1002,7 +1002,7 @@ def test_add_album1(initial_db, monkeypatch):
     assert tree != None
     assert tree.model.rowCount() == 0
 
-    dlg = PlornNewAlbumDialog(tree=tree)
+    dlg = PlornAlbumDialog(tree=tree)
     tree_root = tree.model.invisibleRootItem()
     album = random_string(tree_root)
     dated = datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%d')
@@ -1031,7 +1031,7 @@ def test_add_album2(initial_db, monkeypatch):
     assert tree != None
     assert tree.model.rowCount() == 0
 
-    dlg = PlornNewAlbumDialog(tree=tree)
+    dlg = PlornAlbumDialog(tree=tree)
     tree_root = tree.model.invisibleRootItem()
     album = random_string(tree_root)
     dated = datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%d')
@@ -1119,7 +1119,7 @@ def test_add_album3(initial_db, monkeypatch):
     dlginfo['names'] = []
     dlginfo['places'] = []
     dlginfo['tags'] = []
-    monkeypatch.setattr(PlornNewAlbumDialog, 'ask',
+    monkeypatch.setattr(PlornAlbumDialog, 'ask',
                         lambda *args: dlginfo)
     new_action = root.findChild(QAction, 'new_album_action')
     assert new_action != None
@@ -1166,7 +1166,7 @@ def test_add_album4(initial_db, monkeypatch):
     dlginfo['names'] = [name_attr]
     dlginfo['places'] = [place_attr]
     dlginfo['tags'] = [tag_attr]
-    monkeypatch.setattr(PlornNewAlbumDialog, 'ask',
+    monkeypatch.setattr(PlornAlbumDialog, 'ask',
                         lambda *args: dlginfo)
     new_action = root.findChild(QAction, 'new_album_action')
     assert new_action != None

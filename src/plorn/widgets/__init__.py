@@ -10,6 +10,7 @@ import os
 
 from PyQt6.QtCore import (
     Qt,
+    pyqtSignal,
 )
 
 from PyQt6.QtSql import (
@@ -42,10 +43,13 @@ from plorn.config import PlornConfig
 from plorn.model import (
     add_attrs,
     model_add_album,
+    model_remove_album,
     populate_albums,
     populate_attrs,
     remove_attrs,
 )
+
+from plorn.widgets.albums import PlornAlbumDialog
 
 module_logger = logging.getLogger('plorn.widgets')
 module_logger.setLevel(logging.DEBUG)
@@ -280,6 +284,8 @@ class PlornAlbumView(QWidget):
     '''
     widget class for displaying and editing albums and their photos
     '''
+    catalogChanged = pyqtSignal(int, name='catalogChanged')
+
     def __init__(self, db=None, *args, **kwargs):
         global module_logger
         super().__init__(*args, **kwargs)
@@ -448,8 +454,8 @@ class PlornAlbumView(QWidget):
         global module_logger
 
         module_logger.debug(f'add_album_action: entered')
-        new_album_dlg = PlornNewAlbumDialog(tree=self.tree)
-        info = PlornNewAlbumDialog.ask(self)
+        new_album_dlg = PlornAlbumDialog(tree=self.tree, title='Add Album')
+        info = PlornAlbumDialog.ask(new_album_dlg)
         if len(info) > 0:
             res = self.add_album(info['album'], info['dated'], info['notes'])
         new_album_dlg.close()
@@ -458,6 +464,27 @@ class PlornAlbumView(QWidget):
         global module_logger
 
         module_logger.debug(f'remove_album_action: entered')
+        indices = self.selected_rows()
+        if len(indices) < 1:
+            title = 'Remove an Album'
+            text = 'No album has been selected for removal.'
+            button = QMessageBox.critical(self, title, text)
+        else:
+            album_name = ''
+            album_id = 0
+            album_row = -1
+            for index in indices:
+                item = self.item_from_index(index)
+                if item.column() == 0:
+                    album_id = int(item.text())
+                    album_row = item.row()
+                if item.column() == 2:
+                    album_name = item.text()
+
+            root = self.tree.model().invisibleRootItem()
+            res = model_remove_album(root, album_id, album_name)
+            self.catalogChanged.emit(0)
+        module_logger.debug(f'remove_album_action: done')
 
     def remove_album(self, item):
         global module_logger
