@@ -328,6 +328,10 @@ class Plorn(QMainWindow):
 
     def _albums_menu(self, mb):
         albums = mb.addMenu('&Albums')
+        view_action = QAction('&View Album', parent=self)
+        view_action.setObjectName('view_album_action')
+        view_action.triggered.connect(self.view_album)
+        albums.addAction(view_action)
         new_action = QAction('&Add Album', parent=self)
         new_action.setObjectName('new_album_action')
         new_action.triggered.connect(self.add_album)
@@ -626,6 +630,12 @@ class Plorn(QMainWindow):
 
         config.remove_catalog(action.data())
         config.write_config()
+
+    def view_album(self):
+        global module_logger
+
+        module_logger.debug('view_album: entered in gui')
+        pass
 
     def add_album(self):
         global module_logger

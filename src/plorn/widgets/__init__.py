@@ -335,6 +335,7 @@ class PlornAlbumView(QWidget):
         tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         tree.customContextMenuRequested.connect(self.context_menu)
         tree.setToolTip('Right-click for actions')
+        tree.doubleClicked.connect(self.view_album)
         self.tree = tree
         layout.addWidget(self.tree, 0, 0)
 
@@ -434,6 +435,13 @@ class PlornAlbumView(QWidget):
         else:
             setattr(self, 'context_add_album_action', add_album_action)
         module_logger.debug(f'context_menu done: album view')
+
+    def view_album(self, index):
+        global module_logger
+
+        item = self.tree.model().itemFromIndex(index)
+        module_logger.debug(f'view_album: entered for "{item.text()}"')
+        pass
 
     def add_album(self, name, dated, notes):
         global module_logger

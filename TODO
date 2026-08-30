@@ -10,10 +10,17 @@ TODO
 -- Column numbers and count of columns in main window album view should
    not be hard-coded values.
 
+-- Add config options to ask or not ask for confirmation when removing
+   albums, photos or attributes; this implies setting defaults, dialog
+   boxes that ask whether or not to keep asking, and changing the config
+   items when needed.
+
+-- Add (under Tools?) the ability to display the raw db tables read-only.
+   This could be an aid in debugging issues later, as in, what are we
+   actually storing/retrieving?
+
 -- How should icons actually be stored to make a distributable package?
    Having them in ./src/plorn seems iffy.
-
--- Provide a way to specify a config file on the command line.
 
 -- When searching attributes, allow for searching the full path.  For
    example, ',' is used by default with name attributes.  Adding the

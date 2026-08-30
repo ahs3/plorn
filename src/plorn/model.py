@@ -1263,8 +1263,7 @@ def album_stats():
 
 def _build_id_item(id):
     item = QStandardItem(f'{id:04}')
-    item.setEditable(False)
-    item.setCheckable(False)
+    item.setEnabled(False)
     item.setTextAlignment(Qt.AlignmentFlag.AlignLeft)
     return item
 
@@ -1275,27 +1274,36 @@ def _build_album_id_item(dbrow):
     font.setBold(True)
     font.setItalic(True)
     item.setFont(font)
+    item.setEnabled(True)
     return item
 
 def _build_photo_id_item(dbrow):
     id = dbrow[PhotoFields.ID]
     return _build_id_item(id)
 
+def _build_name_item(name):
+    item = QStandardItem(str(name))
+    item.setEnabled(False)
+    return item
+
 def _build_album_name_item(dbrow):
     name = dbrow[AlbumFields.NAME]
-    item = QStandardItem(str(name))
-    item.setEditable(True)
-    item.setCheckable(False)
+    item = _build_name_item(str(name))
+    item.setSelectable(True)
     font = QFont()
     font.setBold(True)
     font.setItalic(True)
     item.setFont(font)
+    item.setEnabled(True)
     return item
+
+def _build_photo_name_item(dbrow):
+    name = dbrow[PhotoFields.NAME]
+    return _build_name_item(str(name))
 
 def _build_dated_item(dated):
     item = QStandardItem(str(dated))
-    item.setEditable(True)
-    item.setCheckable(False)
+    item.setEnabled(False)
     return item
 
 def _build_album_dated_item(dbrow):
@@ -1305,38 +1313,46 @@ def _build_album_dated_item(dbrow):
     font.setBold(True)
     font.setItalic(True)
     item.setFont(font)
+    item.setEnabled(True)
     return item
 
 def _build_photo_dated_item(dbrow):
     dated = dbrow[PhotoFields.DATED]
     return _build_dated_item(dated)
 
+def _build_count_item(count):
+    item = QStandardItem(str(count))
+    item.setEnabled(False)
+    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+    return item
+
 def _build_album_count_item(dbrow):
     count = dbrow[AlbumFields.PHOTO_COUNT]
-    item = QStandardItem(str(count))
-    item.setEditable(False)
-    item.setCheckable(False)
-    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+    item = _build_count_item(str(count))
     font = QFont()
     font.setBold(True)
     font.setItalic(True)
     item.setFont(font)
+    item.setEnabled(True)
     return item
 
-def _build_photo_name_item(dbrow):
-    name = dbrow[PhotoFields.NAME]
-    item = QStandardItem(str(name))
-    item.setEditable(True)
-    item.setCheckable(False)
-    return item
+def _build_photo_count_item(dbrow):
+    count = ''
+    return _build_count_item(str(count))
 
-def _build_photo_path_item(dbrow):
-    name = dbrow[PhotoFields.PATH]
-    item = QStandardItem(str(name))
-    item.setEditable(False)
-    item.setCheckable(False)
+def _build_path_item(path):
+    item = QStandardItem(str(path))
+    item.setEnabled(False)
     item.setTextAlignment(Qt.AlignmentFlag.AlignLeft)
     return item
+
+def _build_album_path_item(dbrow):
+    path = ''
+    return _build_path_item(path)
+
+def _build_photo_path_item(dbrow):
+    path = dbrow[PhotoFields.PATH]
+    return _build_path_item(path)
 
 def _collect_album_dbdata(db):
     global module_logger
@@ -1397,7 +1413,9 @@ def _build_album_tree(root, db, dbdata):
         name_item = _build_album_name_item(dbrow)
         dated_item = _build_album_dated_item(dbrow)
         count_item = _build_album_count_item(dbrow)
-        root.appendRow([id_item, row_item, name_item, dated_item, count_item])
+        path_item = _build_album_path_item(dbrow)
+        root.appendRow([id_item, row_item, name_item, dated_item, count_item,
+                        path_item])
         current = root.child(row)
 
         #-- the model is zero-based, but the db fields are one-based,
@@ -1417,9 +1435,10 @@ def _build_album_tree(root, db, dbdata):
             pid = int(pid_item.text())
             pname_item = _build_photo_name_item(photo_row)
             pdated_item = _build_photo_dated_item(photo_row)
+            pcount_item = _build_photo_count_item(photo_row)
             ppath_item = _build_photo_path_item(photo_row)
             current.appendRow([pid_item, prow_item, pname_item,
-                               pdated_item, QStandardItem(), ppath_item])
+                               pdated_item, pcount_item, ppath_item])
             nphotos += 1
 
     module_logger.debug('_build_album_tree: done')
@@ -1490,7 +1509,9 @@ def model_add_album(root, album, db=None):
     name_item = _build_album_name_item(row_data)
     dated_item = _build_album_dated_item(row_data)
     count_item = _build_album_count_item(row_data)
-    root.appendRow([id_item, row_item, name_item, dated_item, count_item])
+    path_item = _build_album_path_item(row_data)
+    root.appendRow([id_item, row_item, name_item, dated_item, count_item,
+                    path_item])
     module_logger.debug(f'model_add_album: okay and done')
     return 'okay'
     
