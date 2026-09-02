@@ -39,6 +39,7 @@ from plorn.config import PlornConfig
 from plorn import (
     AlbumFields,
     AttrFields,
+    ObjAttrFields,
     PhotoFields,
     PlornAlbum,
     PlornDbException,
@@ -461,11 +462,8 @@ class PlornDbOperations:
         if query.next():
             album_id = query.value(AlbumFields.ID)
             names = PlornDbOperations.get_names_for_album_by_id(album_id)
-            module_logger.debug(f'static get_album_by_name: got names {names}')
             places = PlornDbOperations.get_places_for_album_by_id(album_id)
-            module_logger.debug(f'static get_album_by_name: got places {places}')
             tags = PlornDbOperations.get_tags_for_album_by_id(album_id)
-            module_logger.debug(f'static get_album_by_name: got tags {tags}')
             album = PlornAlbum(query.value(AlbumFields.NAME),
                                id=query.value(AlbumFields.ID),
                                dated=query.value(AlbumFields.DATED),
@@ -482,13 +480,15 @@ class PlornDbOperations:
         sql = f'SELECT * FROM albums WHERE id = "{album_id}";'
         query = QSqlQuery(sql, db=_current_db)
         if query.next():
+            album_id = query.value(AlbumFields.ID)
+            names = PlornDbOperations.get_names_for_album_by_id(album_id)
+            places = PlornDbOperations.get_places_for_album_by_id(album_id)
+            tags = PlornDbOperations.get_tags_for_album_by_id(album_id)
             album = PlornAlbum(query.value(AlbumFields.NAME),
                                id=query.value(AlbumFields.ID),
                                dated=query.value(AlbumFields.DATED),
                                notes=query.value(AlbumFields.NOTES),
-                               names=query.value(AlbumFields.NAMES),
-                               places=query.value(AlbumFields.PLACES),
-                               tags=query.value(AlbumFields.TAGS))
+                               names=names, places=places, tags=tags)
         return album
 
     @staticmethod
@@ -1096,9 +1096,9 @@ class PlornDbOperations:
         query = QSqlQuery(sql, db=_current_db)
         result = []
         while query.next():
-            result.append([query.value(AttrFields.ID),
-                           query.value(AttrFields.PARENT_ID),
-                           query.value(AttrFields.VALUE)])
+            result.append([query.value(ObjAttrFields.ID),
+                           query.value(ObjAttrFields.OBJECT_ID),
+                           query.value(ObjAttrFields.ATTR_ID)])
         module_logger.debug('_get_obj_attr_by_id: done')
         return result
 
@@ -1106,8 +1106,10 @@ class PlornDbOperations:
     def get_names_for_album_by_id(album_id):
         rows = PlornDbOperations._get_obj_attr_by_id('album','names',album_id)
         names = []
-        for id, pid, value in rows:
-            name = PlornName(value, id=id, parent_id=pid)
+        for id, obj_id, attr_id in rows:
+            obj = PlornDbOperations.get_name(attr_id)
+            name = PlornName(obj.get_value(), id=obj.get_id(),
+                             parent_id=obj.get_parent_id())
             names.append(name)
         return names
 
@@ -1121,8 +1123,10 @@ class PlornDbOperations:
     def get_places_for_album_by_id(album_id):
         rows = PlornDbOperations._get_obj_attr_by_id('album','places',album_id)
         places = []
-        for id, pid, value in rows:
-            place = PlornPlace(value, id=id, parent_id=pid)
+        for id, obj_id, attr_id in rows:
+            obj = PlornDbOperations.get_place(attr_id)
+            place = PlornPlace(obj.get_value(), id=obj.get_id(),
+                               parent_id=obj.get_parent_id())
             places.append(place)
         return places
 
@@ -1136,8 +1140,10 @@ class PlornDbOperations:
     def get_tags_for_album_by_id(album_id):
         rows = PlornDbOperations._get_obj_attr_by_id('album','tags',album_id)
         tags = []
-        for id, pid, value in rows:
-            tag = PlornTag(value, id=id, parent_id=pid)
+        for id, obj_id, attr_id in rows:
+            obj = PlornDbOperations.get_tag(attr_id)
+            tag = PlornPlace(obj.get_value(), id=obj.get_id(),
+                             parent_id=obj.get_parent_id())
             tags.append(tag)
         return tags
 
@@ -1263,7 +1269,8 @@ def album_stats():
 
 def _build_id_item(id):
     item = QStandardItem(f'{id:04}')
-    item.setEnabled(False)
+    item.setSelectable(True)
+    item.setEditable(False)
     item.setTextAlignment(Qt.AlignmentFlag.AlignLeft)
     return item
 
@@ -1274,7 +1281,6 @@ def _build_album_id_item(dbrow):
     font.setBold(True)
     font.setItalic(True)
     item.setFont(font)
-    item.setEnabled(True)
     return item
 
 def _build_photo_id_item(dbrow):
@@ -1283,7 +1289,8 @@ def _build_photo_id_item(dbrow):
 
 def _build_name_item(name):
     item = QStandardItem(str(name))
-    item.setEnabled(False)
+    item.setSelectable(True)
+    item.setEditable(False)
     return item
 
 def _build_album_name_item(dbrow):
@@ -1303,7 +1310,8 @@ def _build_photo_name_item(dbrow):
 
 def _build_dated_item(dated):
     item = QStandardItem(str(dated))
-    item.setEnabled(False)
+    item.setSelectable(True)
+    item.setEditable(False)
     return item
 
 def _build_album_dated_item(dbrow):
@@ -1313,7 +1321,6 @@ def _build_album_dated_item(dbrow):
     font.setBold(True)
     font.setItalic(True)
     item.setFont(font)
-    item.setEnabled(True)
     return item
 
 def _build_photo_dated_item(dbrow):
@@ -1322,7 +1329,8 @@ def _build_photo_dated_item(dbrow):
 
 def _build_count_item(count):
     item = QStandardItem(str(count))
-    item.setEnabled(False)
+    item.setSelectable(True)
+    item.setEditable(False)
     item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
     return item
 
@@ -1333,7 +1341,6 @@ def _build_album_count_item(dbrow):
     font.setBold(True)
     font.setItalic(True)
     item.setFont(font)
-    item.setEnabled(True)
     return item
 
 def _build_photo_count_item(dbrow):
@@ -1341,8 +1348,11 @@ def _build_photo_count_item(dbrow):
     return _build_count_item(str(count))
 
 def _build_path_item(path):
-    item = QStandardItem(str(path))
-    item.setEnabled(False)
+    home = os.environ['HOME']
+    path = path.replace(home, '~')
+    item = QStandardItem(path)
+    item.setSelectable(True)
+    item.setEditable(False)
     item.setTextAlignment(Qt.AlignmentFlag.AlignLeft)
     return item
 

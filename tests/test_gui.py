@@ -57,7 +57,10 @@ from plorn.model import (
 )
 
 from plorn.widgets import PlornAttrView
-from plorn.widgets.albums import PlornAlbumDialog
+from plorn.widgets.albums import (
+    PlornAlbumDialog,
+    PlornViewAlbumDialog,
+)
 
 
 ####################################################################
@@ -1257,4 +1260,56 @@ def test_remove_album1(initial_db, monkeypatch):
     assert len(places) <= 0
     tags = PlornDbOperations.get_tags_for_album_by_id(id)
     assert len(tags) <= 0
+
+def test_view_album1(initial_db, monkeypatch):
+    '''
+    we're really just testing the view dialog to make sure it shows
+    the right stuff 
+    '''
+    info = initial_db
+    monkeypatch.setenv('HOME', info['homedir'])
+    root = info['root']
+    assert root.menuBar() != None
+    tree = root.album_tree
+    assert tree != None
+    row_count = tree.model.rowCount()
+
+    #-- add an album directly to the db
+    tree_root = tree.model.invisibleRootItem()
+    album = random_string(tree_root)
+    dated = datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%d')
+    notes = random_string(tree_root)
+    album = PlornAlbum(album, id=None, dated=dated, notes=notes)
+
+    name = random_string(tree_root)
+    name_attr = PlornName(name)
+    name_attr = PlornDbOperations.add_name(name_attr)
+    assert name_attr.get_id() != 0
+    album.set_name_list([name_attr])
+
+    place = random_string(tree_root)
+    place_attr = PlornPlace(place)
+    place_attr = PlornDbOperations.add_place(place_attr)
+    assert place_attr.get_id() != 0
+    album.set_place_list([place_attr])
+
+    tag = random_string(tree_root)
+    tag_attr = PlornTag(tag)
+    tag_attr = PlornDbOperations.add_tag(tag_attr)
+    assert tag_attr.get_id() != 0
+    album.set_tag_list([tag_attr])
+
+    res = model_add_album(tree_root, album, db=info['db'])
+    assert res, 'album did not get added'
+    assert album.get_id() != 0
+
+    #-- make sure the album is in the view
+    items = tree.model.findItems(album.get_name(), column=2)
+    assert len(items) > 0
+
+    dlg = PlornViewAlbumDialog(tree=tree, title='View Album', allow_edit=False)
+    dlg.set_inputs(album)
+    assert album.get_name() == dlg.name_edit.text()
+    assert album.get_dated() == dlg.dated_edit.text()
+    assert album.get_notes() == dlg.notes_edit.toPlainText()
 

@@ -77,10 +77,12 @@ from plorn.widgets import (
     PlornAlbumView,
     PlornAttrView,
     PlornSizePolicy,
+    TreeColumns,
 )
 
 from plorn.widgets.albums import (
     PlornAlbumDialog,
+    PlornViewAlbumDialog,
 )
 
 #-- set up logging
@@ -635,7 +637,41 @@ class Plorn(QMainWindow):
         global module_logger
 
         module_logger.debug('view_album: entered in gui')
-        pass
+        indices = self.album_tree.selected_rows()
+        msg = f'view_album: {len(indices)/5} selection(s) in gui'
+        module_logger.debug(msg)
+        if len(indices) < 1:
+            title = 'View an Album'
+            text = 'No album has been selected for viewing.'
+            button = QMessageBox.critical(self, title, text)
+        else:
+            album_name = ''
+            album_id = 0
+            album_row = -1
+            for index in indices:
+                item = self.album_tree.item_from_index(index)
+                if item.column() == TreeColumns.ID:
+                    album_id = int(item.text())
+                    album_row = item.row()
+                if item.column() == TreeColumns.NAME:
+                    album_name = item.text()
+
+            album = PlornDbOperations.get_album_by_id(album_id)
+            if album == None:
+                title = 'View an Album'
+                text  = f'There is no album with ID {album_id:04} '
+                test += f'named "{album_name}."'
+                button = QMessageBox.critical(self, title, text)
+            else:
+                dlg = PlornViewAlbumDialog(tree=self.album_tree,
+                                           title='View Album',
+                                           allow_edit=False)
+                module_logger.debug(f'view_album: {str(album)}')
+                dlg.set_inputs(album)
+                info = PlornViewAlbumDialog.ask(dlg)
+                module_logger.debug(f'view_album: info in gui {str(info)}')
+
+        module_logger.debug('view_album: done in gui')
 
     def add_album(self):
         global module_logger
@@ -681,10 +717,10 @@ class Plorn(QMainWindow):
             album_row = -1
             for index in indices:
                 item = self.album_tree.item_from_index(index)
-                if item.column() == 0:
+                if item.column() == TreeColumns.ID:
                     album_id = int(item.text())
                     album_row = item.row()
-                if item.column() == 2:
+                if item.column() == TreeColumns.NAME:
                     album_name = item.text()
 
             root = self.album_tree.model.invisibleRootItem()

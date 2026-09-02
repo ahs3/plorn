@@ -206,6 +206,7 @@ class PlornAttrListView(QWidget):
                 value = ', '.join(fullattr)
                 item = QStandardItem(value)
                 item.setData(data)
+                item.setEditable(False)
                 if len(self.attr_list.model().findItems(value)) < 1:
                     self.attr_list.model().appendRow(item)
         module_logger.debug(f'add_selected: info count {len(info)}')

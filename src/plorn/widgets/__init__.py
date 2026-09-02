@@ -5,6 +5,7 @@
 # SPDX-FileCopyrightText: 2025 Albert H. Stone, III <ahs3@ahs3.net>
 #######################################################################
 
+from enum import IntEnum
 import logging
 import os
 
@@ -46,13 +47,25 @@ from plorn.model import (
     model_remove_album,
     populate_albums,
     populate_attrs,
+    PlornDbOperations,
     remove_attrs,
 )
 
-from plorn.widgets.albums import PlornAlbumDialog
+from plorn.widgets.albums import (
+    PlornAlbumDialog,
+    PlornViewAlbumDialog,
+)
 
 module_logger = logging.getLogger('plorn.widgets')
 module_logger.setLevel(logging.DEBUG)
+
+class TreeColumns(IntEnum):
+    ID            = 0
+    HIDDEN_ROW_ID = 1
+    NAME          = 2
+    DATED         = 3
+    COUNT         = 4
+    PATH          = 5
 
 
 #####################################################################
@@ -102,7 +115,7 @@ class PlornAttrView(QDialog):
         tree.setItemsExpandable(True)
         tree.setUniformRowHeights(True)
         tree.setHeaderHidden(True)
-        tree.header().setSectionHidden(1, True)
+        tree.header().setSectionHidden(TreeColumns.HIDDEN_ROW_ID, True)
         tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         tree.customContextMenuRequested.connect(self.context_menu)
         tree.setToolTip('Right-click for actions')
@@ -335,17 +348,17 @@ class PlornAlbumView(QWidget):
         tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         tree.customContextMenuRequested.connect(self.context_menu)
         tree.setToolTip('Right-click for actions')
-        tree.doubleClicked.connect(self.view_album)
+        tree.doubleClicked.connect(self.view_object)
         self.tree = tree
         layout.addWidget(self.tree, 0, 0)
 
         tree.setHeaderHidden(False)
-        tree.header().setSectionHidden(1, True)
-        tree.header().resizeSection(0, 100)
-        tree.header().resizeSection(1, 10)
-        tree.header().resizeSection(2, 440)
-        tree.header().resizeSection(3, 240)
-        tree.header().resizeSection(4, 100)
+        tree.header().setSectionHidden(TreeColumns.HIDDEN_ROW_ID, True)
+        tree.header().resizeSection(TreeColumns.ID, 100)
+        tree.header().resizeSection(TreeColumns.HIDDEN_ROW_ID, 10)
+        tree.header().resizeSection(TreeColumns.NAME, 440)
+        tree.header().resizeSection(TreeColumns.DATED, 240)
+        tree.header().resizeSection(TreeColumns.COUNT, 100)
 
         self.setLayout(layout)
         populate_albums(root=self.root, db=self.db)
@@ -436,12 +449,55 @@ class PlornAlbumView(QWidget):
             setattr(self, 'context_add_album_action', add_album_action)
         module_logger.debug(f'context_menu done: album view')
 
-    def view_album(self, index):
+    def view_album(self, id):
+        global module_logger
+
+        module_logger.debug(f'view_album: entered for album {id}')
+        album = PlornDbOperations.get_album_by_id(id)
+        if album == None:
+            raise PlornDbError('album selected that does not exist')
+        else:
+            dlg = PlornViewAlbumDialog(tree=self.tree,
+                                       title='View Album',
+                                       allow_edit=False)
+            dlg.set_inputs(album)
+            info = PlornViewAlbumDialog.ask(dlg)
+        module_logger.debug(f'view_album: done for album {id}')
+
+    def view_photo(self, index):
         global module_logger
 
         item = self.tree.model().itemFromIndex(index)
-        module_logger.debug(f'view_album: entered for "{item.text()}"')
+        module_logger.debug(f'view_photo: entered for "{item.text()}"')
         pass
+
+    def view_object(self, index):
+        global module_logger
+
+        item = self.tree.model().itemFromIndex(index)
+        value = item.text()
+        module_logger.debug(f'view_object: entered for "{value}"')
+        indices = self.tree.selectedIndexes()
+        id = 0
+        found_count = False
+        found_path  = False
+        for idx in indices:
+            item = self.tree.model().itemFromIndex(idx)
+            #module_logger.debug(f'view_object: column {item.column()}')
+            if item.column() == TreeColumns.ID:
+                id = int(item.text())
+            elif item.column() == TreeColumns.COUNT:
+                if len(item.text()) >= 1:
+                    found_count = True
+            elif item.column() == TreeColumns.PATH:
+                if len(item.text()) >= 1:
+                    found_path = True
+        if found_count and not found_path:          # object is an album
+            #module_logger.debug(f'view_object: it is an album')
+            self.view_album(id)
+        elif found_path and not found_count:        # object is a photo
+            module_logger.debug(f'view_object: it is a photo')
+        module_logger.debug(f'view_object: done for "{value}"')
 
     def add_album(self, name, dated, notes):
         global module_logger
@@ -483,10 +539,10 @@ class PlornAlbumView(QWidget):
             album_row = -1
             for index in indices:
                 item = self.item_from_index(index)
-                if item.column() == 0:
+                if item.column() == TreeColumns.ID:
                     album_id = int(item.text())
                     album_row = item.row()
-                if item.column() == 2:
+                if item.column() == TreeColumns.NAME:
                     album_name = item.text()
 
             root = self.tree.model().invisibleRootItem()

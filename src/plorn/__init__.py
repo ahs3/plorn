@@ -59,6 +59,11 @@ class AttrFields(IntEnum):
     PARENT_ID   = 1
     VALUE       = 2
 
+class ObjAttrFields(IntEnum):
+    ID          = 0
+    OBJECT_ID   = 1
+    ATTR_ID     = 2
+
 class ConfigFields(IntEnum):
     ID          = 0
     NAME        = 1
