@@ -61,6 +61,7 @@ from PyQt6.QtWidgets import (
 
 from plorn import (
     AlbumFields,
+    PhotoFields,
     PlornAlbum,
 )
 
@@ -82,6 +83,15 @@ from plorn.widgets.albums import (
     PlornAlbumDialog,
     PlornViewAlbumDialog,
 )
+
+from plorn.widgets.raw import (
+    PlornRawAttrView,
+    PlornRawAlbumView,
+    PlornRawConfigView,
+    PlornRawObjAttrView,
+    PlornRawPhotoView,
+)
+
 
 #-- set up logging
 module_logger = logging.getLogger('plorn.gui')
@@ -793,7 +803,22 @@ class Plorn(QMainWindow):
         db = self.open_db()
         module_logger.debug(f'raw_table_views: table {action.text()}')
         table = action.text()
-        #if table == 'names' or table == 'places' or table == 'tags':
+        if table == 'config':
+            dlg = PlornRawConfigView(db=db)
+            res = dlg.exec()
+        elif table == 'names' or table == 'places' or table == 'tags':
+            dlg = PlornRawAttrView(table=table, db=db)
+            res = dlg.exec()
+        elif table == 'albums':
+            dlg = PlornRawAlbumView(db=db)
+            res = dlg.exec()
+        elif table == 'photos':
+            dlg = PlornRawPhotoView(db=db)
+            res = dlg.exec()
+        elif len(table.split('_')) == 2:            # kinda hokey, really
+            obj, attrs = table.split('_')
+            dlg = PlornRawObjAttrView(obj=obj, attrs=attrs, db=db)
+            res = dlg.exec()
         module_logger.debug('raw_table_views done')
         
 

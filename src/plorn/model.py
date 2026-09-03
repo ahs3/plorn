@@ -1325,8 +1325,12 @@ class PlornAlbumModel:
     
     @staticmethod
     def _build_path_item(path):
+        MAX_PATH = 48
         home = os.environ['HOME']
         path = path.replace(home, '~')
+        if len(path) > MAX_PATH:
+            rem = len(path) - MAX_PATH
+            path = '...' + path[rem:]
         item = QStandardItem(path)
         item.setSelectable(True)
         item.setEditable(False)

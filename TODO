@@ -7,14 +7,12 @@
 
 TODO
 ====
+-- Window geometries are mostly hard-coded; they should not be.
+
 -- Add config options to ask or not ask for confirmation when removing
    albums, photos or attributes; this implies setting defaults, dialog
    boxes that ask whether or not to keep asking, and changing the config
    items when needed.
-
--- Add (under Tools?) the ability to display the raw db tables read-only.
-   This could be an aid in debugging issues later, as in, what are we
-   actually storing/retrieving?
 
 -- How should icons actually be stored to make a distributable package?
    Having them in ./src/plorn seems iffy.
