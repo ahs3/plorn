@@ -58,12 +58,9 @@ from plorn import (
 from plorn.config import PlornConfig
 
 from plorn.model import (
-    add_attrs,
-    model_add_album,
+    PlornAlbumModel,
+    PlornAttrModel,
     PlornDbOperations,
-    populate_albums,
-    populate_attrs,
-    remove_attrs,
 )
 
 module_logger = logging.getLogger('plorn.widgets.attrs')
@@ -101,7 +98,7 @@ class PlornAttrSelection(QDialog):
         layout.addWidget(self.tree, 0, 0)
 
         root = self.tree.model().invisibleRootItem()
-        populate_attrs(root, self.table, db=self.db)
+        PlornAttrModel.populate_attrs(root, self.table, db=self.db)
 
         self.bbox = QDialogButtonBox()
         self.bbox.addButton('Done', QDialogButtonBox.ButtonRole.RejectRole)

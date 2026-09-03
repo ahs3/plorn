@@ -54,47 +54,8 @@ module_logger.setLevel(logging.DEBUG)
 
 ##########################################################################
 #
-#   data model for Albums -- use simple relational model (DEPRECATED)
-#
-class PlornAlbumModel(QSqlRelationalTableModel):
-    def __init__(self, parent=None, db=QSqlDatabase(), *args, **kwargs):
-        global module_logger
-        super().__init__(parent=parent, db=db, *args, **kwargs)
-
-        module_logger.debug(f'album model init: {db.connectionName()}')
-        self.setTable('albums')
-        module_logger.debug(f'album model: valid? {db.isValid()}')
-        self.setEditStrategy(QSqlTableModel.EditStrategy.OnFieldChange)
-        res = self.select()
-        module_logger.debug(f'album model init: select result {res}')
-
-    def headerData(self, section, orientation,
-                   role=Qt.ItemDataRole.DisplayRole):
-        global module_logger
-
-        super().headerData(section, orientation, role)
-        module_logger.debug(f'headerData: {section, role}')
-
-        section_text = ['ID', 'Album', 'Dated', 'Notes', 'Photo Count']
-        if role == Qt.ItemDataRole.DisplayRole:
-            module_logger.debug(f'headerData: display {section}')
-            return str(section_text[section])
-
-        elif role == Qt.ItemDataRole.FontRole:
-            font = QFont()
-            font.setBold(True)
-            return font
-
-        elif section==AttrFields.ID and role==Qt.ItemDataRole.TextAlignmentRole:
-            return Qt.AlignmentFlag.AlignHCenter
-
-        elif section > AttrFields.ID:
-            return Qt.AlignmentFlag.AlignLeft
-        
-##########################################################################
-#
-#   data model for Attributes -- use QStandardItem model directly, so
-#   these are helper functions to populate the model
+#   static class for direct database access -- these are helper functions
+#   to populate the various models
 #
 
 _current_db = None
@@ -1219,12 +1180,9 @@ class PlornDbOperations:
 
 ##########################################################################
 #
-#   data model for Attributes -- use QStandardItem model directly, so
+#   data model for Albums -- use QStandardItem model directly, so
 #   these are helper functions to populate the model
 #
-
-_ALBUM_DATA = {}
-_PHOTO_DATA = {}
 
 class AlbumViewColumn(IntEnum):
     '''
@@ -1236,334 +1194,361 @@ class AlbumViewColumn(IntEnum):
     COUNT = 3
     PATH  = 4
 
-def populate_albums(root, db=QSqlDatabase()):
-    global module_logger, _ALBUM_DATA
+class PlornAlbumModel:
+    _ALBUM_DATA = {}
+    _PHOTO_DATA = {}
 
-    msg  = f'populate_albums: init: db {db.connectionName()} is '
-    msg += f'{db.databaseName()}'
-    module_logger.debug(msg)
+    @staticmethod
+    def populate_albums(root, db=QSqlDatabase()):
+        global module_logger
 
-    if not db.isOpen():
-        raise PlornDbException('cannot get albums from closed db')
-    if not db.isValid():
-        raise PlornDbException('cannot get albums from invalid db')
+        msg  = f'populate_albums: init: db {db.connectionName()} is '
+        msg += f'{db.databaseName()}'
+        module_logger.debug(msg)
 
-    dbdata = _collect_album_dbdata(db)
-    _ALBUM_DATA = dbdata
-    dbtree = _build_album_tree(root, db, dbdata)
-    _dump_album_tree(root, dbtree)
-    module_logger.debug(f'populate_albums: init done')
+        if not db.isOpen():
+            raise PlornDbException('cannot get albums from closed db')
+        if not db.isValid():
+            raise PlornDbException('cannot get albums from invalid db')
 
-def album_stats():
-    global module_logger, _ALBUM_DATA
+        dbdata = PlornAlbumModel._collect_album_dbdata(db)
+        PlornAlbumModel._ALBUM_DATA = dbdata
+        dbtree = PlornAlbumModel._build_album_tree(root, db, dbdata)
+        PlornAlbumModel._dump_album_tree(root, dbtree)
+        module_logger.debug(f'populate_albums: init done')
 
-    album_count = len(_ALBUM_DATA)
-    photo_count = 0
-    for ii, data in _ALBUM_DATA.items():
-        nphotos = data[AlbumFields.PHOTO_COUNT]
-        photo_count += nphotos
-        album_name = data[AlbumFields.NAME]
-        module_logger.debug(f'album_stats: "{album_name}", {nphotos}')
-    module_logger.debug(f'album_stats: {album_count}, {photo_count}')
-    return album_count, photo_count
+    @staticmethod
+    def album_stats():
+        global module_logger
 
-def _build_id_item(id):
-    item = QStandardItem(f'{id:04}')
-    item.setSelectable(True)
-    item.setEditable(False)
-    item.setTextAlignment(Qt.AlignmentFlag.AlignLeft)
-    return item
+        album_count = len(PlornAlbumModel._ALBUM_DATA)
+        photo_count = 0
+        for ii, data in PlornAlbumModel._ALBUM_DATA.items():
+            nphotos = data[AlbumFields.PHOTO_COUNT]
+            photo_count += nphotos
+            album_name = data[AlbumFields.NAME]
+            module_logger.debug(f'album_stats: "{album_name}", {nphotos}')
+        module_logger.debug(f'album_stats: {album_count}, {photo_count}')
+        return album_count, photo_count
 
-def _build_album_id_item(dbrow):
-    id = dbrow[AlbumFields.ID]
-    item = _build_id_item(id)
-    font = QFont()
-    font.setBold(True)
-    font.setItalic(True)
-    item.setFont(font)
-    return item
-
-def _build_photo_id_item(dbrow):
-    id = dbrow[PhotoFields.ID]
-    return _build_id_item(id)
-
-def _build_name_item(name):
-    item = QStandardItem(str(name))
-    item.setSelectable(True)
-    item.setEditable(False)
-    return item
-
-def _build_album_name_item(dbrow):
-    name = dbrow[AlbumFields.NAME]
-    item = _build_name_item(str(name))
-    item.setSelectable(True)
-    font = QFont()
-    font.setBold(True)
-    font.setItalic(True)
-    item.setFont(font)
-    item.setEnabled(True)
-    return item
-
-def _build_photo_name_item(dbrow):
-    name = dbrow[PhotoFields.NAME]
-    return _build_name_item(str(name))
-
-def _build_dated_item(dated):
-    item = QStandardItem(str(dated))
-    item.setSelectable(True)
-    item.setEditable(False)
-    return item
-
-def _build_album_dated_item(dbrow):
-    dated = dbrow[AlbumFields.DATED]
-    item = _build_dated_item(dated)
-    font = QFont()
-    font.setBold(True)
-    font.setItalic(True)
-    item.setFont(font)
-    return item
-
-def _build_photo_dated_item(dbrow):
-    dated = dbrow[PhotoFields.DATED]
-    return _build_dated_item(dated)
-
-def _build_count_item(count):
-    item = QStandardItem(str(count))
-    item.setSelectable(True)
-    item.setEditable(False)
-    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-    return item
-
-def _build_album_count_item(dbrow):
-    count = dbrow[AlbumFields.PHOTO_COUNT]
-    item = _build_count_item(str(count))
-    font = QFont()
-    font.setBold(True)
-    font.setItalic(True)
-    item.setFont(font)
-    return item
-
-def _build_photo_count_item(dbrow):
-    count = ''
-    return _build_count_item(str(count))
-
-def _build_path_item(path):
-    home = os.environ['HOME']
-    path = path.replace(home, '~')
-    item = QStandardItem(path)
-    item.setSelectable(True)
-    item.setEditable(False)
-    item.setTextAlignment(Qt.AlignmentFlag.AlignLeft)
-    return item
-
-def _build_album_path_item(dbrow):
-    path = ''
-    return _build_path_item(path)
-
-def _build_photo_path_item(dbrow):
-    path = dbrow[PhotoFields.PATH]
-    return _build_path_item(path)
-
-def _collect_album_dbdata(db):
-    global module_logger
-
-    module_logger.debug('_collect_album_dbdata: entered')
-    dbdata = {}
-    query = QSqlQuery(f'SELECT * FROM albums;', db=db)
-    while query.next():
-        row_data = [query.value(AlbumFields.ID),
-                    query.value(AlbumFields.NAME),
-                    query.value(AlbumFields.DATED),
-                    query.value(AlbumFields.NOTES),
-                    query.value(AlbumFields.PHOTO_COUNT)]
-        dbdata[query.value(AlbumFields.ID)] = row_data
-    module_logger.debug(f'_collect_album_dbdata: keys {str(dbdata.keys())}')
-    module_logger.debug(f'_collect_album_dbdata: done, {len(dbdata)} records')
-    return dbdata
-
-def _collect_photo_dbdata(db, album_id):
-    global module_logger, _PHOTO_DATA
-
-    module_logger.debug('_collect_photo_dbdata: entered')
-    dbdata = {}
-    actual_id = int(album_id)                       # paranoid conversion
-    sql = f'SELECT * FROM photos WHERE album_id = {actual_id};'
-    query = QSqlQuery(sql, db=db)
-    while query.next():
-        row_data = [query.value(PhotoFields.ID),
-                    query.value(PhotoFields.ALBUM_ID),
-                    query.value(PhotoFields.NAME),
-                    query.value(PhotoFields.PATH),
-                    query.value(PhotoFields.DATED),
-                    query.value(PhotoFields.NOTES)]
-        id = query.value(PhotoFields.ID)
-        dbdata[id] = row_data
-        if id not in _PHOTO_DATA:
-            _PHOTO_DATA[id] = row_data
-
-    module_logger.debug(f'_collect_photo_dbdata: keys {str(dbdata.keys())}')
-    module_logger.debug(f'_collect_photo_dbdata: done, {len(dbdata)} records')
-    return dbdata
-
-def _build_album_tree(root, db, dbdata):
-    global module_logger, _ALBUM_DATA, _PHOTO_DATA
-    '''
-        NB: whilst the database itself if a 1-based array,
-        with ID pointing to parents, Qt expects an actual tree
-        structure when working with QTreeView.  So, build the
-        structure up from our dbdata.
-    '''
-    module_logger.debug('_build_album_tree: entered')
-    dbtree = {}
-    row = 0
-    for ii, dbrow in dbdata.items():
-        id_item = _build_album_id_item(dbrow)
-        id = int(id_item.text())
-        row_item = QStandardItem(str(row))
-        name_item = _build_album_name_item(dbrow)
-        dated_item = _build_album_dated_item(dbrow)
-        count_item = _build_album_count_item(dbrow)
-        path_item = _build_album_path_item(dbrow)
+    @staticmethod
+    def _build_id_item(id):
+        item = QStandardItem(f'{id:04}')
+        item.setSelectable(True)
+        item.setEditable(False)
+        item.setTextAlignment(Qt.AlignmentFlag.AlignLeft)
+        return item
+    
+    @staticmethod
+    def _build_album_id_item(dbrow):
+        id = dbrow[AlbumFields.ID]
+        item = PlornAlbumModel._build_id_item(id)
+        font = QFont()
+        font.setBold(True)
+        font.setItalic(True)
+        item.setFont(font)
+        return item
+    
+    @staticmethod
+    def _build_photo_id_item(dbrow):
+        id = dbrow[PhotoFields.ID]
+        return PlornAlbumModel._build_id_item(id)
+    
+    @staticmethod
+    def _build_name_item(name):
+        item = QStandardItem(str(name))
+        item.setSelectable(True)
+        item.setEditable(False)
+        return item
+    
+    @staticmethod
+    def _build_album_name_item(dbrow):
+        name = dbrow[AlbumFields.NAME]
+        item = PlornAlbumModel._build_name_item(str(name))
+        item.setSelectable(True)
+        font = QFont()
+        font.setBold(True)
+        font.setItalic(True)
+        item.setFont(font)
+        item.setEnabled(True)
+        return item
+    
+    @staticmethod
+    def _build_photo_name_item(dbrow):
+        name = dbrow[PhotoFields.NAME]
+        return PlornAlbumModel._build_name_item(str(name))
+    
+    @staticmethod
+    def _build_dated_item(dated):
+        item = QStandardItem(str(dated))
+        item.setSelectable(True)
+        item.setEditable(False)
+        return item
+    
+    @staticmethod
+    def _build_album_dated_item(dbrow):
+        dated = dbrow[AlbumFields.DATED]
+        item = PlornAlbumModel._build_dated_item(dated)
+        font = QFont()
+        font.setBold(True)
+        font.setItalic(True)
+        item.setFont(font)
+        return item
+    
+    @staticmethod
+    def _build_photo_dated_item(dbrow):
+        dated = dbrow[PhotoFields.DATED]
+        return PlornAlbumModel._build_dated_item(dated)
+    
+    @staticmethod
+    def _build_count_item(count):
+        item = QStandardItem(str(count))
+        item.setSelectable(True)
+        item.setEditable(False)
+        item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        return item
+    
+    @staticmethod
+    def _build_album_count_item(dbrow):
+        count = dbrow[AlbumFields.PHOTO_COUNT]
+        item = PlornAlbumModel._build_count_item(str(count))
+        font = QFont()
+        font.setBold(True)
+        font.setItalic(True)
+        item.setFont(font)
+        return item
+    
+    @staticmethod
+    def _build_photo_count_item(dbrow):
+        count = ''
+        return PlornAlbumModel._build_count_item(str(count))
+    
+    @staticmethod
+    def _build_path_item(path):
+        home = os.environ['HOME']
+        path = path.replace(home, '~')
+        item = QStandardItem(path)
+        item.setSelectable(True)
+        item.setEditable(False)
+        item.setTextAlignment(Qt.AlignmentFlag.AlignLeft)
+        return item
+    
+    @staticmethod
+    def _build_album_path_item(dbrow):
+        path = ''
+        return PlornAlbumModel._build_path_item(path)
+    
+    @staticmethod
+    def _build_photo_path_item(dbrow):
+        path = dbrow[PhotoFields.PATH]
+        return PlornAlbumModel._build_path_item(path)
+    
+    @staticmethod
+    def _collect_album_dbdata(db):
+        global module_logger
+    
+        module_logger.debug('_collect_album_dbdata: entered')
+        dbdata = {}
+        query = QSqlQuery(f'SELECT * FROM albums;', db=db)
+        while query.next():
+            row_data = [query.value(AlbumFields.ID),
+                        query.value(AlbumFields.NAME),
+                        query.value(AlbumFields.DATED),
+                        query.value(AlbumFields.NOTES),
+                        query.value(AlbumFields.PHOTO_COUNT)]
+            dbdata[query.value(AlbumFields.ID)] = row_data
+        module_logger.debug(f'_collect_album_dbdata: keys {str(dbdata.keys())}')
+        module_logger.debug(f'_collect_album_dbdata: done, {len(dbdata)} recs')
+        return dbdata
+    
+    @staticmethod
+    def _collect_photo_dbdata(db, album_id):
+        global module_logger
+    
+        module_logger.debug('_collect_photo_dbdata: entered')
+        dbdata = {}
+        actual_id = int(album_id)                       # paranoid conversion
+        sql = f'SELECT * FROM photos WHERE album_id = {actual_id};'
+        query = QSqlQuery(sql, db=db)
+        while query.next():
+            row_data = [query.value(PhotoFields.ID),
+                        query.value(PhotoFields.ALBUM_ID),
+                        query.value(PhotoFields.NAME),
+                        query.value(PhotoFields.PATH),
+                        query.value(PhotoFields.DATED),
+                        query.value(PhotoFields.NOTES)]
+            id = query.value(PhotoFields.ID)
+            dbdata[id] = row_data
+            if id not in PlornAlbumModel._PHOTO_DATA:
+                PlornAlbumModel._PHOTO_DATA[id] = row_data
+    
+        module_logger.debug(f'_collect_photo_dbdata: keys {str(dbdata.keys())}')
+        module_logger.debug(f'_collect_photo_dbdata: done, {len(dbdata)} recs')
+        return dbdata
+    
+    @staticmethod
+    def _build_album_tree(root, db, dbdata):
+        global module_logger
+        '''
+            NB: whilst the database itself if a 1-based array,
+            with ID pointing to parents, Qt expects an actual tree
+            structure when working with QTreeView.  So, build the
+            structure up from our dbdata.
+        '''
+        module_logger.debug('_build_album_tree: entered')
+        dbtree = {}
+        row = 0
+        for ii, dbrow in dbdata.items():
+            id_item = PlornAlbumModel._build_album_id_item(dbrow)
+            id = int(id_item.text())
+            row_item = QStandardItem(str(row))
+            name_item = PlornAlbumModel._build_album_name_item(dbrow)
+            dated_item = PlornAlbumModel._build_album_dated_item(dbrow)
+            count_item = PlornAlbumModel._build_album_count_item(dbrow)
+            path_item = PlornAlbumModel._build_album_path_item(dbrow)
+            root.appendRow([id_item, row_item, name_item,
+                            dated_item, count_item, path_item])
+            current = root.child(row)
+    
+            #-- the model is zero-based, but the db fields are one-based,
+            #   and we only want certain columns anyway
+            album_id = dbrow[AlbumFields.ID]
+            dbtree[album_id] = [id_item, name_item, dated_item, count_item]
+            row += 1
+            
+            nphotos = 0
+            photos = PlornAlbumModel._collect_photo_dbdata(db, album_id)
+            for jj, photo_row in photos.items():
+                msg  = f'_build_album_tree: photo row {nphotos}, '
+                msg += f'{photo_row}'
+                module_logger.debug(msg)
+                prow_item = QStandardItem(str(nphotos))
+                pid_item = PlornAlbumModel._build_photo_id_item(photo_row)
+                pid = int(pid_item.text())
+                pname_item = PlornAlbumModel._build_photo_name_item(photo_row)
+                pdated_item = PlornAlbumModel._build_photo_dated_item(photo_row)
+                pcount_item = PlornAlbumModel._build_photo_count_item(photo_row)
+                ppath_item = PlornAlbumModel._build_photo_path_item(photo_row)
+                current.appendRow([pid_item, prow_item, pname_item,
+                                   pdated_item, pcount_item, ppath_item])
+                nphotos += 1
+    
+        module_logger.debug('_build_album_tree: done')
+        return dbtree
+    
+    @staticmethod
+    def _dump_album_tree(root, dbtree):
+        global module_logger
+    
+        if module_logger.isEnabledFor(logging.DEBUG):
+            module_logger.debug('=> _dump_album_tree start')
+            if root.hasChildren():
+                for row in range(len(PlornAlbumModel._ALBUM_DATA)):
+                    vrow = root.child(row, 0)
+                    album = root.child(row, 1)
+                    name = root.child(row, 2)
+                    count = root.child(row, 3)
+                    msg  = f'{album.text()}  {name.text()}  {count.text()}'
+                    module_logger.debug(msg)
+    
+                    if vrow.hasChildren():
+                        for nphoto in range(vrow.rowCount()):
+                            photo = vrow.child(nphoto, 1)
+                            pname = vrow.child(nphoto, 2)
+                            ppath = vrow.child(nphoto, 3)
+                            msg  = f'    {photo.text()}  {pname.text()}  '
+                            msg += f'{ppath.text()}'
+                            module_logger.debug(msg)
+            module_logger.debug('<= _dump_album_tree end')
+    
+    @staticmethod
+    def add_album(root, album, db=None):
+        global module_logger
+    
+        msg  = f'add_album: {str(album)}'
+        module_logger.debug(msg)
+    
+        if db == None:
+            config = PlornConfig()
+            catalog, dirname, dbname = config.get_current_catalog()
+            db = QSqlDatabase.database(connectionName=catalog)
+            msg  = f'add_album: using db connection {catalog}'
+            module_logger.debug(msg)
+    
+        if not db.isOpen():
+            msg  = 'add_album: cannot open database'
+            module_logger.debug(msg)
+            return 'cannot open db'
+    
+        if not db.isValid():
+            msg  = 'add_album: database is not valid'
+            module_logger.debug(msg)
+            return 'db is invalid'
+    
+        # add to db to get an id and actual dbrow
+        # ...we do not care about duplicate names, so try adding it
+        added_album = PlornDbOperations.add_album(album)
+        module_logger.debug(f'add_album: added album {str(added_album)}')
+        assert added_album != None and added_album.get_id() != 0
+    
+        row_data = [added_album.get_id(),
+                    added_album.get_name(),
+                    added_album.get_dated(),
+                    added_album.get_notes(),
+                    added_album.get_photo_count()]
+        PlornAlbumModel._ALBUM_DATA[added_album.get_id()] = row_data
+        module_logger.debug(f'add_album: added {row_data}')
+        row_item = QStandardItem(str(root.rowCount()+1))
+        id_item = PlornAlbumModel._build_album_id_item(row_data)
+        name_item = PlornAlbumModel._build_album_name_item(row_data)
+        dated_item = PlornAlbumModel._build_album_dated_item(row_data)
+        count_item = PlornAlbumModel._build_album_count_item(row_data)
+        path_item = PlornAlbumModel._build_album_path_item(row_data)
         root.appendRow([id_item, row_item, name_item, dated_item, count_item,
                         path_item])
-        current = root.child(row)
-
-        #-- the model is zero-based, but the db fields are one-based,
-        #   and we only want certain columns anyway
-        album_id = dbrow[AlbumFields.ID]
-        dbtree[album_id] = [id_item, name_item, dated_item, count_item]
-        row += 1
+        module_logger.debug(f'add_album: okay and done')
+        return 'okay'
         
-        nphotos = 0
-        photos = _collect_photo_dbdata(db, album_id)
-        for jj, photo_row in photos.items():
-            msg  = f'_build_album_tree: photo row {nphotos}, '
-            msg += f'{photo_row}'
-            module_logger.debug(msg)
-            prow_item = QStandardItem(str(nphotos))
-            pid_item = _build_photo_id_item(photo_row)
-            pid = int(pid_item.text())
-            pname_item = _build_photo_name_item(photo_row)
-            pdated_item = _build_photo_dated_item(photo_row)
-            pcount_item = _build_photo_count_item(photo_row)
-            ppath_item = _build_photo_path_item(photo_row)
-            current.appendRow([pid_item, prow_item, pname_item,
-                               pdated_item, pcount_item, ppath_item])
-            nphotos += 1
-
-    module_logger.debug('_build_album_tree: done')
-    return dbtree
-
-def _dump_album_tree(root, dbtree):
-    global module_logger, _ALBUM_DATA
-
-    if module_logger.isEnabledFor(logging.DEBUG):
-        module_logger.debug('=> _dump_album_tree start')
-        if root.hasChildren():
-            for row in range(len(_ALBUM_DATA)):
-                vrow = root.child(row, 0)
-                album = root.child(row, 1)
-                name = root.child(row, 2)
-                count = root.child(row, 3)
-                msg  = f'{album.text()}  {name.text()}  {count.text()}'
-                module_logger.debug(msg)
-
-                if vrow.hasChildren():
-                    for nphoto in range(vrow.rowCount()):
-                        photo = vrow.child(nphoto, 1)
-                        pname = vrow.child(nphoto, 2)
-                        ppath = vrow.child(nphoto, 3)
-                        msg  = f'    {photo.text()}  {pname.text()}  '
-                        msg += f'{ppath.text()}'
-                        module_logger.debug(msg)
-        module_logger.debug('<= _dump_album_tree end')
-
-def model_add_album(root, album, db=None):
-    global module_logger, _ALBUM_DATA
-
-    msg  = f'model_add_album: {str(album)}'
-    module_logger.debug(msg)
-
-    if db == None:
-        config = PlornConfig()
-        catalog, dirname, dbname = config.get_current_catalog()
-        db = QSqlDatabase.database(connectionName=catalog)
-        msg  = f'model_add_album: using db connection {catalog}'
-        module_logger.debug(msg)
-
-    if not db.isOpen():
-        msg  = 'model_add_album: cannot open database'
-        module_logger.debug(msg)
-        return 'cannot open db'
-
-    if not db.isValid():
-        msg  = 'model_add_album: database is not valid'
-        module_logger.debug(msg)
-        return 'db is invalid'
-
-    # add to db to get an id and actual dbrow
-    # ...we do not care about duplicate names, so try adding it
-    added_album = PlornDbOperations.add_album(album)
-    module_logger.debug(f'model_add_album: added album is {str(added_album)}')
-    assert added_album != None and added_album.get_id() != 0
-
-    row_data = [added_album.get_id(),
-                added_album.get_name(),
-                added_album.get_dated(),
-                added_album.get_notes(),
-                added_album.get_photo_count()]
-    _ALBUM_DATA[added_album.get_id()] = row_data
-    module_logger.debug(f'model_add_album: added {row_data}')
-    row_item = QStandardItem(str(root.rowCount()+1))
-    id_item = _build_album_id_item(row_data)
-    name_item = _build_album_name_item(row_data)
-    dated_item = _build_album_dated_item(row_data)
-    count_item = _build_album_count_item(row_data)
-    path_item = _build_album_path_item(row_data)
-    root.appendRow([id_item, row_item, name_item, dated_item, count_item,
-                    path_item])
-    module_logger.debug(f'model_add_album: okay and done')
-    return 'okay'
+    @staticmethod
+    def remove_album(root, album_id, album_name, db=None):
+        global module_logger
     
-def model_remove_album(root, album_id, album_name, db=None):
-    global module_logger, _ALBUM_DATA
-
-    msg  = f'model_remove_album: {album_name}'
-    module_logger.debug(msg)
-
-    if db == None:
-        config = PlornConfig()
-        catalog, dirname, dbname = config.get_current_catalog()
-        db = QSqlDatabase.database(connectionName=catalog)
-        msg  = f'model_remove_album: using db connection {catalog}'
+        msg  = f'remove_album: {album_name}'
         module_logger.debug(msg)
-
-    if not db.isOpen():
-        msg  = 'model_remove_album: cannot open database'
-        module_logger.debug(msg)
-        return 'cannot open db'
-
-    if not db.isValid():
-        msg  = 'model_remove_album: database is not valid'
-        module_logger.debug(msg)
-        return 'db is invalid'
-
-    # remove from db and model
-    items = root.model().findItems(album_name, column=2)
-    module_logger.debug(f'model_remove_album: items {str(items)}')
-    res = PlornDbOperations.remove_album_by_id(album_id)
-    if res:
-        module_logger.debug(f'model_remove_album: album {album_name} gone')
-    if len(items) > 0:
-        module_logger.debug(f'model_remove_album: found {len(items)}')
-        row = items[0].row()
-        root.model().beginRemoveRows(root.index(), row, row)
-        root.model().removeRow(row, root.index())
-        root.model().endRemoveRows()
-    row_data = _ALBUM_DATA[album_id]
-    del _ALBUM_DATA[album_id]
-    module_logger.debug(f'model_remove_album: okay and done')
-    return 'okay'
+    
+        if db == None:
+            config = PlornConfig()
+            catalog, dirname, dbname = config.get_current_catalog()
+            db = QSqlDatabase.database(connectionName=catalog)
+            msg  = f'remove_album: using db connection {catalog}'
+            module_logger.debug(msg)
+    
+        if not db.isOpen():
+            msg  = 'remove_album: cannot open database'
+            module_logger.debug(msg)
+            return 'cannot open db'
+    
+        if not db.isValid():
+            msg  = 'remove_album: database is not valid'
+            module_logger.debug(msg)
+            return 'db is invalid'
+    
+        # remove from db and model
+        items = root.model().findItems(album_name, column=2)
+        module_logger.debug(f'remove_album: items {str(items)}')
+        res = PlornDbOperations.remove_album_by_id(album_id)
+        if res:
+            module_logger.debug(f'remove_album: album {album_name} gone')
+        if len(items) > 0:
+            module_logger.debug(f'remove_album: found {len(items)}')
+            row = items[0].row()
+            root.model().beginRemoveRows(root.index(), row, row)
+            root.model().removeRow(row, root.index())
+            root.model().endRemoveRows()
+        row_data = PlornAlbumModel._ALBUM_DATA[album_id]
+        del PlornAlbumModel._ALBUM_DATA[album_id]
+        module_logger.debug(f'remove_album: okay and done')
+        return 'okay'
     
 
 ##########################################################################
@@ -1572,249 +1557,263 @@ def model_remove_album(root, album_id, album_name, db=None):
 #   these are helper functions to populate the model
 #
 
-_NAMES_DATA = {}
-_PLACES_DATA = {}
-_TAGS_DATA = {}
-
-def _set_table_data(table, dbdata):
-    global module_logger, _NAMES_DATA, _PLACES_DATA, _TAGS_DATA
-
-    if table == 'name':
-        _NAMES_DATA = dbdata
-    elif table == 'places':
-        _PLACES_DATA = dbdata
-    elif table == 'tags':
-        _TAGS_DATA = dbdata
-    else:
-        return None
-
-def _add_table_data(table, id, data):
-    global module_logger, _NAMES_DATA, _PLACES_DATA, _TAGS_DATA
-
-    if table == 'name':
-        _NAMES_DATA[id] = data
-    elif table == 'places':
-        _PLACES_DATA[id] = data
-    elif table == 'tags':
-        _TAGS_DATA[id] = data
-    else:
-        return None
-
-def _del_table_data(table, id):
-    global module_logger, _NAMES_DATA, _PLACES_DATA, _TAGS_DATA
-
-    if table == 'name':
-        del _NAMES_DATA[id]
-    elif table == 'places':
-        del _PLACES_DATA[id]
-    elif table == 'tags':
-        del _TAGS_DATA[id]
-    else:
-        return None
-
-def _in_table_keys(table, id):
-    global module_logger, _NAMES_DATA, _PLACES_DATA, _TAGS_DATA
-
-    if table == 'name':
-        return id in _NAMES_DATA.keys()
-    elif table == 'places':
-        return id in _PLACES_DATA.keys()
-    elif table == 'tags':
-        return id in _TAGS_DATA.keys()
-    else:
-        return False
-
-def populate_attrs(root, table='names', db=QSqlDatabase()):
-    global module_logger
-
-    module_logger.debug(f'populate_attrs: {table} init')
-    dbdata = _collect_attr_dbdata(table, db)
-    _set_table_data(table, dbdata)
-    dbtree = _build_attr_tree(root, dbdata)
-    _dump_attr_tree(root, dbtree)
-    module_logger.debug(f'populate_attrs: {table} init done')
-
-def add_attrs(root, parent, value, table='names', db=QSqlDatabase()):
-    global module_logger
-
-    msg  = f'add_attrs: add {value} to {table} in db {db.connectionName()}'
-    module_logger.debug(msg)
-
-    if len(value) < 1:          # should be a string and actual QStandardItem
-        return 'internal error: bad value'
-    if parent == None:
-        parent = root
-    msg  = f'add_attrs: appending row "{value}" to "{parent.text()}"'
-    module_logger.debug(msg)
-    pid = 0
-    if parent.data() and len(parent.data()) > 0:
-        module_logger.debug(f'add_attrs: parent data "{parent.data()}"')
-        pid = parent.data()[AttrFields.ID]
-
-    # add to db to get an id and actual dbrow
-    # ...but first, do we already have it?
-    sql  = f'SELECT * FROM {table} WHERE '
-    sql += f'value = "{value}" AND parent_id = {pid};'
-    query = QSqlQuery(sql, db=db)
-    if query and query.next():
-        module_logger.debug(f'add_attrs: found existing {query}')
-        return 'duplicate attribute'
-
-    # ...we don't, so try adding it
-    module_logger.debug(f'add_attrs: adding item to db')
-    sql  = f'INSERT INTO {table} '
-    sql += f'(parent_id, value) VALUES '
-    sql += f'({pid}, "{value}");'
-    query = QSqlQuery(sql, db=db)
-    if not query:
-        module_logger.debug(f'add_attrs: query to insert failed')
-        return 'cannot insert'
-
-    # ...we added it, so now tell the view
-    sql  = f'SELECT * FROM {table} WHERE '
-    sql += f'value = "{value}" AND parent_id = {pid};'
-    query = QSqlQuery(sql, db=db)
-    if not query.next():
-        module_logger.debug(f'add_attrs: retrieval of row failed')
-        return 'retrieve failed'
-    id = query.value(AttrFields.ID)
-    row = [id, pid, value]
-    module_logger.debug(f'add_attrs: added {row} to {table}')
-    item = _build_attr_item(row)
-    parent.appendRow(item)                          # add to treeview
-    _add_table_data(table, id, item)                # save if for the "model"
-    module_logger.debug(f'add_attrs: okay and done')
-    return 'okay'
-
-def remove_attrs(root, item, table='names', db=QSqlDatabase()):
-    global module_logger
-
-    if not item:
-        module_logger.debug('remove_attrs: nothing to remove')
-        return 'okay'
-
-    msg  = f'remove_attrs: remove {item.text()} from {table} '
-    msg += f'in db {db.connectionName()}'
-    module_logger.debug(msg)
-
-    row = item.data()
-    if not row or len(row) < 1:                     # cannot remove root
-        return 'cannot delete root'
-
-    id = row[AttrFields.ID]                         # no such db record
-    if id < 1:
-        return 'cannot delete db index 0'
-
-    parent = item.parent()
-    msg = 'remove_attrs: '
-    if not parent:
-        parent = root
-        msg += f'deleting {item.row()} from root'
-    else:
-        msg += f'deleting {item.row()} from parent {parent.text()}'
-    module_logger.debug(msg)
-
-    while item.hasChildren():
-        res = remove_attrs(root, item.child(0), table=table, db=db)
-
-    sql  = f'DELETE FROM {table} WHERE id = {id};'
-    query = QSqlQuery(sql, db=db)
-    if not query:
-        module_logger.debug(f'remove_attrs: retrieval of row failed')
-        return 'retrieve failed'
-    module_logger.debug(f'remove_attrs: deleted {row} from {table}')
-
-    module_logger.debug(msg)
-    value = item.text()
-    parent.removeRow(item.row())                    # remove from treeview
-    if _in_table_keys(table, id):
-        msg = f'remove_attrs: deleting "{value}" from _ATTR_DATA'
-        module_logger.debug(msg)
-        _del_table_data(table, id)
-    module_logger.debug(f'remove_attrs: okay and done')
-    return 'okay'
-
-def _build_attr_item(dbrow):
-    id = dbrow[AttrFields.ID]
-    parent_id = dbrow[AttrFields.PARENT_ID]
-    value = dbrow[AttrFields.VALUE]
-    item = QStandardItem(str(value))
-    item.setEditable(True)
-    item.setCheckable(False)
-    item.setData([id, parent_id, value])
-    return item
-
-def _collect_attr_dbdata(table, db):
-    global module_logger
-
-    module_logger.debug('_collect_dbdata: entered')
-    dbdata = {}
-    query = QSqlQuery(f'SELECT * FROM {table};', db=db)
-    while query.next():
-        row_data = [query.value(AttrFields.ID),
-                    query.value(AttrFields.PARENT_ID),
-                    query.value(AttrFields.VALUE)]
-        dbdata[query.value(AttrFields.ID)] = _build_attr_item(row_data)
-    module_logger.debug(f'_collect_dbdata: keys {str(dbdata.keys())}')
-    module_logger.debug(f'_collect_dbdata: done, {len(dbdata)} records')
-    return dbdata
-
-def _build_attr_tree(root, dbdata):
-    global module_logger
-    '''
-        NB: whilst the database itself if a 1-based array,
-        with ID pointing to parents, Qt expects an actual tree
-        structure when working with QTreeView.  So, build the
-        structure up from our dbdata.
-    '''
-    module_logger.debug('_build_attr_tree: entered')
-    dbtree = {}
-    count = len(dbdata)
-    while count > 0:
-        for ii, item in dbdata.items():
-            dbrow = item.data()
-            id = dbrow[AttrFields.ID]
-            parent_id = dbrow[AttrFields.PARENT_ID]
-            value = dbrow[AttrFields.VALUE]
-            msg = f'count, dbdata: {count} [{id}, {parent_id}, {value}]'
-            module_logger.debug(msg)
-            if id not in dbtree.keys():
-                if parent_id in dbtree.keys():
-                    module_logger.debug(f'! append to {parent_id}')
-                    dbtree[parent_id].appendRow(item)
-                    dbtree[id] = item
-                    count -= 1
-                elif parent_id == 0:
-                    module_logger.debug(f'! append to root')
-                    root.appendRow(item)
-                    dbtree[id] = item
-                    count -= 1
-                else:
-                    module_logger.debug(f'! skipping???')
-    root.sortChildren(0, Qt.SortOrder.AscendingOrder)
-    module_logger.debug('_build_attr_tree: done')
-    return dbtree
-
-def _dump_attr_tree(root, dbtree, item=None, level=0):
-    global module_logger
-
-    if module_logger.isEnabledFor(logging.DEBUG):
-        if item == None:
-            item = root
-        if level == 0:
-            module_logger.debug('_dump_attr_tree start =>')
-        spaces = '   ' * level
-        if item.data() == None:
-            module_logger.debug(f'{spaces}root:')
+class PlornAttrModel:
+    _NAMES_DATA = {}
+    _PLACES_DATA = {}
+    _TAGS_DATA = {}
+    
+    @staticmethod
+    def _set_table_data(table, dbdata):
+        global module_logger
+    
+        if table == 'name':
+            PlornAttrModel._NAMES_DATA = dbdata
+        elif table == 'places':
+            PlornAttrModel._PLACES_DATA = dbdata
+        elif table == 'tags':
+            PlornAttrModel._TAGS_DATA = dbdata
         else:
-            msg  = f'{spaces}{item.text()} {str(item.data())}'
+            return None
+    
+    @staticmethod
+    def _add_table_data(table, id, data):
+        global module_logger
+    
+        if table == 'name':
+            PlornAttrModel._NAMES_DATA[id] = data
+        elif table == 'places':
+            PlornAttrModel._PLACES_DATA[id] = data
+        elif table == 'tags':
+            PlornAttrModel._TAGS_DATA[id] = data
+        else:
+            return None
+    
+    @staticmethod
+    def _del_table_data(table, id):
+        global module_logger
+    
+        if table == 'name':
+            del PlornAttrModel._NAMES_DATA[id]
+        elif table == 'places':
+            del PlornAttrModel._PLACES_DATA[id]
+        elif table == 'tags':
+            del PlornAttrModel._TAGS_DATA[id]
+        else:
+            return None
+    
+    @staticmethod
+    def _in_table_keys(table, id):
+        global module_logger
+    
+        if table == 'name':
+            return id in PlornAttrModel._NAMES_DATA.keys()
+        elif table == 'places':
+            return id in PlornAttrModel._PLACES_DATA.keys()
+        elif table == 'tags':
+            return id in PlornAttrModel._TAGS_DATA.keys()
+        else:
+            return False
+    
+    @staticmethod
+    def populate_attrs(root, table='names', db=QSqlDatabase()):
+        global module_logger
+    
+        module_logger.debug(f'populate_attrs: {table} init')
+        dbdata = PlornAttrModel._collect_attr_dbdata(table, db)
+        PlornAttrModel._set_table_data(table, dbdata)
+        dbtree = PlornAttrModel._build_attr_tree(root, dbdata)
+        PlornAttrModel._dump_attr_tree(root, dbtree)
+        module_logger.debug(f'populate_attrs: {table} init done')
+    
+    @staticmethod
+    def add_attrs(root, parent, value, table='names', db=QSqlDatabase()):
+        global module_logger
+    
+        msg  = f'add_attrs: add {value} to {table} in db {db.connectionName()}'
+        module_logger.debug(msg)
+    
+        if len(value) < 1:        # should be a string and actual QStandardItem
+            return 'internal error: bad value'
+        if parent == None:
+            parent = root
+        msg  = f'add_attrs: appending row "{value}" to "{parent.text()}"'
+        module_logger.debug(msg)
+        pid = 0
+        if parent.data() and len(parent.data()) > 0:
+            module_logger.debug(f'add_attrs: parent data "{parent.data()}"')
+            pid = parent.data()[AttrFields.ID]
+    
+        # add to db to get an id and actual dbrow
+        # ...but first, do we already have it?
+        sql  = f'SELECT * FROM {table} WHERE '
+        sql += f'value = "{value}" AND parent_id = {pid};'
+        query = QSqlQuery(sql, db=db)
+        if query and query.next():
+            module_logger.debug(f'add_attrs: found existing {query}')
+            return 'duplicate attribute'
+    
+        # ...we don't, so try adding it
+        module_logger.debug(f'add_attrs: adding item to db')
+        sql  = f'INSERT INTO {table} '
+        sql += f'(parent_id, value) VALUES '
+        sql += f'({pid}, "{value}");'
+        query = QSqlQuery(sql, db=db)
+        if not query:
+            module_logger.debug(f'add_attrs: query to insert failed')
+            return 'cannot insert'
+    
+        # ...we added it, so now tell the view
+        sql  = f'SELECT * FROM {table} WHERE '
+        sql += f'value = "{value}" AND parent_id = {pid};'
+        query = QSqlQuery(sql, db=db)
+        if not query.next():
+            module_logger.debug(f'add_attrs: retrieval of row failed')
+            return 'retrieve failed'
+        id = query.value(AttrFields.ID)
+        row = [id, pid, value]
+        module_logger.debug(f'add_attrs: added {row} to {table}')
+        item = PlornAttrModel._build_attr_item(row)
+        parent.appendRow(item)                          # add to treeview
+        PlornAttrModel._add_table_data(table, id, item) # save for the "model"
+        module_logger.debug(f'add_attrs: okay and done')
+        return 'okay'
+    
+    @staticmethod
+    def remove_attrs(root, item, table='names', db=QSqlDatabase()):
+        global module_logger
+    
+        if not item:
+            module_logger.debug('remove_attrs: nothing to remove')
+            return 'okay'
+    
+        msg  = f'remove_attrs: remove {item.text()} from {table} '
+        msg += f'in db {db.connectionName()}'
+        module_logger.debug(msg)
+    
+        row = item.data()
+        if not row or len(row) < 1:                     # cannot remove root
+            return 'cannot delete root'
+    
+        id = row[AttrFields.ID]                         # no such db record
+        if id < 1:
+            return 'cannot delete db index 0'
+    
+        parent = item.parent()
+        msg = 'remove_attrs: '
+        if not parent:
+            parent = root
+            msg += f'deleting {item.row()} from root'
+        else:
+            msg += f'deleting {item.row()} from parent {parent.text()}'
+        module_logger.debug(msg)
+    
+        while item.hasChildren():
+            res = PlornAttrModel.remove_attrs(root, item.child(0),
+                                              table=table, db=db)
+    
+        sql  = f'DELETE FROM {table} WHERE id = {id};'
+        query = QSqlQuery(sql, db=db)
+        if not query:
+            module_logger.debug(f'remove_attrs: retrieval of row failed')
+            return 'retrieve failed'
+        module_logger.debug(f'remove_attrs: deleted {row} from {table}')
+    
+        module_logger.debug(msg)
+        value = item.text()
+        parent.removeRow(item.row())                    # remove from treeview
+        if PlornAttrModel._in_table_keys(table, id):
+            msg = f'remove_attrs: deleting "{value}" from _ATTR_DATA'
             module_logger.debug(msg)
-        kids = []
-        if item.hasChildren():
-            for ii in range(item.rowCount()):
-                kids.append(item.child(ii))
-        for ii in kids:
-             _dump_attr_tree(root, dbtree, ii, level+1)
-        if level == 0:
-            module_logger.debug('<= _dump_attr_tree end')
-
+            PlornAttrModel._del_table_data(table, id)
+        module_logger.debug(f'remove_attrs: okay and done')
+        return 'okay'
+    
+    @staticmethod
+    def _build_attr_item(dbrow):
+        id = dbrow[AttrFields.ID]
+        parent_id = dbrow[AttrFields.PARENT_ID]
+        value = dbrow[AttrFields.VALUE]
+        item = QStandardItem(str(value))
+        item.setEditable(True)
+        item.setCheckable(False)
+        item.setData([id, parent_id, value])
+        return item
+    
+    @staticmethod
+    def _collect_attr_dbdata(table, db):
+        global module_logger
+    
+        module_logger.debug('_collect_dbdata: entered')
+        dbdata = {}
+        query = QSqlQuery(f'SELECT * FROM {table};', db=db)
+        while query.next():
+            row_data = [query.value(AttrFields.ID),
+                        query.value(AttrFields.PARENT_ID),
+                        query.value(AttrFields.VALUE)]
+            dbdata[query.value(AttrFields.ID)] = \
+                                    PlornAttrModel._build_attr_item(row_data)
+        module_logger.debug(f'_collect_dbdata: keys {str(dbdata.keys())}')
+        module_logger.debug(f'_collect_dbdata: done, {len(dbdata)} records')
+        return dbdata
+    
+    @staticmethod
+    def _build_attr_tree(root, dbdata):
+        global module_logger
+        '''
+            NB: whilst the database itself if a 1-based array,
+            with ID pointing to parents, Qt expects an actual tree
+            structure when working with QTreeView.  So, build the
+            structure up from our dbdata.
+        '''
+        module_logger.debug('_build_attr_tree: entered')
+        dbtree = {}
+        count = len(dbdata)
+        while count > 0:
+            for ii, item in dbdata.items():
+                dbrow = item.data()
+                id = dbrow[AttrFields.ID]
+                parent_id = dbrow[AttrFields.PARENT_ID]
+                value = dbrow[AttrFields.VALUE]
+                msg = f'count, dbdata: {count} [{id}, {parent_id}, {value}]'
+                module_logger.debug(msg)
+                if id not in dbtree.keys():
+                    if parent_id in dbtree.keys():
+                        module_logger.debug(f'! append to {parent_id}')
+                        dbtree[parent_id].appendRow(item)
+                        dbtree[id] = item
+                        count -= 1
+                    elif parent_id == 0:
+                        module_logger.debug(f'! append to root')
+                        root.appendRow(item)
+                        dbtree[id] = item
+                        count -= 1
+                    else:
+                        module_logger.debug(f'! skipping???')
+        root.sortChildren(0, Qt.SortOrder.AscendingOrder)
+        module_logger.debug('_build_attr_tree: done')
+        return dbtree
+    
+    @staticmethod
+    def _dump_attr_tree(root, dbtree, item=None, level=0):
+        global module_logger
+    
+        if module_logger.isEnabledFor(logging.DEBUG):
+            if item == None:
+                item = root
+            if level == 0:
+                module_logger.debug('_dump_attr_tree start =>')
+            spaces = '   ' * level
+            if item.data() == None:
+                module_logger.debug(f'{spaces}root:')
+            else:
+                msg  = f'{spaces}{item.text()} {str(item.data())}'
+                module_logger.debug(msg)
+            kids = []
+            if item.hasChildren():
+                for ii in range(item.rowCount()):
+                    kids.append(item.child(ii))
+            for ii in kids:
+                 PlornAttrModel._dump_attr_tree(root, dbtree, ii, level+1)
+            if level == 0:
+                module_logger.debug('<= _dump_attr_tree end')
+    

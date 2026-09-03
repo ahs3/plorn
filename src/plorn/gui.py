@@ -67,9 +67,7 @@ from plorn import (
 from plorn.config import PlornConfig
 
 from plorn.model import (
-    album_stats,
-    model_add_album,
-    model_remove_album,
+    PlornAlbumModel,
     PlornDbOperations,
 )
 
@@ -392,10 +390,17 @@ class Plorn(QMainWindow):
 
     def _tools_menu(self, mb):
         tools = mb.addMenu('&Tools')
+        tables_menu = tools.addMenu('Raw Database Tables')
+        tables_menu.aboutToShow.connect(self.update_table_list)
+        tables_menu.triggered.connect(self.raw_table_views)
+        if not hasattr(self, 'raw_tables_menu'):
+            setattr(self, 'raw_tables_menu', tables_menu)
+
         dbcheck_action = QAction('Check Catalog Structures', parent=self)
         tools.addAction(dbcheck_action)
         pref_action = QAction('Preferences', parent=self)
         tools.addAction(pref_action)
+
         return tools
 
     def _help_menu(self, mb):
@@ -500,7 +505,7 @@ class Plorn(QMainWindow):
         config = PlornConfig()
         catalog, datadir, dbname = config.get_current_catalog()
         self.catalog_header.setText(f'**Catalog:** {catalog}')
-        nalbums, nphotos = album_stats()
+        nalbums, nphotos = PlornAlbumModel.album_stats()
         asuffix = 's'
         if nalbums == 1:
             asuffix = ''
@@ -690,7 +695,7 @@ class Plorn(QMainWindow):
                                places=info['places'],
                                tags=info['tags'])
             root = self.album_tree.model.invisibleRootItem()
-            res = model_add_album(root, album)
+            res = PlornAlbumModel.add_album(root, album)
             if res == 'okay':
                 module_logger.debug(f'add_album: {info['album']} was added')
             self.set_catalog_info()
@@ -724,7 +729,7 @@ class Plorn(QMainWindow):
                     album_name = item.text()
 
             root = self.album_tree.model.invisibleRootItem()
-            res = model_remove_album(root, album_id, album_name)
+            res = PlornAlbumModel.remove_album(root, album_id, album_name)
             msg = f'remove_album: {album_name} removed from gui {res}'
             module_logger.debug(msg)
         self.set_catalog_info()
@@ -768,6 +773,29 @@ class Plorn(QMainWindow):
         tag_view.exec()
         module_logger.debug('tag_attr_action done')
 
+    def update_table_list(self):
+        global module_logger
+
+        module_logger.debug('entering update_table_list')
+        self.raw_tables_menu.clear()
+        self.raw_tables_menu.addSection('Tables')
+        db = self.open_db()
+        tables = db.tables()
+        for name in sorted(tables):
+            view_action = self.raw_tables_menu.addAction(f'{name}')
+            view_action.setCheckable(True)
+            view_action.setChecked(False)
+            view_action.setData(name)
+
+    def raw_table_views(self, action):
+        global module_logger
+        
+        db = self.open_db()
+        module_logger.debug(f'raw_table_views: table {action.text()}')
+        table = action.text()
+        #if table == 'names' or table == 'places' or table == 'tags':
+        module_logger.debug('raw_table_views done')
+        
 
 #-- the plorn GUI
 def user_interface():

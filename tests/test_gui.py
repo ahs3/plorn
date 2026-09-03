@@ -52,7 +52,8 @@ from plorn.gui import (
 )
 
 from plorn.model import (
-    model_add_album,
+    PlornAlbumModel,
+    PlornAttrModel,
     PlornDbOperations,
 )
 
@@ -356,9 +357,9 @@ def test_catalog_switch_to_new(initial_db, monkeypatch):
         album1 = PlornAlbum('bogus album', id=None, dated='now', notes='nada')
         album2 = PlornAlbum('another one', id=None, dated='later', notes='med')
         tree_root = root.album_tree.model.invisibleRootItem()
-        res = model_add_album(tree_root, album1, db=db)
+        res = PlornAlbumModel.add_album(tree_root, album1, db=db)
         assert res == 'okay'
-        res = model_add_album(tree_root, album2, db=db)
+        res = PlornAlbumModel.add_album(tree_root, album2, db=db)
         assert res == 'okay'
     assert root.album_tree.model.rowCount() >= 2
 
@@ -1229,7 +1230,7 @@ def test_remove_album1(initial_db, monkeypatch):
     album.set_tag_list([tag_attr])
 
     #album = PlornDbOperations.add_album(album)
-    res = model_add_album(tree_root, album, db=info['db'])
+    res = PlornAlbumModel.add_album(tree_root, album, db=info['db'])
     assert res, 'album did not get added'
     assert album.get_id() != 0
 
@@ -1299,7 +1300,7 @@ def test_view_album1(initial_db, monkeypatch):
     assert tag_attr.get_id() != 0
     album.set_tag_list([tag_attr])
 
-    res = model_add_album(tree_root, album, db=info['db'])
+    res = PlornAlbumModel.add_album(tree_root, album, db=info['db'])
     assert res, 'album did not get added'
     assert album.get_id() != 0
 

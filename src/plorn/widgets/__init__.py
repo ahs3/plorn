@@ -42,13 +42,9 @@ from plorn import PlornAlbum
 from plorn.config import PlornConfig
 
 from plorn.model import (
-    add_attrs,
-    model_add_album,
-    model_remove_album,
-    populate_albums,
-    populate_attrs,
+    PlornAlbumModel,
+    PlornAttrModel,
     PlornDbOperations,
-    remove_attrs,
 )
 
 from plorn.widgets.albums import (
@@ -121,7 +117,7 @@ class PlornAttrView(QDialog):
         tree.setToolTip('Right-click for actions')
         self.tree = tree
         layout.addWidget(self.tree, 0, 0)
-        populate_attrs(self.root, table=self.table, db=self.db)
+        PlornAttrModel.populate_attrs(self.root, table=self.table, db=self.db)
 
         self.bbox = QDialogButtonBox()
         self.bbox.setStandardButtons(QDialogButtonBox.StandardButton.Ok |
@@ -188,8 +184,9 @@ class PlornAttrView(QDialog):
 
         input_value, ok = QInputDialog.getText(self, title, label_txt)
         if ok and input_value:
-            res = add_attrs(self.model.invisibleRootItem(), parent, input_value,
-                            table=self.table, db=self.db)
+            res = PlornAttrModel.add_attrs(self.model.invisibleRootItem(),
+                                           parent, input_value,
+                                           table=self.table, db=self.db)
             if res == 'cannot insert' or res == 'retrieve failed':
                 title = 'Internal Attribute Database Failure'
                 label_txt  = f'{res.capitalize()} "{input_value}"'
@@ -229,8 +226,9 @@ class PlornAttrView(QDialog):
             ptxt = f' parent = {item.text()}'
         input_value, ok = QInputDialog.getText(self, title, label_txt)
         if ok and input_value:
-            res = add_attrs(self.model.invisibleRootItem(), item, input_value,
-                            table=self.table, db=self.db)
+            res = PlornAttrModel.add_attrs(self.model.invisibleRootItem(),
+                                           item, input_value,
+                                           table=self.table, db=self.db)
             if res == 'cannot insert' or res == 'retrieve failed':
                 title = 'Internal Attribute Database Failure'
                 label_txt  = f'{res.capitalize()} "{input_value}"'
@@ -274,8 +272,9 @@ class PlornAttrView(QDialog):
         button = QMessageBox.question(self, title, label_txt)
         if button == QMessageBox.StandardButton.Yes:
             module_logger.debug(f'remove_attr? Yes')
-            res = remove_attrs(self.model.invisibleRootItem(), item,
-                               table=self.table, db=self.db)
+            res = PlornAttrModel.remove_attrs(self.model.invisibleRootItem(),
+                                              item, table=self.table,
+                                              db=self.db)
             module_logger.debug(f'remove_attr: remove_attrs result "{res}"')
             if res == 'cannot delete root' or \
                res == 'cannot delete db index 0' or \
@@ -361,7 +360,7 @@ class PlornAlbumView(QWidget):
         tree.header().resizeSection(TreeColumns.COUNT, 100)
 
         self.setLayout(layout)
-        populate_albums(root=self.root, db=self.db)
+        PlornAlbumModel.populate_albums(root=self.root, db=self.db)
         self.tree.expandAll()
         module_logger.debug('PlornAlbumView all done')
  
@@ -402,7 +401,7 @@ class PlornAlbumView(QWidget):
             res = self.db
         else:
             module_logger.debug(f'switch_model db open? {self.db.isOpen()}')
-        populate_albums(root=self.root, db=self.db)
+        PlornAlbumModel.populate_albums(root=self.root, db=self.db)
         module_logger.debug('switch_model done: album view')
         return res
 
@@ -505,7 +504,7 @@ class PlornAlbumView(QWidget):
         module_logger.debug(f'add_album: entered "{name}" "{dated}"')
         album = PlornAlbum(name, id=None, dated=dated, notes=notes)
         root = self.model.invisibleRootItem()
-        res = model_add_album(root, album, db=self.db)
+        res = PlornAlbumModel.add_album(root, album, db=self.db)
         if res == 'cannot insert' or res == 'retrieve failed':
             title = 'Internal Album Database Failure'
             label_txt  = f'{res.capitalize()} "{name}"'
@@ -546,7 +545,7 @@ class PlornAlbumView(QWidget):
                     album_name = item.text()
 
             root = self.tree.model().invisibleRootItem()
-            res = model_remove_album(root, album_id, album_name)
+            res = PlornAlbumModel.remove_album(root, album_id, album_name)
             self.catalogChanged.emit(0)
         module_logger.debug(f'remove_album_action: done')
 
