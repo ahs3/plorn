@@ -52,7 +52,7 @@ class PlornAlbumDialog(QDialog):
             return {}
 
     def __init__(self, tree=None, title='Album Dialog', allow_edit=True,
-                 *args, **kwargs):
+                 show_count=True, *args, **kwargs):
         global module_logger
         super().__init__(*args, **kwargs)
 
@@ -62,6 +62,7 @@ class PlornAlbumDialog(QDialog):
             return
         self.tree = tree
         self.allow_edit = allow_edit
+        self.show_count = show_count
         self.should_apply = False           # only true if check_inputs okay
 
         module_logger.debug('PlornAlbumDialog: started')
@@ -77,9 +78,10 @@ class PlornAlbumDialog(QDialog):
                                     textFormat=Qt.TextFormat.MarkdownText)
         layout.addWidget(self.catalog_label, 0, 0)
 
+        label_alignment = Qt.AlignmentFlag.AlignRight | \
+                          Qt.AlignmentFlag.AlignVCenter
         album_layout = QGridLayout()
-        self.name_label = QLabel('Album Name:',
-                                 alignment=Qt.AlignmentFlag.AlignRight)
+        self.name_label = QLabel('Album Name:', alignment=label_alignment)
         album_layout.addWidget(self.name_label, 0, 0)
         self.name_edit = QLineEdit()
         self.name_edit.setText(f'{" ":>40}')
@@ -88,8 +90,7 @@ class PlornAlbumDialog(QDialog):
         self.name_edit.setText('')
         album_layout.addWidget(self.name_edit, 0, 1)
 
-        self.dated_label = QLabel('Dated:',
-                                  alignment=Qt.AlignmentFlag.AlignRight)
+        self.dated_label = QLabel('Dated:', alignment=label_alignment)
         album_layout.addWidget(self.dated_label, 1, 0)
         self.dated_edit = QLineEdit()
         self.dated_edit.setText(f'{" ":>40}')
@@ -98,13 +99,27 @@ class PlornAlbumDialog(QDialog):
         self.dated_edit.setText('')
         album_layout.addWidget(self.dated_edit, 1, 1)
 
-        self.notes_label = QLabel('Notes:',
-                                  alignment=Qt.AlignmentFlag.AlignRight)
+        self.notes_label = QLabel('Notes:', alignment=label_alignment)
         album_layout.addWidget(self.notes_label, 2, 0,
                          alignment=Qt.AlignmentFlag.AlignTop)
         self.notes_edit = QTextEdit()
         album_layout.addWidget(self.notes_edit, 2, 1)
         layout.addLayout(album_layout, 1, 0)
+
+        grid_row = 2
+        if show_count:
+            count_layout = QGridLayout()
+            count_label = QLabel('Photo Count:', alignment=label_alignment)
+            count_layout.addWidget(count_label, 0, 0)
+            count = QLineEdit()
+            count.setReadOnly(True)
+            count_layout.addWidget(count, 0, 1)
+            layout.addLayout(count_layout, grid_row, 0)
+            if not hasattr(self, 'count_label'):
+                setattr(self, 'count_label', count_label)
+            if not hasattr(self, 'count'):
+                setattr(self, 'count', count)
+            grid_row += 1
 
         self.bbox = QDialogButtonBox()
         self.bbox.setObjectName('add_album_bbox')
@@ -118,7 +133,7 @@ class PlornAlbumDialog(QDialog):
             self.apply_button.setObjectName('add_album_apply_button')
         self.done_button.setDefault(True)
         self.bbox.clicked.connect(self.dlg_done)
-        layout.addWidget(self.bbox, 2, 1, 1, 2)
+        layout.addWidget(self.bbox, grid_row, 1, 1, 2)
 
         attr_layout = QGridLayout()
         self.name_list = PlornAttrListView('names', 'Name Attributes',
@@ -157,6 +172,9 @@ class PlornAlbumDialog(QDialog):
         info['album'] = self.name_edit.text()
         info['dated'] = self.dated_edit.text()
         info['notes'] = self.notes_edit.toPlainText()
+        info['count'] = 0
+        if hasattr(self, 'count_label'):
+            info['count'] = self.count.text()
         info['names'] = self.name_list.get_items()
         info['places'] = self.place_list.get_items()
         info['tags'] = self.tag_list.get_items()
@@ -204,6 +222,7 @@ class PlornViewAlbumDialog(PlornAlbumDialog):
         self.dated_edit.setReadOnly(True)
         self.notes_edit.setPlainText(album.get_notes())
         self.notes_edit.setReadOnly(True)
+        self.count.setText(str(album.get_photo_count()))
         for name in album.get_name_list():
             id = name.get_id()
             fullattr = PlornDbOperations.get_full_attr(table='names', id=id)

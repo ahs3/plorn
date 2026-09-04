@@ -449,6 +449,7 @@ class PlornDbOperations:
                                id=query.value(AlbumFields.ID),
                                dated=query.value(AlbumFields.DATED),
                                notes=query.value(AlbumFields.NOTES),
+                               photo_count=query.value(AlbumFields.PHOTO_COUNT),
                                names=names, places=places, tags=tags)
         return album
 
