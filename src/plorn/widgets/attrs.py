@@ -72,6 +72,14 @@ module_logger.setLevel(logging.DEBUG)
 #   widgets/views specific to manipulating attributes
 #
 class PlornAttrSelection(QDialog):
+    @classmethod
+    def ask(cls, dlg):
+        dlg.exec()
+        if dlg.apply_item:
+            return dlg.get_inputs()
+        else:
+            return {}
+
     def __init__(self, table='names', db=QSqlDatabase(), *args, **kwargs):
         global module_logger
         super().__init__(*args, **kwargs)
@@ -82,7 +90,7 @@ class PlornAttrSelection(QDialog):
         catalog, datadir, dbname = config.get_current_catalog()
         self.db = QSqlDatabase.database(catalog)
         self.db.open()
-        self.info = {}
+        self.apply_item = False
 
         self.setModal(True)
         self.setWindowTitle(f'Select {self.table.capitalize()}')
@@ -112,12 +120,17 @@ class PlornAttrSelection(QDialog):
         global module_logger
 
         module_logger.debug(f'{self.table} selection: get_inputs entered')
-        res = self.exec()
-        result = self.info
+        info = {}
+        for index in self.tree.selectedIndexes():
+            self.apply_item = True
+            item = self.tree.model().itemFromIndex(index)
+            msg = f'dlg_done: selected {item.text()} from {self.table}'
+            module_logger.debug(msg)
+            info[item.text()] = item
         msg  = f'{self.table} selection: get_inputs returns '
-        msg += f'{len(self.info)} items'
+        msg += f'{len(info)} items'
         module_logger.debug(msg)
-        return result
+        return info
 
     def dlg_done(self, button):
         global module_logger
@@ -125,14 +138,7 @@ class PlornAttrSelection(QDialog):
         role = self.bbox.buttonRole(button)
         if role == QDialogButtonBox.ButtonRole.ApplyRole:
             module_logger.debug(f'{self.table} selection: Apply clicked')
-            msg  = f'dlg_done: {len(self.tree.selectedIndexes())} '
-            msg += f'from {self.table}'
-            module_logger.debug(msg)
-            for index in self.tree.selectedIndexes():
-                item = self.tree.model().itemFromIndex(index)
-                msg = f'dlg_done: selected {item.text()} from {self.table}'
-                module_logger.debug(msg)
-                self.info[item.text()] = item
+            self.apply_item = True
             self.setResult(QDialog.DialogCode.Accepted)
 
         elif role == QDialogButtonBox.ButtonRole.RejectRole:
@@ -191,7 +197,7 @@ class PlornAttrListView(QWidget):
 
         module_logger.debug('add_selected: entered')
         dlg = PlornAttrSelection(table=self.table)
-        info = dlg.get_inputs()
+        info = PlornAttrSelection.ask(dlg)
         for value in info.keys():
             if info[value] != None:
                 msg  = f'add_selected: data {info[value].data()}'
@@ -219,8 +225,11 @@ class PlornAttrListView(QWidget):
 
         module_logger.debug('remove_selected: entered')
         for index in self.attr_list.selectedIndexes():
+            item = self.attr_list.model().itemFromIndex(index)
+            module_logger.debug(f'remove_selected: item text {item.text()} ')
+            module_logger.debug(f'remove_selected: item data {item.data()} ')
             self.attr_list.model().removeRow(index.row())
-        module_logger.debug('remove_selected: entered')
+        module_logger.debug('remove_selected: done')
 
     def get_items(self):
         global module_logger
@@ -228,9 +237,12 @@ class PlornAttrListView(QWidget):
         module_logger.debug('get_items: entered')
         res = []
         model = self.attr_list.model()
+        module_logger.debug(f'get_items: rowCount {model.rowCount()}')
         for ii in range(model.rowCount()):
             item = model.item(ii)
+            module_logger.debug(f'get_items: ii {ii}, {str(item.data())}')
             dbrow = item.data()
+            module_logger.debug(f'get_items: dbrow {str(dbrow)}')
             attr = PlornAttr(dbrow[AttrFields.VALUE],
                              id=dbrow[AttrFields.ID],
                              parent_id=dbrow[AttrFields.PARENT_ID],

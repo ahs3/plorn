@@ -7,6 +7,9 @@
 
 TODO
 ====
+-- Need to verify that duplicate album or photo names ARE allowed;
+   the record ID should be distinctive enough.
+
 -- Window geometries are mostly hard-coded; they should not be.
 
 -- Add config options to ask or not ask for confirmation when removing

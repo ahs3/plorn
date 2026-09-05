@@ -217,18 +217,17 @@ class PlornViewAlbumDialog(PlornAlbumDialog):
         
         module_logger.debug('PlornViewAlbumDialog: entered set_inputs')
         self.name_edit.setText(album.get_name())
-        self.name_edit.setReadOnly(True)
         self.dated_edit.setText(album.get_dated())
-        self.dated_edit.setReadOnly(True)
         self.notes_edit.setPlainText(album.get_notes())
-        self.notes_edit.setReadOnly(True)
-        self.count.setText(str(album.get_photo_count()))
+        if hasattr(self, 'count_label'):
+            self.count.setText(str(album.get_photo_count()))
         for name in album.get_name_list():
             id = name.get_id()
             fullattr = PlornDbOperations.get_full_attr(table='names', id=id)
             value = ', '.join(fullattr)
             module_logger.debug(f'PlornViewAlbumDialog: name {id} {value}')
             item = QStandardItem(value)
+            item.setData([id, name.get_parent_id(), value])
             self.name_list.appendRow(item)
         for place in album.get_place_list():
             id = place.get_id()
@@ -236,6 +235,7 @@ class PlornViewAlbumDialog(PlornAlbumDialog):
             value = ', '.join(fullattr)
             module_logger.debug(f'PlornViewAlbumDialog: place {id} {value}')
             item = QStandardItem(value)
+            item.setData([id, place.get_parent_id(), value])
             self.place_list.appendRow(item)
         for tag in album.get_tag_list():
             id = int(tag.get_id())
@@ -244,6 +244,13 @@ class PlornViewAlbumDialog(PlornAlbumDialog):
             module_logger.debug(f'PlornViewAlbumDialog: tag {str(tag)}')
             module_logger.debug(f'PlornViewAlbumDialog: tag {id} {value}')
             item = QStandardItem(value)
+            item.setData([id, tag.get_parent_id(), value])
             self.tag_list.appendRow(item)
+
+        if not self.allow_edit:
+            self.name_edit.setReadOnly(True)
+            self.dated_edit.setReadOnly(True)
+            self.notes_edit.setReadOnly(True)
+        self.count.setReadOnly(True)
         module_logger.debug('PlornViewAlbumDialog: set_inputs done')
 

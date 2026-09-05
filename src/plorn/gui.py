@@ -714,7 +714,56 @@ class Plorn(QMainWindow):
 
     def edit_album(self):
         global module_logger
-        pass
+
+        module_logger.debug('edit_album: entered in gui')
+        indices = self.album_tree.selected_rows()
+        msg = f'edit_album: {len(indices)/5} selection(s) in gui'
+        module_logger.debug(msg)
+        if len(indices) < 1:
+            title = 'Edit an Album'
+            text = 'No album has been selected for editing.'
+            button = QMessageBox.critical(self, title, text)
+        else:
+            album_name = ''
+            album_id = 0
+            album_row = -1
+            for index in indices:
+                item = self.album_tree.item_from_index(index)
+                if item.column() == TreeColumns.ID:
+                    album_id = int(item.text())
+                    album_row = item.row()
+                if item.column() == TreeColumns.NAME:
+                    album_name = item.text()
+
+            album = PlornDbOperations.get_album_by_id(album_id)
+            if album == None:
+                title = 'Edit an Album'
+                text  = f'There is no album with ID {album_id:04} '
+                test += f'named "{album_name}."'
+                button = QMessageBox.critical(self, title, text)
+            else:
+                dlg = PlornViewAlbumDialog(tree=self.album_tree,
+                                           title='Edit Album',
+                                           allow_edit=True)
+                module_logger.debug(f'edit_album: {str(album)}')
+                dlg.set_inputs(album)
+                info = PlornViewAlbumDialog.ask(dlg)
+                if 'apply' in info.keys() and info['apply']:
+                    module_logger.debug('edit_album: APPLY info in gui')
+                    updates = PlornAlbum(info['album'],
+                                         id=album.get_id(),
+                                         dated=info['dated'],
+                                         notes=info['notes'],
+                                         names=info['names'],
+                                         places=info['places'],
+                                         tags=info['tags'])
+                    root = self.album_tree.model.invisibleRootItem()
+                    res = PlornAlbumModel.update_album(root, album, updates)
+                    if res != 'okay':
+                        module_logger.debug(f'edit_album: failed "{res}"')
+                module_logger.debug(f'edit_album: info in gui {str(info)}')
+
+        module_logger.debug('edit_album: done in gui')
 
     def remove_album(self):
         global module_logger

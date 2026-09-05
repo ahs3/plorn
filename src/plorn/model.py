@@ -277,9 +277,11 @@ class PlornDbOperations:
             res = query.isValid()
         return res
 
-    def remove_album_name_list(self, album):
-        sql = f'DELETE FROM album_names WHERE album_id = \'{album.get_id()}\''
-        return self.cursor.execute(sql)
+    @staticmethod
+    def remove_album_name_list(album):
+        global module_logger, _current_album
+        sql = f'DELETE FROM album_names WHERE album_id = {album.get_id()};'
+        return QSqlQuery(sql, db=_current_db)
 
     @staticmethod
     def add_album_place_list(album):
@@ -299,9 +301,11 @@ class PlornDbOperations:
             res = query.isValid()
         return res
 
-    def remove_album_place_list(self, album):
-        sql = f'DELETE FROM album_places WHERE album_id = \'{album.get_id()}\''
-        return self.cursor.execute(sql)
+    @staticmethod
+    def remove_album_place_list(album):
+        global module_logger, _current_album
+        sql = f'DELETE FROM album_places WHERE album_id = {album.get_id()};'
+        return QSqlQuery(sql, db=_current_db)
 
     @staticmethod
     def add_album_tag_list(album):
@@ -321,9 +325,11 @@ class PlornDbOperations:
             res = query.isValid()
         return res
 
-    def remove_album_tag_list(self, album):
-        sql = f'DELETE FROM album_tags WHERE album_id = \'{album.get_id()}\''
-        return self.cursor.execute(sql)
+    @staticmethod
+    def remove_album_tag_list(album):
+        global module_logger, _current_album
+        sql = f'DELETE FROM album_tags WHERE album_id = {album.get_id()};'
+        return QSqlQuery(sql, db=_current_db)
 
     def add_photo_name_list(self, photo):
         res = None
@@ -521,30 +527,27 @@ class PlornDbOperations:
         sql += f' WHERE tag_id = {tag_id} AND album_id = {album_id}'
         res = self.cursor.execute(sql)
 
-    def update_album(self, album, updated_album):
-        self.remove_album_name_list(album)
-        self.add_album_name_list(updated_album)
-        self.remove_album_place_list(album)
-        self.add_album_place_list(updated_album)
-        self.remove_album_tag_list(album)
-        self.add_album_tag_list(updated_album)
+    @staticmethod
+    def update_album(album, updated_album):
+        global module_logger, _current_db
+
+        module_logger.debug(f'update_album: entered, id {album.get_id()}')
+        PlornDbOperations.remove_album_name_list(album)
+        PlornDbOperations.add_album_name_list(updated_album)
+        PlornDbOperations.remove_album_place_list(album)
+        PlornDbOperations.add_album_place_list(updated_album)
+        PlornDbOperations.remove_album_tag_list(album)
+        PlornDbOperations.add_album_tag_list(updated_album)
 
         sql  = f'UPDATE albums'
         sql += f' SET name = "{updated_album.get_name()}",'
         sql += f' dated = "{updated_album.get_dated()}",'
         sql += f' notes = "{updated_album.get_notes()}",'
         sql += f' photo_count = {updated_album.get_photo_count()}'
-        sql += f' WHERE id = {album.get_id()}'
-        res = self.cursor.execute(sql)
-        self.db.commit()
+        sql += f' WHERE id = {album.get_id()};'
+        query = QSqlQuery(sql, db=_current_db)
 
-        sql  = 'SELECT * FROM albums'
-        sql += f' WHERE name = "{updated_album.get_name()}"'
-        res = self.cursor.execute(sql)
-        row = res.fetchone()
-        msg = f'updated album: from {album.get_name()}'
-        msg += f' to {row['id']}'
-        return self.get_album_by_id(row['id'])
+        return PlornDbOperations.get_album_by_id(updated_album.get_id())
 
     def get_photo_row_by_id(self, photo_id):
         sql = f'SELECT * FROM photos WHERE id = {photo_id}'
@@ -1189,11 +1192,12 @@ class AlbumViewColumn(IntEnum):
     '''
     column numbers used in the album tree view
     '''
-    ROW   = 0
-    ID    = 1
+    ROW   = 1
+    ID    = 0
     NAME  = 2
-    COUNT = 3
-    PATH  = 4
+    DATED = 3
+    COUNT = 4
+    PATH  = 5
 
 class PlornAlbumModel:
     _ALBUM_DATA = {}
@@ -1512,6 +1516,56 @@ class PlornAlbumModel:
         root.appendRow([id_item, row_item, name_item, dated_item, count_item,
                         path_item])
         module_logger.debug(f'add_album: okay and done')
+        return 'okay'
+        
+    @staticmethod
+    def update_album(root, album, updates, db=None):
+        global module_logger
+    
+        msg  = f'update_album: {str(album)}'
+        module_logger.debug(msg)
+    
+        if db == None:
+            config = PlornConfig()
+            catalog, dirname, dbname = config.get_current_catalog()
+            db = QSqlDatabase.database(connectionName=catalog)
+            msg  = f'update_album: using db connection {catalog}'
+            module_logger.debug(msg)
+    
+        if not db.isOpen():
+            msg  = 'update_album: cannot open database'
+            module_logger.debug(msg)
+            return 'cannot open db'
+    
+        if not db.isValid():
+            msg  = 'update_album: database is not valid'
+            module_logger.debug(msg)
+            return 'db is invalid'
+    
+        album = PlornDbOperations.update_album(album, updates)
+        module_logger.debug(f'add_album: updated album {str(album)}')
+        assert album != None and album.get_id() != 0
+    
+        row_data = [album.get_id(),
+                    album.get_name(),
+                    album.get_dated(),
+                    album.get_notes(),
+                    album.get_photo_count()]
+        PlornAlbumModel._ALBUM_DATA[album.get_id()] = row_data
+        module_logger.debug(f'update_album: added {row_data}')
+        album_id = f'{album.get_id():04}'
+        model = root.model()
+        row_items = model.findItems(album_id)
+        if len(row_items) < 1:
+            return 'cannot find entry in tree view'
+        row = row_items[0].row()
+        name = model.item(row, AlbumViewColumn.NAME)
+        name.setText(album.get_name())
+        dated = model.item(row, AlbumViewColumn.DATED)
+        dated.setText(album.get_dated())
+        count = model.item(row, AlbumViewColumn.COUNT)
+        count.setText(str(album.get_photo_count()))
+        module_logger.debug(f'update_album: okay and done')
         return 'okay'
         
     @staticmethod
