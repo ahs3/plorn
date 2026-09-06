@@ -46,7 +46,6 @@ from plorn.config import PlornConfig
 
 from plorn.gui import (
     PlornAboutDialog,
-    PlornAlbumView,
     PlornNewCatalogDialog,
     user_interface,
 )
@@ -57,7 +56,11 @@ from plorn.model import (
     PlornDbOperations,
 )
 
-from plorn.widgets import PlornAttrView
+from plorn.widgets import (
+    PlornAttrView,
+    PlornCatalogView,
+)
+
 from plorn.widgets.albums import (
     PlornAlbumDialog,
     PlornViewAlbumDialog,
@@ -1247,7 +1250,7 @@ def test_remove_album1(initial_db, monkeypatch):
     name_index = name_item.index()
     name = name_item.text()
     indices = [id_index, name_index]
-    monkeypatch.setattr(PlornAlbumView, 'selected_rows', lambda *args: indices)
+    monkeypatch.setattr(PlornCatalogView,'selected_rows',lambda *args: indices)
 
     root.remove_album()
     assert tree.model.rowCount() + 1 == row_count

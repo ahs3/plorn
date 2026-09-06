@@ -4,7 +4,6 @@
 # SPDX-FileCopyrightText: 2026 Albert H. Stone, III <ahs3@ahs3.net>
 #######################################################################
 
-import enum
 import logging
 import os.path
 import sys
@@ -61,6 +60,7 @@ from PyQt6.QtWidgets import (
 
 from plorn import (
     AlbumFields,
+    CatalogColumns,
     PhotoFields,
     PlornAlbum,
 )
@@ -73,10 +73,10 @@ from plorn.model import (
 )
 
 from plorn.widgets import (
-    PlornAlbumView,
+    CatalogColumns,
     PlornAttrView,
+    PlornCatalogView,
     PlornSizePolicy,
-    TreeColumns,
 )
 
 from plorn.widgets.albums import (
@@ -346,6 +346,10 @@ class Plorn(QMainWindow):
         new_action.setObjectName('new_album_action')
         new_action.triggered.connect(self.add_album)
         albums.addAction(new_action)
+        photo_action = QAction('Add &Photos', parent=self)
+        photo_action.setObjectName('photo_album_action')
+        photo_action.triggered.connect(self.add_photos_to_album)
+        albums.addAction(photo_action)
         edit_action = QAction('&Edit Album', parent=self)
         edit_action.setObjectName('edit_album_action')
         edit_action.triggered.connect(self.edit_album)
@@ -488,7 +492,7 @@ class Plorn(QMainWindow):
         #--- build the album tree view
         db = self.open_db()
         module_logger.debug(f'build_catalog: db open? {db.isOpen()}')
-        tree = PlornAlbumView(db=db)
+        tree = PlornCatalogView(db=db)
         tree.catalogChanged.connect(self.set_catalog_info)
         layout.addWidget(tree, stretch=1)
 
@@ -665,10 +669,10 @@ class Plorn(QMainWindow):
             album_row = -1
             for index in indices:
                 item = self.album_tree.item_from_index(index)
-                if item.column() == TreeColumns.ID:
+                if item.column() == CatalogColumns.ID:
                     album_id = int(item.text())
                     album_row = item.row()
-                if item.column() == TreeColumns.NAME:
+                if item.column() == CatalogColumns.NAME:
                     album_name = item.text()
 
             album = PlornDbOperations.get_album_by_id(album_id)
@@ -712,6 +716,12 @@ class Plorn(QMainWindow):
             self.set_catalog_info()
         module_logger.debug('add_album: done in gui')
 
+    def add_photos_to_album(self):
+        global module_logger
+
+        module_logger.debug('add_photos_to_album: entered in gui')
+        pass
+
     def edit_album(self):
         global module_logger
 
@@ -729,10 +739,10 @@ class Plorn(QMainWindow):
             album_row = -1
             for index in indices:
                 item = self.album_tree.item_from_index(index)
-                if item.column() == TreeColumns.ID:
+                if item.column() == CatalogColumns.ID:
                     album_id = int(item.text())
                     album_row = item.row()
-                if item.column() == TreeColumns.NAME:
+                if item.column() == CatalogColumns.NAME:
                     album_name = item.text()
 
             album = PlornDbOperations.get_album_by_id(album_id)
@@ -782,10 +792,10 @@ class Plorn(QMainWindow):
             album_row = -1
             for index in indices:
                 item = self.album_tree.item_from_index(index)
-                if item.column() == TreeColumns.ID:
+                if item.column() == CatalogColumns.ID:
                     album_id = int(item.text())
                     album_row = item.row()
-                if item.column() == TreeColumns.NAME:
+                if item.column() == CatalogColumns.NAME:
                     album_name = item.text()
 
             root = self.album_tree.model.invisibleRootItem()

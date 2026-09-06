@@ -38,8 +38,14 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from plorn import PlornAlbum
+from plorn import (
+    CatalogColumns,
+    PlornAlbum,
+)
+
 from plorn.config import PlornConfig
+
+from plorn.gui import CatalogColumns
 
 from plorn.model import (
     PlornAlbumModel,
@@ -54,14 +60,6 @@ from plorn.widgets.albums import (
 
 module_logger = logging.getLogger('plorn.widgets')
 module_logger.setLevel(logging.DEBUG)
-
-class TreeColumns(IntEnum):
-    ID            = 0
-    HIDDEN_ROW_ID = 1
-    NAME          = 2
-    DATED         = 3
-    COUNT         = 4
-    PATH          = 5
 
 
 #####################################################################
@@ -111,7 +109,7 @@ class PlornAttrView(QDialog):
         tree.setItemsExpandable(True)
         tree.setUniformRowHeights(True)
         tree.setHeaderHidden(True)
-        tree.header().setSectionHidden(TreeColumns.HIDDEN_ROW_ID, True)
+        tree.header().setSectionHidden(CatalogColumns.HIDDEN_ROW_ID, True)
         tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         tree.customContextMenuRequested.connect(self.context_menu)
         tree.setToolTip('Right-click for actions')
@@ -292,7 +290,7 @@ class PlornAttrView(QDialog):
         module_logger.debug(f'remove_attr done: {self.table}')
 
 
-class PlornAlbumView(QWidget):
+class PlornCatalogView(QWidget):
     '''
     widget class for displaying and editing albums and their photos
     '''
@@ -302,8 +300,8 @@ class PlornAlbumView(QWidget):
         global module_logger
         super().__init__(*args, **kwargs)
 
-        module_logger.debug('entering PlornAlbumView')
-        self.setObjectName('PlornAlbumView')
+        module_logger.debug('entering PlornCatalogView')
+        self.setObjectName('PlornCatalogView')
         self.db = db
         self.model = QStandardItemModel()
         self.root = self.model.invisibleRootItem()
@@ -352,17 +350,17 @@ class PlornAlbumView(QWidget):
         layout.addWidget(self.tree, 0, 0)
 
         tree.setHeaderHidden(False)
-        tree.header().setSectionHidden(TreeColumns.HIDDEN_ROW_ID, True)
-        tree.header().resizeSection(TreeColumns.ID, 100)
-        tree.header().resizeSection(TreeColumns.HIDDEN_ROW_ID, 10)
-        tree.header().resizeSection(TreeColumns.NAME, 440)
-        tree.header().resizeSection(TreeColumns.DATED, 240)
-        tree.header().resizeSection(TreeColumns.COUNT, 100)
+        tree.header().setSectionHidden(CatalogColumns.HIDDEN_ROW_ID, True)
+        tree.header().resizeSection(CatalogColumns.ID, 100)
+        tree.header().resizeSection(CatalogColumns.HIDDEN_ROW_ID, 10)
+        tree.header().resizeSection(CatalogColumns.NAME, 440)
+        tree.header().resizeSection(CatalogColumns.DATED, 240)
+        tree.header().resizeSection(CatalogColumns.COUNT, 100)
 
         self.setLayout(layout)
         PlornAlbumModel.populate_albums(root=self.root, db=self.db)
         self.tree.expandAll()
-        module_logger.debug('PlornAlbumView all done')
+        module_logger.debug('PlornCatalogView all done')
  
     def selected_rows(self):
         return self.tree.selectedIndexes()
@@ -483,12 +481,12 @@ class PlornAlbumView(QWidget):
         for idx in indices:
             item = self.tree.model().itemFromIndex(idx)
             #module_logger.debug(f'view_object: column {item.column()}')
-            if item.column() == TreeColumns.ID:
+            if item.column() == CatalogColumns.ID:
                 id = int(item.text())
-            elif item.column() == TreeColumns.COUNT:
+            elif item.column() == CatalogColumns.COUNT:
                 if len(item.text()) >= 1:
                     found_count = True
-            elif item.column() == TreeColumns.PATH:
+            elif item.column() == CatalogColumns.PATH:
                 if len(item.text()) >= 1:
                     found_path = True
         if found_count and not found_path:          # object is an album
@@ -540,10 +538,10 @@ class PlornAlbumView(QWidget):
             album_row = -1
             for index in indices:
                 item = self.item_from_index(index)
-                if item.column() == TreeColumns.ID:
+                if item.column() == CatalogColumns.ID:
                     album_id = int(item.text())
                     album_row = item.row()
-                if item.column() == TreeColumns.NAME:
+                if item.column() == CatalogColumns.NAME:
                     album_name = item.text()
             album = PlornDbOperations.get_album_by_id(album_id)
             update_dlg = PlornViewAlbumDialog(tree=self.tree,
@@ -578,10 +576,10 @@ class PlornAlbumView(QWidget):
             album_row = -1
             for index in indices:
                 item = self.item_from_index(index)
-                if item.column() == TreeColumns.ID:
+                if item.column() == CatalogColumns.ID:
                     album_id = int(item.text())
                     album_row = item.row()
-                if item.column() == TreeColumns.NAME:
+                if item.column() == CatalogColumns.NAME:
                     album_name = item.text()
 
             root = self.tree.model().invisibleRootItem()

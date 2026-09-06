@@ -4,7 +4,6 @@
 # SPDX-FileCopyrightText: 2026 Albert H. Stone, III <ahs3@ahs3.net>
 #######################################################################
 
-from enum import IntEnum
 import logging
 import os.path
 import sys
@@ -33,6 +32,8 @@ from PyQt6.QtSql import (
 from PyQt6.QtWidgets import (
     QTreeWidgetItem,
 )
+
+from plorn import CatalogColumns
 
 from plorn.config import PlornConfig
 
@@ -1188,17 +1189,6 @@ class PlornDbOperations:
 #   these are helper functions to populate the model
 #
 
-class AlbumViewColumn(IntEnum):
-    '''
-    column numbers used in the album tree view
-    '''
-    ROW   = 1
-    ID    = 0
-    NAME  = 2
-    DATED = 3
-    COUNT = 4
-    PATH  = 5
-
 class PlornAlbumModel:
     _ALBUM_DATA = {}
     _PHOTO_DATA = {}
@@ -1559,11 +1549,11 @@ class PlornAlbumModel:
         if len(row_items) < 1:
             return 'cannot find entry in tree view'
         row = row_items[0].row()
-        name = model.item(row, AlbumViewColumn.NAME)
+        name = model.item(row, CatalogColumns.NAME)
         name.setText(album.get_name())
-        dated = model.item(row, AlbumViewColumn.DATED)
+        dated = model.item(row, CatalogColumns.DATED)
         dated.setText(album.get_dated())
-        count = model.item(row, AlbumViewColumn.COUNT)
+        count = model.item(row, CatalogColumns.COUNT)
         count.setText(str(album.get_photo_count()))
         module_logger.debug(f'update_album: okay and done')
         return 'okay'

@@ -112,6 +112,19 @@ class TagFields(IntEnum):
 
 ################################################################
 #
+#   handy view column number constants
+#
+class CatalogColumns(IntEnum):
+    ID            = 0
+    HIDDEN_ROW_ID = 1
+    NAME          = 2
+    DATED         = 3
+    COUNT         = 4
+    PATH          = 5
+
+
+################################################################
+#
 #   plorn exceptions
 #
 class PlornDbException(Exception):
