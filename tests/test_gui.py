@@ -14,14 +14,19 @@ from PyQt6.QtGui import (
     QAction,
     QStandardItem,
 )
+
 from PyQt6.QtCore import (
     Qt,
     QPoint,
     QTimer,
 )
+
 from PyQt6.QtSql import (
     QSqlQuery,
 )
+
+from PyQt6 import QtTest
+
 from PyQt6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
@@ -1316,4 +1321,79 @@ def test_view_album1(initial_db, monkeypatch):
     assert album.get_name() == dlg.name_edit.text()
     assert album.get_dated() == dlg.dated_edit.text()
     assert album.get_notes() == dlg.notes_edit.toPlainText()
+
+def test_update_album1(initial_db, monkeypatch):
+    '''
+    use the menubar to make sure we can invoke the update album dialog
+    and modify an album with attributes
+    '''
+    info = initial_db
+    monkeypatch.setenv('HOME', info['homedir'])
+    root = info['root']
+    tree = root.album_tree
+    assert tree != None
+    assert root.menuBar() != None
+    tree_root = tree.model.invisibleRootItem()
+    assert tree_root != None
+
+    #-- create an album with attributes
+    album_name  = random_string(tree_root)
+    dated = datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%d')
+    notes = random_string(tree_root)
+    count = 42
+    name = random_string(tree_root)
+    name_attr = PlornName(name)
+    name_attr = PlornDbOperations.add_name(name_attr)
+    place = random_string(tree_root)
+    place_attr = PlornPlace(place)
+    place_attr = PlornDbOperations.add_place(place_attr)
+    tag = random_string(tree_root)
+    tag_attr = PlornTag(tag)
+    tag_attr = PlornDbOperations.add_tag(tag_attr)
+    album = PlornAlbum(album_name, id=None,
+                       dated=dated, notes=notes, photo_count=count,
+                       names=[name_attr], places=[place_attr], tags=[tag_attr])
+    album = PlornDbOperations.add_album(album)
+    assert album != None
+    album_id = album.get_id()
+    assert album_id != 0
+    assert album.get_name() == album_name
+    assert album.get_dated() == dated
+    assert album.get_notes() == notes
+    assert album.get_photo_count() == count
+    assert len(album.get_name_list()) > 0
+    assert len(album.get_place_list()) > 0
+    assert len(album.get_tag_list()) > 0
+
+    #-- invoke the edit dialog, change some things and save them
+    dlg = PlornViewAlbumDialog(tree=tree, title='Edit Album', allow_edit=True)
+    dlg.set_inputs(album)
+    assert dlg.name_edit.text() == album_name
+    assert dlg.dated_edit.text() == dated
+    assert dlg.notes_edit.toPlainText() == notes
+    assert dlg.count.text() == str(count)
+
+    new_dated = datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%d')
+    new_notes = random_string(tree_root)
+    new_count = 54
+    dlg.dated_edit.setText(new_dated)
+    dlg.notes_edit.setPlainText(new_notes)
+    dlg.count.setText(str(new_count))
+    assert dlg.dated_edit.text() == new_dated
+    assert dlg.notes_edit.toPlainText() == new_notes
+    assert dlg.count.text() == str(new_count)
+
+    bbox = dlg.findChild(QDialogButtonBox, 'album_dlg_bbox')
+    assert bbox != None
+
+    info = dlg.get_inputs()
+    assert len(info) > 0
+
+    updated_album = PlornDbOperations.get_album_by_id(album_id)
+    assert updated_album != None
+    assert updated_album.get_id() == album_id, 'album_id is wrong'
+    assert updated_album.get_name() == album_name, 'album_name is wrong'
+    assert updated_album.get_dated() == dated, 'dated is wrong'
+    assert updated_album.get_notes() == notes, 'notes are wrong'
+    assert updated_album.get_photo_count() == count, 'count is wrong'
 

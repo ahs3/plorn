@@ -14,7 +14,7 @@ import sys
 
 MAJOR = 0
 MINOR = 34
-BUGFIX = 11
+BUGFIX = 14
 __version__ = str(MAJOR) + '.' + str(MINOR) + '.' + str(BUGFIX)
 
 module_logger = logging.getLogger('plorn.config')
@@ -82,6 +82,7 @@ class PlornConfig:
             self.config['DEFAULT']['data_dir'] = os.path.join('~', data_dir)
             self.config['DEFAULT']['default_catalog'] = 'Plorn'
             self.config['DEFAULT']['current_catalog'] = 'Plorn'
+            self.config['DEFAULT']['last_directory_selected'] = os.environ['HOME']
 
             self.config['gui'] = {}
             self.config['gui']['default_photo'] = "plorn_app.png"
@@ -224,6 +225,18 @@ class PlornConfig:
             #-- let's not do that ....
             return
         self.config.remove_section(catalog)
+
+    def get_last_directory_selected(self):
+        lds = 'last_directory_selected'
+        if self.config.get('DEFAULT', lds, fallback=None) == None:
+            self.config['DEFAULT'][lds] = os.environ['HOME']
+            self.write_config()
+        return self.config['DEFAULT'][lds]
+
+    def set_last_directory_selected(self, directory):
+        if os.path.isdir(directory):
+            self.config['DEFAULT']['last_directory_selected'] = directory
+            self.write_config()
 
     def __str__(self):
         return self.filename

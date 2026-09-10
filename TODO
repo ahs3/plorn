@@ -7,10 +7,18 @@
 
 TODO
 ====
+-- Would it make sense to have the db record the path entered by the
+   user _and_ the actual path?  Maybe only display the entered path?
+   Maybe automatically remove HOME when possible in a view?
+
 -- Need to verify that duplicate album or photo names ARE allowed;
    the record ID should be distinctive enough.
 
 -- Window geometries are mostly hard-coded; they should not be.
+
+-- Can I reorder the rows in views without having to record that order
+   somewhere?  Within a session, I suspect I can; between sessions, it
+   seems like recording it is needed.
 
 -- Add config options to ask or not ask for confirmation when removing
    albums, photos or attributes; this implies setting defaults, dialog
@@ -46,9 +54,6 @@ TODO
 
    -- Is there then a "backup" that does the above for all albums?
    
--- When asking for directories or files, can we make the font bigger?
-   Using the stock filedialog.messagebox may not be sufficient.
-
 -- Add a "Rescan/Refresh/Update" button to albums and/or photos; i.e.,
    check that images are still there, with option to delete items that
    are no longer present.  But, don't modify anything else.
@@ -56,4 +61,6 @@ TODO
    -- Some sort of way to verify an album is still "intact" would be
       good; i.e., verify that all the photos are actually still there.
 
+-- Add some sort of db integrity checks; are photos still there?  Are
+   all the IDs and parent IDs working?  What else?
 
