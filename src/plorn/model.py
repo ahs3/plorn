@@ -45,6 +45,7 @@ from plorn import (
     PlornAlbum,
     PlornDbException,
     PlornName,
+    PlornPhoto,
     PlornPlace,
     PlornTag,
 )
@@ -573,33 +574,59 @@ class PlornDbOperations:
     def get_photo(self, photo_id):
         return self.get_photo_by_id(photo_id)
 
-    def increment_photo_count(self, album):
+    @staticmethod
+    def get_photo_by_album_and_path(album_id, path):
+        global module_logger, _current_db
+
+        sql  = 'SELECT * FROM photos WHERE '
+        sql += f'path = "{path}" AND album_id = "{album_id}";'
+        query = QSqlQuery(sql, db=_current_db)
+        if query.next():
+            return PlornPhoto(query.value(PhotoFields.NAME),
+                              id=query.value(PhotoFields.ID),
+                              album_id=query.value(PhotoFields.ALBUM_ID),
+                              dated=query.value(PhotoFields.DATED),
+                              notes=query.value(PhotoFields.NOTES),
+                              path=query.value(PhotoFields.PATH))
+        else:
+            return None
+
+    @staticmethod
+    def increment_photo_count(album):
         album_copy = album
         album_copy.set_photo_count(album.get_photo_count() + 1)
-        self.update_album(album, album_copy)
+        PlornDbOperations.update_album(album, album_copy)
 
-    def decrement_photo_count(self, album):
+    @staticmethod
+    def decrement_photo_count(album):
         album_copy = album
         album_copy.set_photo_count(album.get_photo_count() - 1)
-        self.update_album(album, album_copy)
+        PlornDbOperations.update_album(album, album_copy)
 
-    def add_photo(self, photo):
-        album = self.get_album(photo.get_album_id())
+    @staticmethod
+    def add_photo(photo):
+        global module_logger, _current_db
+
+        album = PlornDbOperations.get_album_by_id(photo.get_album_id())
         sql  = 'INSERT INTO photos '
         sql += f'(album_id,name,path,dated,notes) VALUES '
-        sql += f'(\'{photo.get_album_id()}\','
-        sql += f' \'{photo.get_name()}\', \'{photo.get_path()}\','
-        sql += f' \'{photo.get_dated()}\', \'{photo.get_notes()}\')'
-        res = self.cursor.execute(sql)
-        self.increment_photo_count(album)
-        self.db.commit()
-        sql = f'SELECT * FROM photos WHERE path = \'{photo.get_path()}\''
-        res = self.cursor.execute(sql)
-        row = res.fetchone()
-        return PlornPhoto(row['name'],
-                                      id=row['id'], album_id=row['album_id'],
-                                      path=row['path'],
-                                      dated=row['dated'], notes=row['notes'])
+        sql += f'("{photo.get_album_id()}",'
+        sql += f' "{photo.get_name()}", "{photo.get_path()}",'
+        sql += f' "{photo.get_dated()}", "{photo.get_notes()}");'
+        query = QSqlQuery(sql, db=_current_db)
+        PlornDbOperations.increment_photo_count(album)
+        sql  = f'SELECT * FROM photos WHERE path = "{photo.get_path()}" '
+        sql += f'AND album_id = "{photo.get_album_id()}";'
+        query = QSqlQuery(sql, db=_current_db)
+        if query.next():
+            return PlornPhoto(query.value(PhotoFields.NAME),
+                              id=query.value(PhotoFields.ID),
+                              album_id=query.value(PhotoFields.ALBUM_ID),
+                              path=query.value(PhotoFields.PATH),
+                              dated=query.value(PhotoFields.DATED),
+                              notes=query.value(PhotoFields.NOTES))
+        else:
+            return None
 
     def remove_photo_by_id(self, photo_id):
         sql = f'SELECT * FROM photos WHERE id = \'{photo_id}\''
@@ -1219,6 +1246,7 @@ class PlornAlbumModel:
         album_count = len(PlornAlbumModel._ALBUM_DATA)
         photo_count = 0
         for ii, data in PlornAlbumModel._ALBUM_DATA.items():
+            module_logger.debug(f'album_stats: row "{ii}", {data}')
             nphotos = data[AlbumFields.PHOTO_COUNT]
             photo_count += nphotos
             album_name = data[AlbumFields.NAME]
@@ -1599,6 +1627,105 @@ class PlornAlbumModel:
         module_logger.debug(f'remove_album: okay and done')
         return 'okay'
     
+    @staticmethod
+    def album_list():
+        global module_logger
+
+        albums = []
+        for ii, data in PlornAlbumModel._ALBUM_DATA.items():
+            album_id = data[AlbumFields.ID]
+            album_name = data[AlbumFields.NAME]
+            albums.append([album_id, album_name])
+        return albums
+
+    @staticmethod
+    def photo_list(album_id):
+        global module_logger
+
+        module_logger.debug(f'photo_list: look for album {album_id}')
+        photos = []
+        for ii, data in PlornAlbumModel._PHOTO_DATA.items():
+            module_logger.debug(f'photo_list: found {ii}, {data}')
+            photo_id = data[PhotoFields.ID]
+            parent_id = data[PhotoFields.ALBUM_ID]
+            if int(parent_id) == int(album_id):
+                photo_name = data[PhotoFields.NAME]
+                photo_dated = data[PhotoFields.DATED]
+                photo_path = data[PhotoFields.PATH]
+                photos.append([photo_id, photo_name, photo_dated, photo_path])
+        module_logger.debug(f'photo_list: found {len(photos)} photos')
+        return photos
+
+    @staticmethod
+    def _increment_photo_count(root, album_id):
+        global module_logger
+
+        row = PlornAlbumModel._ALBUM_DATA[int(album_id)]
+        module_logger.debug(f'_increment_photo_count: row {row}')
+        name = row[AlbumFields.NAME]
+        count = row[AlbumFields.PHOTO_COUNT]
+        count += 1
+        row[AlbumFields.PHOTO_COUNT] = count
+        module_logger.debug(f'_increment_photo_count: album {name}, {count}')
+        row_items = root.model().findItems(f'{int(album_id):04}')
+        if len(row_items) > 0:
+            item = root.model().item(row_items[0].row(), CatalogColumns.COUNT)
+            item.setText(str(count))
+
+    @staticmethod
+    def add_photo(root, photo, db=None):
+        global module_logger 
+    
+        msg  = f'add_photo: {str(photo)}'
+        module_logger.debug(msg)
+    
+        if db == None:
+            config = PlornConfig()
+            catalog, dirname, dbname = config.get_current_catalog()
+            db = QSqlDatabase.database(connectionName=catalog)
+            msg  = f'add_photo: using db connection {catalog}'
+            module_logger.debug(msg)
+    
+        if not db.isOpen():
+            msg  = 'add_photo: cannot open database'
+            module_logger.debug(msg)
+            return 'cannot open db'
+    
+        if not db.isValid():
+            msg  = 'add_photo: database is not valid'
+            module_logger.debug(msg)
+            return 'db is invalid'
+    
+        # add to db to get an id and actual dbrow
+        # ...we do not care about duplicate names, so try adding it
+        added_photo = PlornDbOperations.add_photo(photo)
+        module_logger.debug(f'add_photo: added photo {str(added_photo)}')
+        assert added_photo != None and added_photo.get_id() != 0
+    
+        row_data = [added_photo.get_id(),
+                    added_photo.get_album_id(),
+                    added_photo.get_name(),
+                    added_photo.get_path(),
+                    added_photo.get_dated(),
+                    added_photo.get_notes()]
+        PlornAlbumModel._PHOTO_DATA[added_photo.get_id()] = row_data
+        PlornAlbumModel._increment_photo_count(root, added_photo.get_album_id())
+        module_logger.debug(f'add_album: added {row_data}')
+
+        row_item = QStandardItem(str(root.rowCount()+1))
+        id_item = PlornAlbumModel._build_photo_id_item(row_data)
+        name_item = PlornAlbumModel._build_photo_name_item(row_data)
+        dated_item = PlornAlbumModel._build_photo_dated_item(row_data)
+        count_item = PlornAlbumModel._build_photo_count_item(row_data)
+        path_item = PlornAlbumModel._build_photo_path_item(row_data)
+
+        row_items = root.model().findItems(f'{added_photo.get_album_id():04}')
+        if len(row_items) > 0:
+            row_items[0].appendRow([id_item, row_item, name_item,
+                                    dated_item, count_item, path_item])
+        module_logger.debug(f'add_photo: okay and done')
+        return 'okay'
+        
 
 ##########################################################################
 #

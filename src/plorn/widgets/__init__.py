@@ -55,6 +55,7 @@ from plorn.model import (
 
 from plorn.widgets.albums import (
     PlornAlbumDialog,
+    PlornAlbumPhotosView,
     PlornViewAlbumDialog,
 )
 
@@ -425,6 +426,8 @@ class PlornCatalogView(QWidget):
                                     lambda: self.edit_album_action())
                 remove_album_action = menu.addAction('Remove Album',
                                     lambda: self.remove_album_action())
+                manage_photos_action = menu.addAction('Manage Photos',
+                                    lambda: self.manage_photos_action())
                 menu.addSeparator()
                 sshow_album_action = menu.addAction('Slide Show',
                                     lambda: self.slide_show_action())
@@ -623,5 +626,32 @@ class PlornCatalogView(QWidget):
             module_logger.debug(f'remove_album? No')
 
         module_logger.debug(f'remove_album done: {self.table}')
+
+    def manage_photos_action(self):
+        global module_logger
+
+        module_logger.debug(f'manage_photos_action: entered')
+        indices = self.selected_rows()
+        if len(indices) < 1:
+            title = 'Manage Photos in an Album'
+            text = 'Must select an album to know which photos to manage.'
+            button = QMessageBox.critical(self, title, text)
+        else:
+            album_name = ''
+            album_id = 0
+            album_row = -1
+            for index in indices:
+                item = self.item_from_index(index)
+                if item.column() == CatalogColumns.ID:
+                    album_id = int(item.text())
+                    album_row = item.row()
+                if item.column() == CatalogColumns.NAME:
+                    album_name = item.text()
+
+            dlg = PlornAlbumPhotosView(self.root, album_id, album_name)
+            info = PlornAlbumPhotosView.ask(dlg)
+            module_logger.debug(f'manage_photos_action: info {str(info)}')
+            self.catalogChanged.emit(0)
+        module_logger.debug(f'manage_photos_action: done')
 
 

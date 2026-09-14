@@ -81,6 +81,8 @@ from plorn.widgets import (
 
 from plorn.widgets.albums import (
     PlornAlbumDialog,
+    PlornAlbumPhotosView,
+    PlornAlbumSelection,
     PlornViewAlbumDialog,
 )
 
@@ -346,9 +348,9 @@ class Plorn(QMainWindow):
         new_action.setObjectName('new_album_action')
         new_action.triggered.connect(self.add_album)
         albums.addAction(new_action)
-        photo_action = QAction('Add &Photos', parent=self)
+        photo_action = QAction('Manage &Photos', parent=self)
         photo_action.setObjectName('photo_album_action')
-        photo_action.triggered.connect(self.add_photos_to_album)
+        photo_action.triggered.connect(self.manage_photos)
         albums.addAction(photo_action)
         edit_action = QAction('&Edit Album', parent=self)
         edit_action.setObjectName('edit_album_action')
@@ -716,11 +718,24 @@ class Plorn(QMainWindow):
             self.set_catalog_info()
         module_logger.debug('add_album: done in gui')
 
-    def add_photos_to_album(self):
+    def manage_photos(self):
         global module_logger
 
-        module_logger.debug('add_photos_to_album: entered in gui')
-        pass
+        module_logger.debug('manage_photos: entered in gui')
+        dlg = PlornAlbumSelection()
+        info = PlornAlbumSelection.ask(dlg)
+        module_logger.debug(f'manage_photos: gui got {str(info)}')
+        if len(info) > 0 and 'apply' in info.keys():
+            if info['apply']:
+                root = self.album_tree.model.invisibleRootItem()
+                pview = PlornAlbumPhotosView(root, info['id'], info['album'])
+                info = PlornAlbumPhotosView.ask(pview)
+                msg = f'manage_photos: gui info {str(info)}'
+                module_logger.debug(msg)
+            else:
+                module_logger.debug(f'manage_photos: gui got nothing')
+                
+        module_logger.debug('manage_photos: done in gui')
 
     def edit_album(self):
         global module_logger
@@ -769,7 +784,9 @@ class Plorn(QMainWindow):
                                          tags=info['tags'])
                     root = self.album_tree.model.invisibleRootItem()
                     res = PlornAlbumModel.update_album(root, album, updates)
-                    if res != 'okay':
+                    if res == 'okay':
+                        module_logger.debug('edit_album: update succeeded')
+                    else:
                         module_logger.debug(f'edit_album: failed "{res}"')
                 module_logger.debug(f'edit_album: info in gui {str(info)}')
 

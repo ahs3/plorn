@@ -298,6 +298,8 @@ class PlornRawConfigView(QDialog):
         self.table = QTableView()
         self.table.setSelectionMode(
                             QAbstractItemView.SelectionMode.SingleSelection)
+        self.table.setSelectionBehavior(
+                            QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         model = PlornRawConfigModel(db=self.db)
         self.table.setModel(model)
@@ -355,6 +357,8 @@ class PlornRawAttrView(QDialog):
         self.table = QTableView()
         self.table.setSelectionMode(
                             QAbstractItemView.SelectionMode.SingleSelection)
+        self.table.setSelectionBehavior(
+                            QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         model = PlornRawAttrModel(table=self.table_name, db=self.db)
         self.table.setModel(model)
@@ -416,6 +420,8 @@ class PlornRawObjAttrView(QDialog):
         self.table = QTableView()
         self.table.setSelectionMode(
                             QAbstractItemView.SelectionMode.SingleSelection)
+        self.table.setSelectionBehavior(
+                            QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         model = PlornRawObjAttrModel(obj=obj, attrs=attrs, db=self.db)
         self.table.setModel(model)
@@ -471,6 +477,8 @@ class PlornRawAlbumView(QDialog):
         self.table = QTableView()
         self.table.setSelectionMode(
                             QAbstractItemView.SelectionMode.SingleSelection)
+        self.table.setSelectionBehavior(
+                            QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         model = PlornRawAlbumModel(db=self.db)
         self.table.setModel(model)
@@ -528,6 +536,8 @@ class PlornRawPhotoView(QDialog):
         self.table = QTableView()
         self.table.setSelectionMode(
                             QAbstractItemView.SelectionMode.SingleSelection)
+        self.table.setSelectionBehavior(
+                            QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setWordWrap(True)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         model = PlornRawPhotoModel(db=self.db)
