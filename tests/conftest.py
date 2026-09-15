@@ -30,7 +30,8 @@ if os.path.join(',', 'src', 'plorn') not in sys.path:
 
 from plorn.config import PlornConfig
 from plorn.gui import user_interface
-from plorn.model import PlornAttrModel, PlornDbOperations
+from plorn.models import PlornAttrModel
+from plorn.models.dbops import PlornDbOperations
 
 def get_test_cfgname(tmpdir):
     return os.path.join(tmpdir, 'completely_bogus.cfg')

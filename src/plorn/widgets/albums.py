@@ -51,10 +51,8 @@ from plorn import (
 
 from plorn.config import PlornConfig
 
-from plorn.model import (
-    PlornDbOperations,
-    PlornAlbumModel,
-)
+from plorn.models.dbops import PlornDbOperations
+from plorn.models.albums import PlornAlbumModel
 
 from plorn.widgets.attrs import PlornAttrListView
 
@@ -507,19 +505,6 @@ class PlornAlbumPhotosView(QDialog):
         global module_logger
 
         module_logger.debug('get_inputs: entered')
-        #info = {}
-        #for index in self.photos.selectedIndexes():
-        #    item = self.photos.model().itemFromIndex(index)
-        #    module_logger.debug(f'get_inputs: selected {item.text()}')
-        #    if item.column() == 0:
-        #        info['id'] = item.text()
-        #    elif item.column() == 1:
-        #        info['album'] = item.text()
-        #if len(info) > 0:
-        #    info['apply'] = True
-        #    info['filenames'] = self.filenames
-        #else:
-        #    info['apply'] = False
         info = self.filenames
         module_logger.debug(f'get_inputs: returns {len(info)} items')
         return info
@@ -671,30 +656,38 @@ class PlornAlbumPhotosView(QDialog):
         global module_logger
 
         module_logger.debug('remove_photos: entered in dlg')
-        photos = {}
-        for index in self.photos.selectedIndexes():
-            item = self.photos.model().itemFromIndex(index)
-            if item.row() not in photos.keys():
-                photos[item.row()] = {}
-        for index in self.photos.selectedIndexes():
+        indices = self.photos.selectedIndexes()
+        if len(indices) < 1:
+            QMessageBox.warning(self, 'Photo Selection Error',
+                        'One or more photos must be selected.')
+            return
+        ids_to_remove = {}
+        module_logger.debug(msg)
+        for index in indices:
             item = self.photos.model().itemFromIndex(index)
             row = item.row()
-            module_logger.debug(f'get_inputs: selected {item.text()}')
-            if item.column() == 0:
-                photos[row]['id'] = item.text()
-            elif item.column() == 1:
-                photos[row]['photo'] = item.text()
-            elif item.column() == 3:
-                photos[row]['path'] = item.text()
-            module_logger.debug(f'remove_photos: rm {photos[row]}')
-        if len(photos) > 0:
-            #info['apply'] = True
-            #info['filenames'] = self.filenames
-            module_logger.debug(f'remove_photos: rm {len(photos)} photos')
-        else:
-            QMessageBox.critical(self, 'Photo Selection Error',
-                        'No photos were selected for removal.')
-            #info['apply'] = False
+            if row not in ids_to_remove:
+                ids_to_remove[row] = [item]
+            else:
+                ids_to_remove[row].append(item)
+        for key in ids_to_remove.keys():
+            row = ids_to_remove[key]
+            msg  = f'remove_photos: row {key}, cols'
+            photo_id = 0
+            photo_path = ''
+            for item in row:
+                if item.column() == 0:
+                    photo_id = int(item.text())
+                    photo_parent = item.parent()
+                elif item.column() == 4:
+                    photo_path = item.text()
+                msg += f' {item.column()}'
+            module_logger.debug(msg)
+            if photo_id != 0 and photo_path != '':
+                res = PlornAlbumModel.remove_photo(photo_id, path=photo_path)
+                if res == 'okay':
+                    self.photos.model().removeRows(row, 1, photo_parent)
+
         module_logger.debug('remove_photos: done in dlg')
 
     def dlg_done(self):

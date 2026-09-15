@@ -47,11 +47,9 @@ from plorn.config import PlornConfig
 
 from plorn.gui import CatalogColumns
 
-from plorn.model import (
-    PlornAlbumModel,
-    PlornAttrModel,
-    PlornDbOperations,
-)
+from plorn.models import PlornAttrModel
+from plorn.models.dbops import PlornDbOperations
+from plorn.models.albums import PlornAlbumModel
 
 from plorn.widgets.albums import (
     PlornAlbumDialog,

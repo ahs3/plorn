@@ -56,11 +56,9 @@ from plorn import (
 
 from plorn.config import PlornConfig
 
-from plorn.model import (
-    PlornAlbumModel,
-    PlornAttrModel,
-    PlornDbOperations,
-)
+from plorn.models import PlornAttrModel
+from plorn.models.dbops import PlornDbOperations
+from plorn.models.albums import PlornAlbumModel
 
 module_logger = logging.getLogger('plorn.widgets.attrs')
 module_logger.setLevel(logging.DEBUG)
