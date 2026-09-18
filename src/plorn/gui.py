@@ -719,21 +719,21 @@ class Plorn(QMainWindow):
     def manage_photos(self):
         global module_logger
 
-        module_logger.debug('manage_photos: entered in gui')
+        module_logger.debug('gui.manage_photos: entered in gui')
         dlg = PlornAlbumSelection()
         info = PlornAlbumSelection.ask(dlg)
-        module_logger.debug(f'manage_photos: gui got {str(info)}')
+        module_logger.debug(f'gui.manage_photos: gui got {str(info)}')
         if len(info) > 0 and 'apply' in info.keys():
             if info['apply']:
                 root = self.album_tree.model.invisibleRootItem()
                 pview = PlornAlbumPhotosView(root, info['id'], info['album'])
-                info = PlornAlbumPhotosView.ask(pview)
-                msg = f'manage_photos: gui info {str(info)}'
-                module_logger.debug(msg)
+                if PlornAlbumPhotosView.ask(pview):
+                    module_logger.debug(f'gui.manage_photos: exec done')
             else:
-                module_logger.debug(f'manage_photos: gui got nothing')
+                module_logger.debug(f'gui.manage_photos: no album to manage')
                 
-        module_logger.debug('manage_photos: done in gui')
+        self.set_catalog_info()
+        module_logger.debug('gui.manage_photos: done in gui')
 
     def edit_album(self):
         global module_logger
@@ -908,3 +908,5 @@ def user_interface():
 
     return plorn_app, plorn_root
 
+from plorn import DUMP_STACK
+DUMP_STACK()

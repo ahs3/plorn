@@ -47,7 +47,7 @@ from plorn.config import PlornConfig
 
 from plorn.gui import CatalogColumns
 
-from plorn.models import PlornAttrModel
+from plorn.models.attrs import PlornAttrModel
 from plorn.models.dbops import PlornDbOperations
 from plorn.models.albums import PlornAlbumModel
 
@@ -620,6 +620,7 @@ class PlornCatalogView(QWidget):
             self.tree.setExpanded(parent.index(), True)
             module_logger.debug(
                 f'remove_album: removed "{value}" from "{parent.text()}"')
+            self.catalogChanged.emit(0)
         else:
             module_logger.debug(f'remove_album? No')
 
@@ -647,8 +648,8 @@ class PlornCatalogView(QWidget):
                     album_name = item.text()
 
             dlg = PlornAlbumPhotosView(self.root, album_id, album_name)
-            info = PlornAlbumPhotosView.ask(dlg)
-            module_logger.debug(f'manage_photos_action: info {str(info)}')
+            if PlornAlbumPhotosView.ask(dlg):
+                module_logger.debug(f'manage_photos_action: dlg exec done')
             self.catalogChanged.emit(0)
         module_logger.debug(f'manage_photos_action: done')
 

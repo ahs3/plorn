@@ -55,7 +55,7 @@ from plorn.gui import (
     user_interface,
 )
 
-from plorn.models import PlornAttrModel
+from plorn.models.attrs import PlornAttrModel
 from plorn.models.dbops import PlornDbOperations
 from plorn.models.albums import PlornAlbumModel
 

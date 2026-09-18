@@ -383,8 +383,10 @@ class PlornViewAlbumDialog(PlornAlbumDialog):
 class PlornAlbumPhotosView(QDialog):
     @classmethod
     def ask(cls, dlg):
-        dlg.exec()
-        return dlg.get_inputs()
+        global module_logger
+
+        module_logger.debug(f'PlornAlbumPhotosView: ask, dlg {str(dlg)}')
+        return dlg.exec()
 
     def build_item(self, value):
         item = QStandardItem(value)
@@ -407,7 +409,6 @@ class PlornAlbumPhotosView(QDialog):
         self.album_id = album_id
         self.album_name = album_name
         self.album_tree = album_tree
-        self.filenames = []
 
         self.setModal(True)
         self.setWindowTitle(f'Manage Photos in an Album')
@@ -500,14 +501,6 @@ class PlornAlbumPhotosView(QDialog):
 
         self.setLayout(layout)
         module_logger.debug('PlornAlbumPhotosView: done')
-
-    def get_inputs(self):
-        global module_logger
-
-        module_logger.debug('get_inputs: entered')
-        info = self.filenames
-        module_logger.debug(f'get_inputs: returns {len(info)} items')
-        return info
 
     def get_file_names(self):
         global module_logger
@@ -617,8 +610,8 @@ class PlornAlbumPhotosView(QDialog):
         global module_logger
 
         module_logger.debug('add_photos: entered in dlg')
-        self.filenames = self.get_file_names()
-        for name in self.filenames:
+        filenames = self.get_file_names()
+        for name in filenames:
             img = QImage(name)
             if img.format == QImage.Format.Format_Invalid:
                 module_logger.debug(f'add_photos: {name} is not a valid image')
@@ -640,7 +633,7 @@ class PlornAlbumPhotosView(QDialog):
                 res = PlornAlbumModel.add_photo(
                             self.album_tree.model().invisibleRootItem(), photo)
                 if res == 'okay':
-                    photo = PlornDbOperations.get_photo_by_album_and_path( \
+                    photo = PlornDbOperations.get_photos_by_album_and_path( \
                                                 self.album_id, name)
                     id_item = self.build_item(f'{photo.get_id():04}')
                     name_item = self.build_item(photo.get_name())
@@ -655,14 +648,14 @@ class PlornAlbumPhotosView(QDialog):
     def remove_photos(self):
         global module_logger
 
-        module_logger.debug('remove_photos: entered in dlg')
+        module_logger.debug('widgets.remove_photos: entered in dlg')
         indices = self.photos.selectedIndexes()
         if len(indices) < 1:
             QMessageBox.warning(self, 'Photo Selection Error',
                         'One or more photos must be selected.')
             return
+
         ids_to_remove = {}
-        module_logger.debug(msg)
         for index in indices:
             item = self.photos.model().itemFromIndex(index)
             row = item.row()
@@ -670,25 +663,31 @@ class PlornAlbumPhotosView(QDialog):
                 ids_to_remove[row] = [item]
             else:
                 ids_to_remove[row].append(item)
+        msg  = f'widgets.remove_photos: ids_to_remove '
         for key in ids_to_remove.keys():
-            row = ids_to_remove[key]
-            msg  = f'remove_photos: row {key}, cols'
+            msg += f' {str(key)}'
+        module_logger.debug(msg)
+        for row, item_list in ids_to_remove.items():
+            msg  = f'widgets.remove_photos: row {row}, cols'
             photo_id = 0
             photo_path = ''
-            for item in row:
+            root = None
+            for item in item_list:
                 if item.column() == 0:
                     photo_id = int(item.text())
                     photo_parent = item.parent()
-                elif item.column() == 4:
+                    root = item.model().invisibleRootItem()
+                elif item.column() == 3:
                     photo_path = item.text()
                 msg += f' {item.column()}'
             module_logger.debug(msg)
-            if photo_id != 0 and photo_path != '':
-                res = PlornAlbumModel.remove_photo(photo_id, path=photo_path)
-                if res == 'okay':
-                    self.photos.model().removeRows(row, 1, photo_parent)
+            if photo_id != 0:
+                module_logger.debug('widgets.remove_photos: remove from view')
+                PlornAlbumModel.remove_photo( \
+                        self.album_tree.model().invisibleRootItem(), photo_id)
+                self.photos.model().removeRow(row)
 
-        module_logger.debug('remove_photos: done in dlg')
+        module_logger.debug('widgets.remove_photos: done in dlg')
 
     def dlg_done(self):
         global module_logger

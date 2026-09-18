@@ -52,7 +52,7 @@ from plorn import (
 
 from plorn.models.dbops import PlornDbOperations
 
-module_logger = logging.getLogger('plorn.model')
+module_logger = logging.getLogger('plorn.model.albums')
 module_logger.setLevel(logging.DEBUG)
 
 
@@ -519,6 +519,22 @@ class PlornAlbumModel:
             item.setText(str(count))
 
     @staticmethod
+    def _decrement_photo_count(root, album_id):
+        global module_logger
+
+        row = PlornAlbumModel._ALBUM_DATA[int(album_id)]
+        module_logger.debug(f'_decrement_photo_count: row {row}')
+        name = row[AlbumFields.NAME]
+        count = row[AlbumFields.PHOTO_COUNT]
+        count -= 1
+        row[AlbumFields.PHOTO_COUNT] = count
+        module_logger.debug(f'_decrement_photo_count: album {name}, {count}')
+        row_items = root.model().findItems(f'{int(album_id):04}', column=0)
+        if len(row_items) > 0:
+            item = root.model().item(row_items[0].row(), CatalogColumns.COUNT)
+            item.setText(str(count))
+
+    @staticmethod
     def add_photo(root, photo, db=None):
         global module_logger 
     
@@ -573,3 +589,58 @@ class PlornAlbumModel:
         module_logger.debug(f'add_photo: okay and done')
         return 'okay'
         
+    @staticmethod
+    def remove_photo(root, photo_id, db=None):
+        global module_logger
+    
+        msg  = f'models.remove_photo: {photo_id}'
+        module_logger.debug(msg)
+    
+        if db == None:
+            config = PlornConfig()
+            catalog, dirname, dbname = config.get_current_catalog()
+            db = QSqlDatabase.database(connectionName=catalog)
+            msg  = f'models.remove_photo: using db connection {catalog}'
+            module_logger.debug(msg)
+    
+        if not db.isOpen():
+            msg  = 'models.remove_photo: cannot open database'
+            module_logger.debug(msg)
+            return 'cannot open db'
+    
+        if not db.isValid():
+            msg  = 'models.remove_photo: database is not valid'
+            module_logger.debug(msg)
+            return 'db is invalid'
+    
+        # remove from db and model
+        photo_row = PlornAlbumModel._PHOTO_DATA[photo_id]
+        album_id = photo_row[PhotoFields.ALBUM_ID]
+        items = root.model().findItems(f'{album_id:04}', column=0)
+        album_item = None
+        msg  = f'models.remove_photo: album'
+        for item in items:
+            if item.column() == CatalogColumns.ID:
+                album_item = item
+                msg += f' {item.text()}'
+        module_logger.debug(msg)
+        if album_item != None and album_item.hasChildren():
+            module_logger.debug(f'models.remove_photo: album has kids')
+            phid_str = f'{photo_id:04}'
+            photo_item = None
+            for row in range(album_item.rowCount()):
+                id_item = album_item.child(row, column=0)
+                if id_item and id_item.text() == phid_str:
+                    album_item.removeRow(row)
+        else:
+            return f'no such album id: {album_id:04}'
+
+        res = PlornDbOperations.remove_photo_by_id(photo_id)
+        if res:
+            module_logger.debug(f'models.remove_photo: photo {photo_id} gone')
+        if photo_id in PlornAlbumModel._PHOTO_DATA.keys():
+            del PlornAlbumModel._PHOTO_DATA[photo_id]
+        PlornAlbumModel._decrement_photo_count(root, album_id)
+        module_logger.debug(f'models.remove_photo: okay and done')
+        return 'okay'
+

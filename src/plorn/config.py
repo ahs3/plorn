@@ -13,7 +13,7 @@ import pwd
 import sys
 
 MAJOR = 0
-MINOR = 35
+MINOR = 36
 BUGFIX = 1
 __version__ = str(MAJOR) + '.' + str(MINOR) + '.' + str(BUGFIX)
 

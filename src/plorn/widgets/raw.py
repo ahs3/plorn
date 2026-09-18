@@ -63,7 +63,7 @@ from plorn import (
 
 from plorn.config import PlornConfig
 
-from plorn.models import PlornAttrModel
+from plorn.models.attrs import PlornAttrModel
 from plorn.models.dbops import PlornDbOperations
 from plorn.models.albums import PlornAlbumModel
 
