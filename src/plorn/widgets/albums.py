@@ -13,13 +13,18 @@ from PIL import ExifTags
 from PyQt6.QtCore import (
     QPoint,
     QRect,
+    QRectF,
     QSize,
     Qt,
 )
 
 from PyQt6.QtGui import (
+    QBrush,
+    QColor,
     QFont,
     QImage,
+    QKeySequence,
+    QPixmap,
     QStandardItem,
     QStandardItemModel,
 )
@@ -33,6 +38,8 @@ from PyQt6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QFileDialog,
+    QGraphicsScene,
+    QGraphicsView,
     QGridLayout,
     QHBoxLayout,
     QLabel,
@@ -45,6 +52,7 @@ from PyQt6.QtWidgets import (
 )
 
 from plorn import (
+    CatalogColumns,
     PlornAlbum,
     PlornPhoto,
 )
@@ -379,6 +387,34 @@ class PlornViewAlbumDialog(PlornAlbumDialog):
         self.count.setReadOnly(True)
         module_logger.debug('PlornViewAlbumDialog: set_inputs done')
 
+class PlornTableView(QTableView):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def keyReleaseEvent(self, event):
+        global module_logger
+
+        if event.key() == Qt.Key.Key_Up:
+            module_logger.debug(f'keyPressEvent: "UP"')
+            index = self.currentIndex()
+            if index.row() > 0:
+                up = self.photos.model().index(index.row()-1, index.column())
+                self.setCurrentIndex(up)
+        elif event.key() == Qt.Key.Key_Down:
+            module_logger.debug(f'keyPressEvent: "DOWN"')
+            index = self.currentIndex()
+            if index.row() < self.photos.rowCount()-1:
+                down = self.photos.model().index(index.row()-1, index.column())
+                self.setCurrentIndex(down)
+        else:
+            super().keyReleaseEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        global module_logger
+
+        module_logger.debug(f'mousePressEvent: "{str(event)}"')
+        super().mouseReleaseEvent(event)
+
 
 class PlornAlbumPhotosView(QDialog):
     @classmethod
@@ -445,6 +481,7 @@ class PlornAlbumPhotosView(QDialog):
         album_layout.addWidget(lab4, 0, 3)
         layout.addLayout(album_layout, 0, 0)
 
+        #self.photos = PlornTableView()
         self.photos = QTableView()
         self.photos.setSelectionMode(
                             QAbstractItemView.SelectionMode.ExtendedSelection)
@@ -471,7 +508,11 @@ class PlornAlbumPhotosView(QDialog):
         self.photos.setColumnWidth(1, 300)
         self.photos.setColumnWidth(2, 200)
         self.photos.setColumnWidth(3, 800)
+        self.photos.clicked.connect(self.show_current_image)
+        self.photos.setMouseTracking(True)
+        self.photos.entered.connect(self.show_current_image)
         layout.addWidget(self.photos, 1, 0)
+        layout.setColumnStretch(0, 1)
 
         photo_list = PlornAlbumModel.photo_list(self.album_id)
         for photo_id, photo_name, photo_dated, photo_path in photo_list:
@@ -484,6 +525,12 @@ class PlornAlbumPhotosView(QDialog):
             path_item = self.build_item(photo_path)
             row = [id_item, name_item, dated_item, path_item]
             self.photos.model().appendRow(row)
+        index = self.photos.model().index(0, 0)
+        #self.photos.setCurrentIndex(index)
+
+        self.current_image = QGraphicsView(self)
+        self.show_current_image()
+        layout.addWidget(self.current_image, 1, 1)
 
         button_layout = QHBoxLayout()
         self.add_button = QPushButton('Add')
@@ -497,10 +544,54 @@ class PlornAlbumPhotosView(QDialog):
         button_layout.addWidget(self.add_button)
         button_layout.addWidget(self.remove_button)
         button_layout.addWidget(self.done_button)
-        layout.addLayout(button_layout, 2, 0)
+        layout.addLayout(button_layout, 2, 1)
 
         self.setLayout(layout)
         module_logger.debug('PlornAlbumPhotosView: done')
+
+    def update_current_image(self, selected, deselected):
+        global module_logger
+
+        module_logger.debug('update_current_image: entered')
+        module_logger.debug(f'update_current_image: {len(selected)}, {len(deselected)}')
+
+    def show_current_image(self, index=None):
+        global module_logger
+
+        module_logger.debug('show_current_image: entered')
+        path = ''
+        if index:
+            item = self.photos.model().itemFromIndex(index)
+            row = item.row()
+            self.photos.selectRow(row)
+            column = 3
+            path_index = self.photos.model().index(row, column)
+            path_item = self.photos.model().itemFromIndex(path_index)
+            path = path_item.text()
+            msg = f'show_current_image: row {row}, {path} selected'
+            module_logger.debug(msg)
+        else:
+            indices = self.photos.selectedIndexes()
+            if len(indices) < 1:
+                return
+            msg = f'show_current_image: {len(indices)} selections'
+            module_logger.debug(msg)
+            self.photos.selectRow(index[0].row())
+            for index in indices:
+                item = self.photos.model().itemFromIndex(index)
+                if item.column() == 3:
+                    path = item.text()
+        scene = QGraphicsScene()
+        pixmap = QPixmap()
+        pixmap.load(os.path.expandvars(os.path.expanduser(path)))
+        shrunk = pixmap.scaled(QSize(200, 200),
+                     aspectRatioMode=Qt.AspectRatioMode.KeepAspectRatio,
+                     transformMode=Qt.TransformationMode.SmoothTransformation)
+        scene.setSceneRect(QRectF(shrunk.rect()))
+        scene.addPixmap(shrunk)
+        self.current_image.setScene(scene)
+        self.current_image.show()
+        module_logger.debug('show_current_image: done')
 
     def get_file_names(self):
         global module_logger
