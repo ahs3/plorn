@@ -422,8 +422,6 @@ class PlornCatalogView(QWidget):
                                     lambda: self.add_album_action())
                 edit_album_action = menu.addAction('Edit Album',
                                     lambda: self.edit_album_action())
-                remove_album_action = menu.addAction('Remove Album',
-                                    lambda: self.remove_album_action())
                 manage_photos_action = menu.addAction('Manage Photos',
                                     lambda: self.manage_photos_action())
                 menu.addSeparator()
@@ -561,32 +559,6 @@ class PlornCatalogView(QWidget):
                 root = self.tree.model().invisibleRootItem()
                 album = PlornAlbumModel.update_album(root, album, updates)
             update_dlg.close()
-
-    def remove_album_action(self):
-        global module_logger
-
-        module_logger.debug(f'remove_album_action: entered')
-        indices = self.selected_rows()
-        if len(indices) < 1:
-            title = 'Remove an Album'
-            text = 'No album has been selected for removal.'
-            button = QMessageBox.critical(self, title, text)
-        else:
-            album_name = ''
-            album_id = 0
-            album_row = -1
-            for index in indices:
-                item = self.item_from_index(index)
-                if item.column() == CatalogColumns.ID:
-                    album_id = int(item.text())
-                    album_row = item.row()
-                if item.column() == CatalogColumns.NAME:
-                    album_name = item.text()
-
-            root = self.tree.model().invisibleRootItem()
-            res = PlornAlbumModel.remove_album(root, album_id, album_name)
-            self.catalogChanged.emit(0)
-        module_logger.debug(f'remove_album_action: done')
 
     def remove_album(self, item):
         global module_logger
