@@ -211,33 +211,39 @@ class PlornAlbumDialog(QDialog):
                                     textFormat=Qt.TextFormat.MarkdownText)
         layout.addWidget(self.catalog_label, 0, 0)
 
+        hdr_alignment = Qt.AlignmentFlag.AlignLeft | \
+                        Qt.AlignmentFlag.AlignVCenter
         label_alignment = Qt.AlignmentFlag.AlignRight | \
                           Qt.AlignmentFlag.AlignVCenter
         album_layout = QGridLayout()
+        self.id_label = QLabel('Album ID:', alignment=label_alignment)
+        album_layout.addWidget(self.id_label, 0, 0)
+        self.id_text = QLabel('', alignment=hdr_alignment)
+        album_layout.addWidget(self.id_text, 0, 1)
         self.name_label = QLabel('Album Name:', alignment=label_alignment)
-        album_layout.addWidget(self.name_label, 0, 0)
+        album_layout.addWidget(self.name_label, 1, 0)
         self.name_edit = QLineEdit()
         self.name_edit.setText(f'{" ":>40}')
         rect = self.name_edit.fontMetrics().boundingRect(self.name_edit.text())
         self.name_edit.setMinimumWidth(2*rect.width())
         self.name_edit.setText('')
-        album_layout.addWidget(self.name_edit, 0, 1)
+        album_layout.addWidget(self.name_edit, 1, 1)
 
         self.dated_label = QLabel('Dated:', alignment=label_alignment)
-        album_layout.addWidget(self.dated_label, 1, 0)
+        album_layout.addWidget(self.dated_label, 2, 0)
         self.dated_edit = QLineEdit()
         self.dated_edit.setText(f'{" ":>40}')
         rect = self.dated_edit.fontMetrics().boundingRect(self.dated_edit.text())
         self.dated_edit.setMinimumWidth(2*rect.width())
         self.dated_edit.setText('')
-        album_layout.addWidget(self.dated_edit, 1, 1)
+        album_layout.addWidget(self.dated_edit, 2, 1)
 
         self.notes_label = QLabel('<br><br><br><br>Notes:',
                                   alignment=label_alignment)
-        album_layout.addWidget(self.notes_label, 2, 0,
+        album_layout.addWidget(self.notes_label, 3, 0,
                          alignment=Qt.AlignmentFlag.AlignTop)
         self.notes_edit = QTextEdit()
-        album_layout.addWidget(self.notes_edit, 2, 1)
+        album_layout.addWidget(self.notes_edit, 3, 1)
         layout.addLayout(album_layout, 1, 0)
 
         grid_row = 2
@@ -350,6 +356,7 @@ class PlornViewAlbumDialog(PlornAlbumDialog):
         global module_logger
         
         module_logger.debug('PlornViewAlbumDialog: entered set_inputs')
+        self.id_text.setText(f'{album.get_id():04}')
         self.name_edit.setText(album.get_name())
         self.dated_edit.setText(album.get_dated())
         self.notes_edit.setPlainText(album.get_notes())
