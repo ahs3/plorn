@@ -57,6 +57,10 @@ from plorn.widgets.albums import (
     PlornViewAlbumDialog,
 )
 
+from plorn.widgets.photos import (
+    PlornViewPhotoDialog,
+)
+
 module_logger = logging.getLogger('plorn.widgets')
 module_logger.setLevel(logging.DEBUG)
 
@@ -426,12 +430,9 @@ class PlornCatalogView(QWidget):
                                     lambda: self.edit_album_action())
                 manage_photos_action = menu.addAction('Manage Photos',
                                     lambda: self.manage_photos_action())
-                menu.addSeparator()
                 sshow_album_action = menu.addAction('Slide Show',
                                     lambda: self.slide_show_action())
             else:                               # photo selected
-                view_child_action = menu.addAction('View Photo',
-                                    lambda: self.view_photos_action(item))
                 add_child_action = menu.addAction('Add Photo',
                                   lambda: self.add_photos_action(item.parent()))
                 edit_photo_action = menu.addAction('Edit Photo',
@@ -439,6 +440,7 @@ class PlornCatalogView(QWidget):
                 remove_action = menu.addAction('Remove Photo',
                                     lambda: self.remove_photo_action(item))
 
+        menu.addSeparator()
         expand_action = menu.addAction('Expand All', self.tree.expandAll)
         collapse_action = menu.addAction('Collapse All', self.tree.collapseAll)
         action = menu.exec(self.tree.viewport().mapToGlobal(position))
@@ -464,12 +466,20 @@ class PlornCatalogView(QWidget):
             info = PlornViewAlbumDialog.ask(dlg)
         module_logger.debug(f'view_album: done for album {id}')
 
-    def view_photo(self, index):
+    def view_photo(self, id):
         global module_logger
 
-        item = self.tree.model().itemFromIndex(index)
-        module_logger.debug(f'view_photo: entered for "{item.text()}"')
-        pass
+        module_logger.debug(f'view_photo: entered for photo {id}')
+        photo = PlornDbOperations.get_photo_by_id(id)
+        if photo == None:
+            raise PlornDbError('photo selected that does not exist')
+        else:
+            dlg = PlornViewPhotoDialog(tree=self.tree,
+                                       title='View Photo',
+                                       allow_edit=False)
+            dlg.set_inputs(photo)
+            info = PlornViewPhotoDialog.ask(dlg)
+        module_logger.debug(f'view_photo: done for photo {id}')
 
     def view_object(self, index):
         global module_logger
@@ -496,7 +506,8 @@ class PlornCatalogView(QWidget):
             #module_logger.debug(f'view_object: it is an album')
             self.view_album(id)
         elif found_path and not found_count:        # object is a photo
-            module_logger.debug(f'view_object: it is a photo')
+            #module_logger.debug(f'view_object: it is a photo')
+            self.view_photo(id)
         module_logger.debug(f'view_object: done for "{value}"')
 
     def add_album(self, name, dated, notes):

@@ -184,7 +184,7 @@ class PlornPhotoDialog(QDialog):
         else:
             return {}
 
-    def __init__(self, tree=None, title='Album Dialog', allow_edit=True,
+    def __init__(self, tree=None, title='Photo Dialog', allow_edit=True,
                  *args, **kwargs):
         global module_logger
         super().__init__(*args, **kwargs)
@@ -210,33 +210,72 @@ class PlornPhotoDialog(QDialog):
                                     textFormat=Qt.TextFormat.MarkdownText)
         layout.addWidget(self.catalog_label, 0, 0)
 
+        hdr_alignment = Qt.AlignmentFlag.AlignLeft | \
+                        Qt.AlignmentFlag.AlignVCenter
         label_alignment = Qt.AlignmentFlag.AlignRight | \
                           Qt.AlignmentFlag.AlignVCenter
-        album_layout = QGridLayout()
-        self.name_label = QLabel('Album Name:', alignment=label_alignment)
-        album_layout.addWidget(self.name_label, 0, 0)
+
+        album_grid = QGridLayout()
+        album_rect = self.catalog_label.fontMetrics().boundingRect(f'{" ":>20}')
+        self.album_id_label = QLabel(f'***Album ID:***',
+                                     textFormat=Qt.TextFormat.MarkdownText,
+                                     alignment=hdr_alignment)
+        self.album_id_label.setMaximumWidth(2*album_rect.width())
+        self.album_id = QLabel('',
+                               textFormat=Qt.TextFormat.MarkdownText,
+                               alignment=hdr_alignment)
+        self.album_name_label = QLabel(f'***Album Name:***',
+                                       textFormat=Qt.TextFormat.MarkdownText,
+                                       alignment=hdr_alignment)
+        self.album_name_label.setMaximumWidth(2*album_rect.width())
+        self.album_name = QLabel('',
+                                 textFormat=Qt.TextFormat.MarkdownText,
+                                 alignment=hdr_alignment)
+        album_grid.addWidget(self.album_id_label, 0, 0)
+        album_grid.addWidget(self.album_id, 0, 1)
+        album_grid.addWidget(self.album_name_label, 1, 0)
+        album_grid.addWidget(self.album_name, 1, 1)
+        layout.addLayout(album_grid, 1, 0, 1, 1)
+
+        photo_layout = QGridLayout()
+        self.name_label = QLabel('Name:', alignment=label_alignment)
+        photo_layout.addWidget(self.name_label, 0, 0)
         self.name_edit = QLineEdit()
         self.name_edit.setText(f'{" ":>40}')
         rect = self.name_edit.fontMetrics().boundingRect(self.name_edit.text())
         self.name_edit.setMinimumWidth(2*rect.width())
         self.name_edit.setText('')
-        album_layout.addWidget(self.name_edit, 0, 1)
+        self.name_edit.setReadOnly(allow_edit)
+        photo_layout.addWidget(self.name_edit, 0, 1)
+
+        self.path_label = QLabel('Path:', alignment=label_alignment)
+        photo_layout.addWidget(self.path_label, 1, 0)
+        self.path_edit = QLineEdit()
+        self.path_edit.setText(f'{" ":>60}')
+        rect = self.path_edit.fontMetrics().boundingRect(self.path_edit.text())
+        self.path_edit.setMinimumWidth(2*rect.width())
+        self.path_edit.setText('')
+        self.path_edit.setReadOnly(allow_edit)
+        photo_layout.addWidget(self.path_edit, 1, 1)
 
         self.dated_label = QLabel('Dated:', alignment=label_alignment)
-        album_layout.addWidget(self.dated_label, 1, 0)
+        photo_layout.addWidget(self.dated_label, 2, 0)
         self.dated_edit = QLineEdit()
         self.dated_edit.setText(f'{" ":>40}')
         rect = self.dated_edit.fontMetrics().boundingRect(self.dated_edit.text())
         self.dated_edit.setMinimumWidth(2*rect.width())
         self.dated_edit.setText('')
-        album_layout.addWidget(self.dated_edit, 1, 1)
+        self.dated_edit.setReadOnly(allow_edit)
+        photo_layout.addWidget(self.dated_edit, 2, 1)
 
-        self.notes_label = QLabel('Notes:', alignment=label_alignment)
-        album_layout.addWidget(self.notes_label, 2, 0,
+        self.notes_label = QLabel('<br><br><br><br>Notes:',
+                                  alignment=label_alignment)
+        photo_layout.addWidget(self.notes_label, 3, 0,
                          alignment=Qt.AlignmentFlag.AlignTop)
         self.notes_edit = QTextEdit()
-        album_layout.addWidget(self.notes_edit, 2, 1)
-        layout.addLayout(album_layout, 1, 0)
+        self.notes_edit.setReadOnly(allow_edit)
+        photo_layout.addWidget(self.notes_edit, 3, 1)
+        layout.addLayout(photo_layout, 2, 0)
 
         self.bbox = QDialogButtonBox()
         self.bbox.setObjectName('album_dlg_bbox')
@@ -250,7 +289,7 @@ class PlornPhotoDialog(QDialog):
             self.apply_button.setObjectName('add_album_apply_button')
         self.done_button.setDefault(True)
         self.bbox.clicked.connect(self.dlg_done)
-        layout.addWidget(self.bbox, 2, 1, 1, 2)
+        layout.addWidget(self.bbox, 4, 1, 1, 2)
 
         attr_layout = QGridLayout()
         self.name_list = PlornAttrListView('names', 'Name Attributes',
@@ -262,7 +301,7 @@ class PlornPhotoDialog(QDialog):
         self.tag_list = PlornAttrListView('tags', 'Tag Attributes',
                                           allow_edit=allow_edit)
         attr_layout.addWidget(self.tag_list, 3, 0)
-        layout.addLayout(attr_layout, 1, 1)
+        layout.addLayout(attr_layout, 1, 1, 3, 1)
 
         self.setLayout(layout)
         module_logger.debug('PlornPhotoDialog: init done')
@@ -271,7 +310,7 @@ class PlornPhotoDialog(QDialog):
         global module_logger
 
         if len(self.name_edit.text().strip()) < 1:
-            QMessageBox.warning(self, 'Album Name Error',
+            QMessageBox.warning(self, 'Photo Name Error',
                         'A name must be provided.')
             self.should_apply = False
             return QDialog.DialogCode.Rejected
@@ -323,22 +362,24 @@ class PlornPhotoDialog(QDialog):
 
 
 class PlornViewPhotoDialog(PlornPhotoDialog):
-    def __init__(self, tree=None, title='Album Info', allow_edit=False,
+    def __init__(self, tree=None, title='Photo Info', allow_edit=False,
                  *args, **kwargs):
         global module_logger
         super().__init__(tree=tree, title=title, allow_edit=allow_edit,
                          *args, **kwargs)
 
-    def set_inputs(self, album):
+    def set_inputs(self, photo):
         global module_logger
         
         module_logger.debug('PlornViewPhotoDialog: entered set_inputs')
-        self.name_edit.setText(album.get_name())
-        self.dated_edit.setText(album.get_dated())
-        self.notes_edit.setPlainText(album.get_notes())
-        if hasattr(self, 'count_label'):
-            self.count.setText(str(album.get_photo_count()))
-        for name in album.get_name_list():
+        self.album_id.setText(f'{photo.get_album_id():04}')
+        album = PlornDbOperations.get_album_by_id(photo.get_album_id())
+        self.album_name.setText(f'{album.get_name()}')
+        self.name_edit.setText(photo.get_name())
+        self.path_edit.setText(photo.get_path())
+        self.dated_edit.setText(photo.get_dated())
+        self.notes_edit.setPlainText(photo.get_notes())
+        for name in photo.get_name_list():
             id = name.get_id()
             fullattr = PlornDbOperations.get_full_attr(table='names', id=id)
             value = ', '.join(fullattr)
@@ -346,7 +387,7 @@ class PlornViewPhotoDialog(PlornPhotoDialog):
             item = QStandardItem(value)
             item.setData([id, name.get_parent_id(), value])
             self.name_list.appendRow(item)
-        for place in album.get_place_list():
+        for place in photo.get_place_list():
             id = place.get_id()
             fullattr = PlornDbOperations.get_full_attr(table='places', id=id)
             value = ', '.join(fullattr)
@@ -354,7 +395,7 @@ class PlornViewPhotoDialog(PlornPhotoDialog):
             item = QStandardItem(value)
             item.setData([id, place.get_parent_id(), value])
             self.place_list.appendRow(item)
-        for tag in album.get_tag_list():
+        for tag in photo.get_tag_list():
             id = int(tag.get_id())
             fullattr = PlornDbOperations.get_full_attr(table='tags', id=id)
             value = ', '.join(fullattr)
@@ -366,6 +407,7 @@ class PlornViewPhotoDialog(PlornPhotoDialog):
 
         if not self.allow_edit:
             self.name_edit.setReadOnly(True)
+            self.path_edit.setReadOnly(True)
             self.dated_edit.setReadOnly(True)
             self.notes_edit.setReadOnly(True)
         module_logger.debug('PlornViewPhotoDialog: set_inputs done')

@@ -7,6 +7,8 @@
 
 TODO
 ====
+-- Add a "move to/copy to" to move or copy photos to another album
+
 -- Add config options to ask or not ask for confirmation when removing
    albums, photos or attributes; this implies setting defaults, dialog
    boxes that ask whether or not to keep asking, and changing the config
