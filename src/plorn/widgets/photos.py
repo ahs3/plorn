@@ -190,7 +190,7 @@ class PlornPhotoDialog(QDialog):
         super().__init__(*args, **kwargs)
 
         module_logger.debug('entering PlornPhotoDialog: init')
-        self.setObjectName('plorn_album_dialog')
+        self.setObjectName('plorn_photo_dialog')
         if tree == None:
             return
         self.tree = tree
@@ -235,7 +235,7 @@ class PlornPhotoDialog(QDialog):
         album_grid.addWidget(self.album_id, 0, 1)
         album_grid.addWidget(self.album_name_label, 1, 0)
         album_grid.addWidget(self.album_name, 1, 1)
-        layout.addLayout(album_grid, 1, 0, 1, 1)
+        layout.addLayout(album_grid, 1, 0, 1, 2)
 
         photo_layout = QGridLayout()
         self.name_label = QLabel('Name:', alignment=label_alignment)
@@ -275,7 +275,7 @@ class PlornPhotoDialog(QDialog):
         self.notes_edit = QTextEdit()
         self.notes_edit.setReadOnly(allow_edit)
         photo_layout.addWidget(self.notes_edit, 3, 1)
-        layout.addLayout(photo_layout, 2, 0)
+        layout.addLayout(photo_layout, 2, 0, 1, 2)
 
         self.bbox = QDialogButtonBox()
         self.bbox.setObjectName('album_dlg_bbox')
@@ -289,7 +289,7 @@ class PlornPhotoDialog(QDialog):
             self.apply_button.setObjectName('add_album_apply_button')
         self.done_button.setDefault(True)
         self.bbox.clicked.connect(self.dlg_done)
-        layout.addWidget(self.bbox, 4, 1, 1, 2)
+        layout.addWidget(self.bbox, 4, 3, 1, 2)
 
         attr_layout = QGridLayout()
         self.name_list = PlornAttrListView('names', 'Name Attributes',
@@ -301,10 +301,19 @@ class PlornPhotoDialog(QDialog):
         self.tag_list = PlornAttrListView('tags', 'Tag Attributes',
                                           allow_edit=allow_edit)
         attr_layout.addWidget(self.tag_list, 3, 0)
-        layout.addLayout(attr_layout, 1, 1, 3, 1)
+        layout.addLayout(attr_layout, 1, 2, 3, 2)
+
+        self.gview = QGraphicsView()
+        self.gview.setMinimumWidth(450)
+        self.gview.doubleClicked.connect(self.show_full_image)
+        self.scene = QGraphicsScene()
+        layout.addWidget(self.gview, 0, 4, 3, 1)
 
         self.setLayout(layout)
         module_logger.debug('PlornPhotoDialog: init done')
+
+    def show_full_image(self):
+        pass
 
     def check_inputs(self):
         global module_logger
@@ -410,5 +419,19 @@ class PlornViewPhotoDialog(PlornPhotoDialog):
             self.path_edit.setReadOnly(True)
             self.dated_edit.setReadOnly(True)
             self.notes_edit.setReadOnly(True)
+
+        pixmap = QPixmap()
+        fullpath = os.path.expandvars(os.path.expanduser(photo.get_path()))
+        pixmap.load(fullpath)
+        shrunk = pixmap.scaled(QSize(400, 400),
+                     aspectRatioMode=Qt.AspectRatioMode.KeepAspectRatio,
+                     transformMode=Qt.TransformationMode.SmoothTransformation)
+        for item in self.scene.items():
+            self.scene.removeItem(item)
+        self.scene.setSceneRect(QRectF(shrunk.rect()))
+        self.scene.addPixmap(shrunk)
+        self.gview.setScene(self.scene)
+        self.gview.show()
+
         module_logger.debug('PlornViewPhotoDialog: set_inputs done')
 

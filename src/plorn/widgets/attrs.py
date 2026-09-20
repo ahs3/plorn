@@ -164,6 +164,9 @@ class PlornAttrListView(QWidget):
         layout = QGridLayout()
         attr_label = QLabel(self.title, alignment=Qt.AlignmentFlag.AlignCenter)
         self.attr_list = QListView()
+        dummy = f'{"x":>30}'
+        rect = self.fontMetrics().boundingRect(dummy)
+        self.attr_list.setMinimumWidth(2*rect.width())
         self.attr_list.setAlternatingRowColors(True)
         model = QStandardItemModel()
         self.attr_list.setModel(model)

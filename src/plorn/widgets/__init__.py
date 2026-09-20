@@ -433,6 +433,8 @@ class PlornCatalogView(QWidget):
                 sshow_album_action = menu.addAction('Slide Show',
                                     lambda: self.slide_show_action())
             else:                               # photo selected
+                view_photo_action = menu.addAction('View Photo',
+                                    lambda: self.view_photo_action())
                 add_child_action = menu.addAction('Add Photo',
                                   lambda: self.add_photos_action(item.parent()))
                 edit_photo_action = menu.addAction('Edit Photo',
@@ -444,11 +446,6 @@ class PlornCatalogView(QWidget):
         expand_action = menu.addAction('Expand All', self.tree.expandAll)
         collapse_action = menu.addAction('Collapse All', self.tree.collapseAll)
         action = menu.exec(self.tree.viewport().mapToGlobal(position))
-        if hasattr(self, 'context_add_album_action'):
-            add_album_action.setObjectName('context_add_album_action')
-            self.context_add_album_action = add_album_action
-        else:
-            setattr(self, 'context_add_album_action', add_album_action)
         module_logger.debug(f'context_menu done: album view')
 
     def view_album(self, id):
@@ -555,6 +552,39 @@ class PlornCatalogView(QWidget):
             info = PlornAlbumDialog.ask(view_dlg)
             view_dlg.close()
 
+    def view_photo_action(self):
+        global module_logger
+
+        module_logger.debug(f'view_photo_action: entered')
+        indices = self.selected_rows()
+        if len(indices) < 1:
+            title = 'View a Photo'
+            text = 'No photo has been selected for viewing.'
+            button = QMessageBox.critical(self, title, text)
+        else:
+            photo_name = ''
+            photo_id = 0
+            photo_row = -1
+            for index in indices:
+                item = self.item_from_index(index)
+                if item.column() == CatalogColumns.ID:
+                    photo_id = int(item.text())
+                    photo_row = item.row()
+                if item.column() == CatalogColumns.NAME:
+                    photo_name = item.text()
+            photo = PlornDbOperations.get_photo_by_id(photo_id)
+            view_dlg = PlornViewPhotoDialog(tree=self.tree,
+                                            title='View Photo',
+                                            allow_edit=False)
+            view_dlg.set_inputs(photo)
+            info = PlornViewPhotoDialog.ask(view_dlg)
+            view_dlg.close()
+
+    def remove_album(self, item):
+        global module_logger
+
+        module_logger.debug(f'remove_album entered: {self.table}')
+        title = f'Remove {self.title.capitalize()}'
     def remove_album(self, item):
         global module_logger
 
