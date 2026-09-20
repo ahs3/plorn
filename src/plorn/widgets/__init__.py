@@ -418,6 +418,8 @@ class PlornCatalogView(QWidget):
         else:
             item = self.model.itemFromIndex(index)
             if item.parent() == None:           # album selected
+                view_album_action = menu.addAction('View Album',
+                                    lambda: self.view_album_action())
                 add_album_action = menu.addAction('Add Album',
                                     lambda: self.add_album_action())
                 edit_album_action = menu.addAction('Edit Album',
@@ -428,12 +430,14 @@ class PlornCatalogView(QWidget):
                 sshow_album_action = menu.addAction('Slide Show',
                                     lambda: self.slide_show_action())
             else:                               # photo selected
-                add_child_action = menu.addAction('Add Photo(s)',
-                                   lambda: self.add_photos_action(item.parent()))
+                view_child_action = menu.addAction('View Photo',
+                                    lambda: self.view_photos_action(item))
+                add_child_action = menu.addAction('Add Photo',
+                                  lambda: self.add_photos_action(item.parent()))
                 edit_photo_action = menu.addAction('Edit Photo',
                                     lambda: self.edit_photo_action(item))
                 remove_action = menu.addAction('Remove Photo',
-                                   lambda: self.remove_photo_action(item))
+                                    lambda: self.remove_photo_action(item))
 
         expand_action = menu.addAction('Expand All', self.tree.expandAll)
         collapse_action = menu.addAction('Collapse All', self.tree.collapseAll)
@@ -511,6 +515,53 @@ class PlornCatalogView(QWidget):
             self.catalogChanged.emit(0)
         module_logger.debug(f'add_album: done "{name}"')
         return True
+
+    def view_album_action(self):
+        global module_logger
+
+        module_logger.debug(f'view_album_action: entered')
+        indices = self.selected_rows()
+        if len(indices) < 1:
+            title = 'View an Album'
+            text = 'No album has been selected for viewing.'
+            button = QMessageBox.critical(self, title, text)
+        else:
+            album_name = ''
+            album_id = 0
+            album_row = -1
+            for index in indices:
+                item = self.item_from_index(index)
+                if item.column() == CatalogColumns.ID:
+                    album_id = int(item.text())
+                    album_row = item.row()
+                if item.column() == CatalogColumns.NAME:
+                    album_name = item.text()
+            album = PlornDbOperations.get_album_by_id(album_id)
+            view_dlg = PlornViewAlbumDialog(tree=self.tree,
+                                            title='View Album',
+                                            allow_edit=False)
+            view_dlg.set_inputs(album)
+            info = PlornAlbumDialog.ask(view_dlg)
+            view_dlg.close()
+
+    def remove_album(self, item):
+        global module_logger
+
+        module_logger.debug(f'remove_album entered: {self.table}')
+        title = f'Remove {self.title.capitalize()}'
+        if self.title[-1] == 's':    # English specific ...
+            label_txt = f'Add {self.title[0:-1].capitalize()}:'
+        msg  = f'remove_album "{item.text()}" from {self.table}:'
+        module_logger.debug(msg)
+        label_txt = f'Remove "{item.text()}"'
+        if item.hasChildren():
+            label_txt += ' and children'
+        label_txt += '?'
+        parent = item.parent()
+        if not parent:
+            parent = self.model.invisibleRootItem()
+        value = item.text()
+        button = QMessageBox.question(self, title, label_txt)
 
     def add_album_action(self):
         global module_logger

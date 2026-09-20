@@ -84,6 +84,11 @@ from plorn.widgets.albums import (
     PlornViewAlbumDialog,
 )
 
+from plorn.widgets.photos import (
+    PlornPhotoDialog,
+    PlornViewPhotoDialog,
+)
+
 from plorn.widgets.raw import (
     PlornRawAttrView,
     PlornRawAlbumView,
@@ -369,9 +374,13 @@ class Plorn(QMainWindow):
 
     def _photos_menu(self, mb):
         photos = mb.addMenu('&Photos')
-        new_action = QAction('Add Photo(s)', parent=self)
+        view_action = QAction('View Photo', parent=self)
+        view_action.setObjectName('view_photo_action')
+        view_action.triggered.connect(self.view_photo)
+        photos.addAction(view_action)
+        new_action = QAction('Add Photo', parent=self)
         new_action.setObjectName('new_photo_action')
-        new_action.triggered.connect(self.add_photos)
+        new_action.triggered.connect(self.add_photo)
         photos.addAction(new_action)
         edit_action = QAction('Edit Photo', parent=self)
         edit_action.setObjectName('edit_photo_action')
@@ -692,6 +701,46 @@ class Plorn(QMainWindow):
 
         module_logger.debug('view_album: done in gui')
 
+    def view_photo(self):
+        global module_logger
+
+        module_logger.debug('view_photo: entered in gui')
+        indices = self.album_tree.selected_rows()
+        msg = f'view_photo: {len(indices)/5} selection(s) in gui'
+        module_logger.debug(msg)
+        if len(indices) < 1:
+            title = 'View a Photo'
+            text = 'No photo has been selected for viewing.'
+            button = QMessageBox.critical(self, title, text)
+        else:
+            photo_name = ''
+            photo_id = 0
+            photo_row = -1
+            for index in indices:
+                item = self.album_tree.item_from_index(index)
+                if item.column() == CatalogColumns.ID:
+                    photo_id = int(item.text())
+                    photo_row = item.row()
+                if item.column() == CatalogColumns.NAME:
+                    photo_name = item.text()
+
+            photo = PlornDbOperations.get_photo_by_id(photo_id)
+            if photo == None:
+                title = 'View a Photo'
+                text  = f'There is no photo with ID {photo_id:04} '
+                test += f'named "{album_name}."'
+                button = QMessageBox.critical(self, title, text)
+            else:
+                dlg = PlornViewPhotoDialog(tree=self.album_tree,
+                                           title='View Photo',
+                                           allow_edit=False)
+                module_logger.debug(f'view_photo: {str(photo)}')
+                dlg.set_inputs(photo)
+                info = PlornViewPhotoDialog.ask(dlg)
+                module_logger.debug(f'view_photo: info in gui {str(info)}')
+
+        module_logger.debug('view_photo: done in gui')
+
     def add_album(self):
         global module_logger
 
@@ -715,6 +764,31 @@ class Plorn(QMainWindow):
                 module_logger.debug(f'add_album: {info['album']} was added')
             self.set_catalog_info()
         module_logger.debug('add_album: done in gui')
+
+    def add_photo(self):
+        global module_logger
+
+        module_logger.debug('add_photo: entered in gui')
+        new_photo_dlg = PlornPhotoDialog(tree=self.album_tree,
+                                         title='New Photo')
+        info = PlornPhotoDialog.ask(new_photo_dlg)
+        module_logger.debug(f'add_photo: info is {str(info)}')
+        if len(info) > 0:
+            photo = PlornPhoto(info['photo'],
+                               id=None,
+                               album_id=info['album_id'],
+                               path=info['path'],
+                               dated=info['dated'],
+                               notes=info['notes'],
+                               names=info['names'],
+                               places=info['places'],
+                               tags=info['tags'])
+            root = self.album_tree.model.invisibleRootItem()
+            res = PlornAlbumModel.add_photo(root, album)
+            if res == 'okay':
+                module_logger.debug(f'add_photo: {info['album']} was added')
+            self.set_catalog_info()
+        module_logger.debug('add_photo: done in gui')
 
     def manage_photos(self):
         global module_logger
@@ -823,9 +897,6 @@ class Plorn(QMainWindow):
 
     def slide_show(self, album_item=None):
         global module_logger
-        pass
-
-    def add_photos(self, parent_item):
         pass
 
     def edit_photo(self, item):

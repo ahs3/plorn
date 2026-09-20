@@ -19,7 +19,6 @@ from PyQt6.QtCore import (
 )
 
 from PyQt6.QtGui import (
-    QBrush,
     QColor,
     QFont,
     QImage,
@@ -38,6 +37,7 @@ from PyQt6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QFileDialog,
+    QFrame,
     QGraphicsScene,
     QGraphicsView,
     QGridLayout,
@@ -232,7 +232,8 @@ class PlornAlbumDialog(QDialog):
         self.dated_edit.setText('')
         album_layout.addWidget(self.dated_edit, 1, 1)
 
-        self.notes_label = QLabel('Notes:', alignment=label_alignment)
+        self.notes_label = QLabel('<br><br><br><br>Notes:',
+                                  alignment=label_alignment)
         album_layout.addWidget(self.notes_label, 2, 0,
                          alignment=Qt.AlignmentFlag.AlignTop)
         self.notes_edit = QTextEdit()
