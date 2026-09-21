@@ -175,6 +175,88 @@ class PlornAlbumSelection(QDialog):
         self.close()
 
 
+class PlornImageDialog(QDialog):
+    def __init__(self, id=0, name='', path='', *args, **kwargs):
+        global module_logger
+
+        super().__init__(*args, **kwargs)
+        if len(path) < 1:
+            return
+
+        self.setWindowTitle(f'Showing [{id:04}] {name}')
+        self.setModal(False)
+        geometry = self.screen().availableGeometry()
+        self.origin = QPoint(100, 100)
+        self.size = QSize(int(geometry.width()*0.9), int(geometry.height()*0.9))
+        self.rect = QRect(self.origin, self.size)
+        self.setGeometry(self.rect)
+
+        layout = QGridLayout()
+        self.gview = QGraphicsView()
+        layout.addWidget(self.gview, 0, 0)
+
+        blayout = QGridLayout()
+        self.full_screen = QPushButton('Maximize')
+        self.full_screen.clicked.connect(lambda: self.bigger())
+        blayout.addWidget(self.full_screen, 0, 1)
+        self.doneb = QPushButton('Close')
+        self.doneb.clicked.connect(lambda: self.close())
+        blayout.addWidget(self.doneb, 0, 2)
+
+        layout.addLayout(blayout, 1, 0)
+        self.setLayout(layout)
+
+        self.scene = QGraphicsScene()
+        self.pixmap = QPixmap()
+        fullpath = os.path.expandvars(os.path.expanduser(path))
+        module_logger.debug(f'show_full_image: fullpath {fullpath}')
+        self.pixmap.load(fullpath)
+        smaller = QSize(int(self.size.width()*0.9), int(self.size.height()*0.9))
+        module_logger.debug(f'show_full_image: smaller w,h {smaller.width()},{smaller.height()}')
+        self.shrunk = self.pixmap.scaled(smaller,
+                           aspectRatioMode=Qt.AspectRatioMode.KeepAspectRatio,
+                       transformMode=Qt.TransformationMode.SmoothTransformation)
+        module_logger.debug(f'show_full_image: shrunk w,h {self.shrunk.rect().width()},{self.shrunk.rect().height()}')
+        self.scene.setSceneRect(QRectF(self.shrunk.rect()))
+        self.scene.addPixmap(self.shrunk)
+        self.gview.setScene(self.scene)
+        self.gview.show()
+
+    def bigger(self):
+        if self.full_screen.text() == 'Maximize':
+            geometry = self.screen().availableGeometry()
+            self.origin = QPoint(0, 0)
+            self.size = QSize(geometry.width(), int(geometry.height()*0.95))
+            self.rect = QRect(self.origin, self.size)
+            self.setGeometry(self.rect)
+            #smaller = QSize(int(self.size.width()*0.99),
+            #                int(self.size.height()*0.99))
+            #self.shrunk = self.pixmap.scaled(self.pixmap.rect(),
+            #               aspectRatioMode=Qt.AspectRatioMode.KeepAspectRatio,
+            #           transformMode=Qt.TransformationMode.SmoothTransformation)
+            for ii in self.scene.items():
+                self.scene.removeItem(ii)
+            self.scene.addPixmap(self.pixmap)
+            self.scene.setSceneRect(QRectF(self.pixmap.rect()))
+            self.full_screen.setText('Revert Size')
+        else:
+            geometry = self.screen().availableGeometry()
+            self.origin = QPoint(100, 100)
+            self.size = QSize(int(geometry.width()*0.9),
+                              int(geometry.height()*0.9))
+            self.rect = QRect(self.origin, self.size)
+            self.setGeometry(self.rect)
+            for ii in self.scene.items():
+                self.scene.removeItem(ii)
+            smaller = QSize(int(self.size.width()*0.9),
+                            int(self.size.height()*0.9))
+            self.shrunk = self.pixmap.scaled(smaller,
+                           aspectRatioMode=Qt.AspectRatioMode.KeepAspectRatio,
+                       transformMode=Qt.TransformationMode.SmoothTransformation)
+            self.scene.setSceneRect(QRectF(self.shrunk.rect()))
+            self.scene.addPixmap(self.shrunk)
+            self.full_screen.setText('Maximize')
+
 class PlornPhotoDialog(QDialog):
     @classmethod
     def ask(cls, dlg):
@@ -307,17 +389,32 @@ class PlornPhotoDialog(QDialog):
         attr_layout.addWidget(self.tag_list, 3, 0)
         layout.addLayout(attr_layout, 1, 2, 3, 2)
 
+        image_layout = QGridLayout()
         self.gview = QGraphicsView()
         self.gview.setMinimumWidth(450)
-        #self.gview.doubleClicked.connect(self.show_full_image)
+        image_layout.addWidget(self.gview, 0, 0)
         self.scene = QGraphicsScene()
-        layout.addWidget(self.gview, 0, 4, 3, 1)
+        self.show_image = QPushButton('Show Larger Image')
+        self.show_image.clicked.connect(self.show_full_image)
+        self.show_image.setEnabled(False)
+        image_layout.addWidget(self.show_image, 1, 0)
+        layout.addLayout(image_layout, 0, 4, 3, 1)
 
         self.setLayout(layout)
         module_logger.debug('PlornPhotoDialog: init done')
 
     def show_full_image(self):
-        pass
+        global module_logger
+
+        module_logger.debug('show_full_image: entered')
+        if len(self.id_text.text()) < 1:
+            return
+        module_logger.debug('show_full_image: open the dialog')
+        dlg = PlornImageDialog(parent=self,
+                               id=self.id_text.text(),
+                               name=self.name_edit.text(),
+                               path=self.path_edit.text())
+        dlg.show()
 
     def check_inputs(self):
         global module_logger
@@ -437,6 +534,7 @@ class PlornViewPhotoDialog(PlornPhotoDialog):
         self.scene.addPixmap(shrunk)
         self.gview.setScene(self.scene)
         self.gview.show()
+        self.show_image.setEnabled(True)
 
         module_logger.debug('PlornViewPhotoDialog: set_inputs done')
 
