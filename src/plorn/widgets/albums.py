@@ -11,6 +11,7 @@ from PIL import Image as pilImage
 from PIL import ExifTags
 
 from PyQt6.QtCore import (
+    pyqtSignal,
     QPoint,
     QRect,
     QRectF,
@@ -34,6 +35,7 @@ from PyQt6.QtSql import (
 
 from PyQt6.QtWidgets import (
     QAbstractItemView,
+    QComboBox,
     QDialog,
     QDialogButtonBox,
     QFileDialog,
@@ -72,6 +74,42 @@ module_logger.setLevel(logging.DEBUG)
 #
 #   widgets/views specific to manipulating albums and their contents
 #
+class PlornAlbumComboBox(QComboBox):
+    albumSelected = pyqtSignal(int, name='albumSelected')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.setDuplicatesEnabled(False)
+        self.setEditable(False)
+        self.setInsertPolicy(QComboBox.InsertPolicy.InsertAlphabetically)
+        self.album_ids = {}
+        self.addItem('')
+        album_list = PlornAlbumModel.album_list()
+        for album_id, album_name in album_list:
+            album_str = f'[{album_id:04}] {album_name}'
+            self.album_ids[album_str] = album_id
+            self.addItem(album_str)
+        self.selected_album = -1
+        self.currentIndexChanged.connect(self.selection_made)
+ 
+    def selection_made(self, index):
+        global module_logger
+
+        if index < 0:
+            return
+        self.selected_album = index
+        self.albumSelected.emit(0)
+        module_logger.debug(f'selection_made: {self.itemText(index)}')
+
+    def get_selection(self):
+        album = None
+        if int(self.selected_album) > 0:
+            album_id = self.album_ids[self.itemText(self.selected_album)]
+            album = PlornDbOperations.get_album_by_id(album_id)
+        return album
+
+
 class PlornAlbumSelection(QDialog):
     @classmethod
     def ask(cls, dlg):
@@ -185,7 +223,7 @@ class PlornAlbumDialog(QDialog):
             return {}
 
     def __init__(self, tree=None, title='Album Dialog', allow_edit=True,
-                 show_count=True, *args, **kwargs):
+                 select_album=False, *args, **kwargs):
         global module_logger
         super().__init__(*args, **kwargs)
 
@@ -195,7 +233,7 @@ class PlornAlbumDialog(QDialog):
             return
         self.tree = tree
         self.allow_edit = allow_edit
-        self.show_count = show_count
+        self.select_album = select_album
         self.should_apply = False           # only true if check_inputs okay
 
         module_logger.debug('PlornAlbumDialog: started')
@@ -207,6 +245,7 @@ class PlornAlbumDialog(QDialog):
         config = PlornConfig()
         catalog, datadir, dbname = config.get_current_catalog()
         self.db = QSqlDatabase.database(catalog)
+
         self.catalog_label = QLabel(f'***Catalog: {catalog}***',
                                     textFormat=Qt.TextFormat.MarkdownText)
         layout.addWidget(self.catalog_label, 0, 0)
@@ -215,51 +254,71 @@ class PlornAlbumDialog(QDialog):
                         Qt.AlignmentFlag.AlignVCenter
         label_alignment = Qt.AlignmentFlag.AlignRight | \
                           Qt.AlignmentFlag.AlignVCenter
+
         album_layout = QGridLayout()
         self.id_label = QLabel('Album ID:', alignment=label_alignment)
         album_layout.addWidget(self.id_label, 0, 0)
         self.id_text = QLabel('', alignment=hdr_alignment)
-        album_layout.addWidget(self.id_text, 0, 1)
-        self.name_label = QLabel('Album Name:', alignment=label_alignment)
-        album_layout.addWidget(self.name_label, 1, 0)
-        self.name_edit = QLineEdit()
-        self.name_edit.setText(f'{" ":>40}')
-        rect = self.name_edit.fontMetrics().boundingRect(self.name_edit.text())
-        self.name_edit.setMinimumWidth(2*rect.width())
-        self.name_edit.setText('')
-        album_layout.addWidget(self.name_edit, 1, 1)
+        album_layout.addWidget(self.id_text, 0, 1, 1, 8)
 
+        self.select_label = QLabel('Album:', alignment=label_alignment)
+        album_layout.addWidget(self.select_label, 1, 0)
+        self.album_selection = PlornAlbumComboBox()
+        self.album_selection.albumSelected.connect(self.set_inputs)
+        album_layout.addWidget(self.album_selection, 1, 1, 1, 8)
+
+        self.name_label = QLabel('Album Name:', alignment=label_alignment)
+        album_layout.addWidget(self.name_label, 2, 0)
+        self.name_edit = QLineEdit()
+        #self.name_edit.setText(f'{" ":>40}')
+        #metrics = self.name_edit.fontMetrics()
+        #rect = metrics.boundingRect(self.name_edit.text())
+        #self.name_edit.setMinimumWidth(2*rect.width())
+        #self.name_edit.setText('')
+        album_layout.addWidget(self.name_edit, 2, 1, 1, 8)
+
+        if self.select_album:
+            self.id_label.setHidden(True)
+            self.id_text.setHidden(True)
+            self.name_label.setHidden(True)
+            self.name_edit.setHidden(True)
+        else:
+            self.select_label.setHidden(True)
+            self.album_selection.setHidden(True)
+
+        layout.addLayout(album_layout, 1, 0)
+
+        info_layout = QGridLayout()
         self.dated_label = QLabel('Dated:', alignment=label_alignment)
-        album_layout.addWidget(self.dated_label, 2, 0)
+        info_layout.addWidget(self.dated_label, 0, 0)
         self.dated_edit = QLineEdit()
         self.dated_edit.setText(f'{" ":>40}')
-        rect = self.dated_edit.fontMetrics().boundingRect(self.dated_edit.text())
+        metrics = self.dated_edit.fontMetrics()
+        rect = metrics.boundingRect(self.dated_edit.text())
         self.dated_edit.setMinimumWidth(2*rect.width())
         self.dated_edit.setText('')
-        album_layout.addWidget(self.dated_edit, 2, 1)
+        info_layout.addWidget(self.dated_edit, 0, 1)
 
         self.notes_label = QLabel('<br><br><br><br>Notes:',
                                   alignment=label_alignment)
-        album_layout.addWidget(self.notes_label, 3, 0,
+        info_layout.addWidget(self.notes_label, 1, 0,
                          alignment=Qt.AlignmentFlag.AlignTop)
         self.notes_edit = QTextEdit()
-        album_layout.addWidget(self.notes_edit, 3, 1)
-        layout.addLayout(album_layout, 1, 0)
+        info_layout.addWidget(self.notes_edit, 1, 1)
+        layout.addLayout(info_layout, 2, 0, 8, 1)
 
-        grid_row = 2
-        if show_count:
+        if not self.allow_edit:
             count_layout = QGridLayout()
             count_label = QLabel('Photo Count:', alignment=label_alignment)
             count_layout.addWidget(count_label, 0, 0)
             count = QLineEdit()
             count.setReadOnly(True)
             count_layout.addWidget(count, 0, 1)
-            layout.addLayout(count_layout, grid_row, 0)
+            layout.addLayout(count_layout, 8, 0, 1, 1)
             if not hasattr(self, 'count_label'):
                 setattr(self, 'count_label', count_label)
             if not hasattr(self, 'count'):
                 setattr(self, 'count', count)
-            grid_row += 1
 
         self.bbox = QDialogButtonBox()
         self.bbox.setObjectName('album_dlg_bbox')
@@ -273,7 +332,7 @@ class PlornAlbumDialog(QDialog):
             self.apply_button.setObjectName('add_album_apply_button')
         self.done_button.setDefault(True)
         self.bbox.clicked.connect(self.dlg_done)
-        layout.addWidget(self.bbox, grid_row, 1, 1, 2)
+        layout.addWidget(self.bbox, 9, 1, 1, 2)
 
         attr_layout = QGridLayout()
         self.name_list = PlornAttrListView('names', 'Name Attributes',
@@ -285,7 +344,7 @@ class PlornAlbumDialog(QDialog):
         self.tag_list = PlornAttrListView('tags', 'Tag Attributes',
                                           allow_edit=allow_edit)
         attr_layout.addWidget(self.tag_list, 3, 0)
-        layout.addLayout(attr_layout, 1, 1)
+        layout.addLayout(attr_layout, 1, 1, 8, 1)
 
         self.setLayout(layout)
         module_logger.debug('PlornAlbumDialog: init done')
@@ -321,47 +380,27 @@ class PlornAlbumDialog(QDialog):
         module_logger.debug(f'PlornAlbumDialog: get_inputs returns {info}')
         return info
 
-    def dlg_done(self, button):
-        global module_logger
-
-        role = self.bbox.buttonRole(button)
-        if role == QDialogButtonBox.ButtonRole.ApplyRole:
-            module_logger.debug('album dialog: Apply clicked')
-            if self.check_inputs() == QDialog.DialogCode.Rejected:
-                module_logger.debug('album dialog: Apply clicked, but rejected')
-                self.setResult(QDialog.DialogCode.Rejected)
-                self.should_apply = False
-                return
-            self.setResult(QDialog.DialogCode.Accepted)
-            module_logger.debug('album dialog: Apply clicked, and accepted')
-
-        elif role == QDialogButtonBox.ButtonRole.RejectRole:
-            module_logger.debug('album dialog: Done clicked')
-            self.setResult(QDialog.DialogCode.Rejected)
-            self.should_apply = False
-            module_logger.debug('album dialog: Done clicked, and rejected')
-
-        module_logger.debug(f'dlg_done returns {self.should_apply}')
-        self.close()
-
-
-class PlornViewAlbumDialog(PlornAlbumDialog):
-    def __init__(self, tree=None, title='Album Info', allow_edit=False,
-                 *args, **kwargs):
-        global module_logger
-        super().__init__(tree=tree, title=title, allow_edit=allow_edit,
-                         *args, **kwargs)
-
-    def set_inputs(self, album):
+    def set_inputs(self, album_id=-1):
         global module_logger
         
         module_logger.debug('PlornViewAlbumDialog: entered set_inputs')
+        if album_id < 0 and (not self.select_album):
+            return
+
+        album = None
+        if self.select_album:
+            album = self.album_selection.get_selection()
+        else:
+            album = PlornDbOperations.get_album_by_id(album_id)
+
         self.id_text.setText(f'{album.get_id():04}')
         self.name_edit.setText(album.get_name())
         self.dated_edit.setText(album.get_dated())
         self.notes_edit.setPlainText(album.get_notes())
         if hasattr(self, 'count_label'):
             self.count.setText(str(album.get_photo_count()))
+            self.count.setReadOnly(True)
+
         for name in album.get_name_list():
             id = name.get_id()
             fullattr = PlornDbOperations.get_full_attr(table='names', id=id)
@@ -389,11 +428,86 @@ class PlornViewAlbumDialog(PlornAlbumDialog):
             self.tag_list.appendRow(item)
 
         if not self.allow_edit:
-            self.name_edit.setReadOnly(True)
+            if not self.select_album:
+                self.name_edit.setReadOnly(True)
             self.dated_edit.setReadOnly(True)
             self.notes_edit.setReadOnly(True)
-        self.count.setReadOnly(True)
         module_logger.debug('PlornViewAlbumDialog: set_inputs done')
+
+    def dlg_done(self, button):
+        global module_logger
+
+        role = self.bbox.buttonRole(button)
+        if role == QDialogButtonBox.ButtonRole.ApplyRole:
+            module_logger.debug('album dialog: Apply clicked')
+            if self.check_inputs() == QDialog.DialogCode.Rejected:
+                module_logger.debug('album dialog: Apply clicked, but rejected')
+                self.setResult(QDialog.DialogCode.Rejected)
+                self.should_apply = False
+                return
+            self.setResult(QDialog.DialogCode.Accepted)
+            module_logger.debug('album dialog: Apply clicked, and accepted')
+
+        elif role == QDialogButtonBox.ButtonRole.RejectRole:
+            module_logger.debug('album dialog: Done clicked')
+            self.setResult(QDialog.DialogCode.Rejected)
+            self.should_apply = False
+            module_logger.debug('album dialog: Done clicked, and rejected')
+
+        module_logger.debug(f'dlg_done returns {self.should_apply}')
+        self.close()
+
+
+#class PlornViewAlbumDialog(PlornAlbumDialog):
+#    def __init__(self, tree=None, title='Album Info', allow_edit=False,
+#                 *args, **kwargs):
+#        global module_logger
+#        super().__init__(tree=tree, title=title, allow_edit=allow_edit,
+#                         *args, **kwargs)
+#
+#    def set_inputs(self, album):
+#        global module_logger
+#        
+#        module_logger.debug('PlornViewAlbumDialog: entered set_inputs')
+#        self.id_text.setText(f'{album.get_id():04}')
+#        self.name_edit.setText(album.get_name())
+#        self.dated_edit.setText(album.get_dated())
+#        self.notes_edit.setPlainText(album.get_notes())
+#        if hasattr(self, 'count_label'):
+#            self.count.setText(str(album.get_photo_count()))
+#        for name in album.get_name_list():
+#            id = name.get_id()
+#            fullattr = PlornDbOperations.get_full_attr(table='names', id=id)
+#            value = ', '.join(fullattr)
+#            module_logger.debug(f'PlornViewAlbumDialog: name {id} {value}')
+#            item = QStandardItem(value)
+#            item.setData([id, name.get_parent_id(), value])
+#            self.name_list.appendRow(item)
+#        for place in album.get_place_list():
+#            id = place.get_id()
+#            fullattr = PlornDbOperations.get_full_attr(table='places', id=id)
+#            value = ', '.join(fullattr)
+#            module_logger.debug(f'PlornViewAlbumDialog: place {id} {value}')
+#            item = QStandardItem(value)
+#            item.setData([id, place.get_parent_id(), value])
+#            self.place_list.appendRow(item)
+#        for tag in album.get_tag_list():
+#            id = int(tag.get_id())
+#            fullattr = PlornDbOperations.get_full_attr(table='tags', id=id)
+#            value = ', '.join(fullattr)
+#            module_logger.debug(f'PlornViewAlbumDialog: tag {str(tag)}')
+#            module_logger.debug(f'PlornViewAlbumDialog: tag {id} {value}')
+#            item = QStandardItem(value)
+#            item.setData([id, tag.get_parent_id(), value])
+#            self.tag_list.appendRow(item)
+#
+#        if not self.allow_edit:
+#            self.name_edit.setReadOnly(True)
+#            self.dated_edit.setReadOnly(True)
+#            self.notes_edit.setReadOnly(True)
+#        self.count.setReadOnly(True)
+#        module_logger.debug('PlornViewAlbumDialog: set_inputs done')
+
 
 class PlornTableView(QTableView):
     def __init__(self, *args, **kwargs):
@@ -438,7 +552,8 @@ class PlornAlbumPhotosView(QDialog):
         item.setEditable(False)
         return item
 
-    def __init__(self, album_tree, album_id, album_name, *args, **kwargs):
+    def __init__(self, album_tree=None, album_id=-1, album_name='',
+                 *args, **kwargs):
         global module_logger
         super().__init__(*args, **kwargs)
 
@@ -447,12 +562,16 @@ class PlornAlbumPhotosView(QDialog):
         catalog, datadir, dbname = config.get_current_catalog()
         self.db = QSqlDatabase.database(catalog)
         self.db.open()
-        self.album = PlornDbOperations.get_album_by_id(int(album_id))
-        assert int(album_id) == int(self.album.get_id())
-        module_logger.debug('PlornAlbumPhotosView: found album')
-        self.album_id = album_id
-        self.album_name = album_name
         self.album_tree = album_tree
+        self.album = None
+        self.album_id = -1
+        if album_id != -1:
+            self.album_id = album_id
+            self.album = PlornDbOperations.get_album_by_id(int(album_id))
+            module_logger.debug('PlornAlbumPhotosView: found album')
+        self.album_name = ''
+        if album_name != '':
+            self.album_name = album_name
 
         self.setModal(True)
         self.setWindowTitle(f'Manage Photos in an Album')
@@ -473,23 +592,25 @@ class PlornAlbumPhotosView(QDialog):
         data_alignment = Qt.AlignmentFlag.AlignLeft | \
                          Qt.AlignmentFlag.AlignVCenter
         album_layout = QGridLayout()
-        lab1 = QLabel('Album ID:', alignment=label_alignment)
-        lab1.setMaximumWidth(150)
-        lab1.setFont(font)
-        album_layout.addWidget(lab1, 0, 0)
-        lab2 = QLabel(f'{self.album_id:04}', alignment=data_alignment)
-        lab2.setMaximumWidth(150)
-        album_layout.addWidget(lab2, 0, 1)
-        lab3 = QLabel('Name:', alignment=label_alignment)
-        lab3.setMaximumWidth(150)
-        lab3.setFont(font)
-        album_layout.addWidget(lab3, 0, 2)
-        lab4 = QLabel(self.album_name, alignment=data_alignment)
-        lab4.setMaximumWidth(300)
-        album_layout.addWidget(lab4, 0, 3)
+        if self.album == -1:        # no album indicated
+            pass
+        else:
+            lab1 = QLabel('Album ID:', alignment=label_alignment)
+            lab1.setMaximumWidth(150)
+            lab1.setFont(font)
+            album_layout.addWidget(lab1, 0, 0)
+            lab2 = QLabel(f'{self.album_id:04}', alignment=data_alignment)
+            lab2.setMaximumWidth(150)
+            album_layout.addWidget(lab2, 0, 1)
+            lab3 = QLabel('Name:', alignment=label_alignment)
+            lab3.setMaximumWidth(150)
+            lab3.setFont(font)
+            album_layout.addWidget(lab3, 0, 2)
+            lab4 = QLabel(self.album_name, alignment=data_alignment)
+            lab4.setMaximumWidth(300)
+            album_layout.addWidget(lab4, 0, 3)
         layout.addLayout(album_layout, 0, 0)
 
-        #self.photos = PlornTableView()
         self.photos = QTableView()
         self.photos.setSelectionMode(
                             QAbstractItemView.SelectionMode.ExtendedSelection)

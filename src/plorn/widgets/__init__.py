@@ -54,7 +54,6 @@ from plorn.models.albums import PlornAlbumModel
 from plorn.widgets.albums import (
     PlornAlbumDialog,
     PlornAlbumPhotosView,
-    PlornViewAlbumDialog,
 )
 
 from plorn.widgets.photos import (
@@ -64,16 +63,6 @@ from plorn.widgets.photos import (
 module_logger = logging.getLogger('plorn.widgets')
 module_logger.setLevel(logging.DEBUG)
 
-
-#####################################################################
-#
-#   Generally useful widgets
-#
-class PlornSizePolicy(QSizePolicy):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.horizontalPolicy = QSizePolicy.Policy.Expanding
-        self.verticalPolicy = QSizePolicy.Policy.Expanding
 
 ######################################################################
 #
@@ -452,15 +441,12 @@ class PlornCatalogView(QWidget):
         global module_logger
 
         module_logger.debug(f'view_album: entered for album {id}')
-        album = PlornDbOperations.get_album_by_id(id)
-        if album == None:
-            raise PlornDbError('album selected that does not exist')
-        else:
-            dlg = PlornViewAlbumDialog(tree=self.tree,
-                                       title='View Album',
-                                       allow_edit=False)
-            dlg.set_inputs(album)
-            info = PlornViewAlbumDialog.ask(dlg)
+        dlg = PlornAlbumDialog(tree=self.tree,
+                               title='View Album',
+                               select_album=False,
+                               allow_edit=False)
+        dlg.set_inputs(int(id))
+        info = PlornAlbumDialog.ask(dlg)
         module_logger.debug(f'view_album: done for album {id}')
 
     def view_photo(self, id):
@@ -544,11 +530,11 @@ class PlornCatalogView(QWidget):
                     album_row = item.row()
                 if item.column() == CatalogColumns.NAME:
                     album_name = item.text()
-            album = PlornDbOperations.get_album_by_id(album_id)
-            view_dlg = PlornViewAlbumDialog(tree=self.tree,
-                                            title='View Album',
-                                            allow_edit=False)
-            view_dlg.set_inputs(album)
+            view_dlg = PlornAlbumDialog(tree=self.tree,
+                                        title='View Album',
+                                        select_album=False,
+                                        allow_edit=False)
+            view_dlg.set_inputs(album_id)
             info = PlornAlbumDialog.ask(view_dlg)
             view_dlg.close()
 
@@ -580,35 +566,12 @@ class PlornCatalogView(QWidget):
             info = PlornViewPhotoDialog.ask(view_dlg)
             view_dlg.close()
 
-    def remove_album(self, item):
-        global module_logger
-
-        module_logger.debug(f'remove_album entered: {self.table}')
-        title = f'Remove {self.title.capitalize()}'
-    def remove_album(self, item):
-        global module_logger
-
-        module_logger.debug(f'remove_album entered: {self.table}')
-        title = f'Remove {self.title.capitalize()}'
-        if self.title[-1] == 's':    # English specific ...
-            label_txt = f'Add {self.title[0:-1].capitalize()}:'
-        msg  = f'remove_album "{item.text()}" from {self.table}:'
-        module_logger.debug(msg)
-        label_txt = f'Remove "{item.text()}"'
-        if item.hasChildren():
-            label_txt += ' and children'
-        label_txt += '?'
-        parent = item.parent()
-        if not parent:
-            parent = self.model.invisibleRootItem()
-        value = item.text()
-        button = QMessageBox.question(self, title, label_txt)
-
     def add_album_action(self):
         global module_logger
 
         module_logger.debug(f'add_album_action: entered')
-        new_album_dlg = PlornAlbumDialog(tree=self.tree, title='Add Album')
+        new_album_dlg = PlornAlbumDialog(tree=self.tree, title='Add Album',
+                                         select_album=False, allow_edit=True)
         info = PlornAlbumDialog.ask(new_album_dlg)
         if len(info) > 0:
             res = self.add_album(info['album'], info['dated'], info['notes'])
@@ -619,76 +582,33 @@ class PlornCatalogView(QWidget):
 
         module_logger.debug(f'edit_album_action: entered')
         indices = self.selected_rows()
-        if len(indices) < 1:
-            title = 'Edit an Album'
-            text = 'No album has been selected for editing.'
-            button = QMessageBox.critical(self, title, text)
-        else:
-            album_name = ''
-            album_id = 0
-            album_row = -1
-            for index in indices:
-                item = self.item_from_index(index)
-                if item.column() == CatalogColumns.ID:
-                    album_id = int(item.text())
-                    album_row = item.row()
-                if item.column() == CatalogColumns.NAME:
-                    album_name = item.text()
-            album = PlornDbOperations.get_album_by_id(album_id)
-            update_dlg = PlornViewAlbumDialog(tree=self.tree,
-                                              title='Edit Album',
-                                              allow_edit=True)
-            update_dlg.set_inputs(album)
-            info = PlornAlbumDialog.ask(update_dlg)
-            if 'apply' in info.keys() and info['apply']:
-                updates = PlornAlbum(info['album'],
-                                     id=album.get_id(),
-                                     dated=info['dated'],
-                                     notes=info['notes'],
-                                     names=info['names'],
-                                     places=info['places'],
-                                     tags=info['tags'])
-                root = self.tree.model().invisibleRootItem()
-                album = PlornAlbumModel.update_album(root, album, updates)
-            update_dlg.close()
-
-    def remove_album(self, item):
-        global module_logger
-
-        module_logger.debug(f'remove_album entered: {self.table}')
-        title = f'Remove {self.title.capitalize()}'
-        if self.title[-1] == 's':    # English specific ...
-            label_txt = f'Add {self.title[0:-1].capitalize()}:'
-        msg  = f'remove_album "{item.text()}" from {self.table}:'
-        module_logger.debug(msg)
-        label_txt = f'Remove "{item.text()}"'
-        if item.hasChildren():
-            label_txt += ' and children'
-        label_txt += '?'
-        parent = item.parent()
-        if not parent:
-            parent = self.model.invisibleRootItem()
-        value = item.text()
-        button = QMessageBox.question(self, title, label_txt)
-        if button == QMessageBox.StandardButton.Yes:
-            module_logger.debug(f'remove_album? Yes')
-            res = remove_albums(self.model.invisibleRootItem(), item,
-                               table=self.table, db=self.db)
-            if res == 'cannot delete root' or \
-               res == 'cannot delete db index 0' or \
-               res == 'retrieve failed':
-                title = 'Internal Attribute Database Failure'
-                label_txt  = f'{res.capitalize()}'
-                button = QMessageBox.critical(self, title, label_txt)
-                return
-            self.tree.setExpanded(parent.index(), True)
-            module_logger.debug(
-                f'remove_album: removed "{value}" from "{parent.text()}"')
-            self.catalogChanged.emit(0)
-        else:
-            module_logger.debug(f'remove_album? No')
-
-        module_logger.debug(f'remove_album done: {self.table}')
+        album_name = ''
+        album_id = 0
+        album_row = -1
+        for index in indices:
+            item = self.item_from_index(index)
+            if item.column() == CatalogColumns.ID:
+                album_id = int(item.text())
+                album_row = item.row()
+            if item.column() == CatalogColumns.NAME:
+                album_name = item.text()
+        update_dlg = PlornAlbumDialog(tree=self.tree,
+                                      title='Edit Album',
+                                      select_album=False,
+                                      allow_edit=True)
+        update_dlg.set_inputs(album_id=album_id)
+        info = PlornAlbumDialog.ask(update_dlg)
+        if 'apply' in info.keys() and info['apply']:
+            updates = PlornAlbum(info['album'],
+                                 id=album.get_id(),
+                                 dated=info['dated'],
+                                 notes=info['notes'],
+                                 names=info['names'],
+                                 places=info['places'],
+                                 tags=info['tags'])
+            root = self.tree.model().invisibleRootItem()
+            album = PlornAlbumModel.update_album(root, album, updates)
+        update_dlg.close()
 
     def manage_photos_action(self):
         global module_logger
@@ -711,7 +631,9 @@ class PlornCatalogView(QWidget):
                 if item.column() == CatalogColumns.NAME:
                     album_name = item.text()
 
-            dlg = PlornAlbumPhotosView(self.root, album_id, album_name)
+            dlg = PlornAlbumPhotosView(album_tree=self.root,
+                                       album_id=album_id,
+                                       album_name=album_name)
             if PlornAlbumPhotosView.ask(dlg):
                 module_logger.debug(f'manage_photos_action: dlg exec done')
             self.catalogChanged.emit(0)

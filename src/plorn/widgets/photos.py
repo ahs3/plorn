@@ -62,6 +62,7 @@ from plorn.config import PlornConfig
 from plorn.models.dbops import PlornDbOperations
 from plorn.models.albums import PlornAlbumModel
 
+from plorn.widgets.albums import PlornAlbumComboBox
 from plorn.widgets.attrs import PlornAttrListView
 
 module_logger = logging.getLogger('plorn.widgets.photos')
@@ -229,11 +230,6 @@ class PlornImageDialog(QDialog):
             self.size = QSize(geometry.width(), int(geometry.height()*0.95))
             self.rect = QRect(self.origin, self.size)
             self.setGeometry(self.rect)
-            #smaller = QSize(int(self.size.width()*0.99),
-            #                int(self.size.height()*0.99))
-            #self.shrunk = self.pixmap.scaled(self.pixmap.rect(),
-            #               aspectRatioMode=Qt.AspectRatioMode.KeepAspectRatio,
-            #           transformMode=Qt.TransformationMode.SmoothTransformation)
             for ii in self.scene.items():
                 self.scene.removeItem(ii)
             self.scene.addPixmap(self.pixmap)
@@ -256,6 +252,7 @@ class PlornImageDialog(QDialog):
             self.scene.setSceneRect(QRectF(self.shrunk.rect()))
             self.scene.addPixmap(self.shrunk)
             self.full_screen.setText('Maximize')
+
 
 class PlornPhotoDialog(QDialog):
     @classmethod
@@ -298,32 +295,43 @@ class PlornPhotoDialog(QDialog):
                           Qt.AlignmentFlag.AlignVCenter
 
         album_grid = QGridLayout()
-        album_rect = self.catalog_label.fontMetrics().boundingRect(f'{" ":>20}')
-        self.album_id_label = QLabel(f'***Album ID:***',
+        if self.allow_edit:
+            self.album_label = QLabel(f'Album:',
+                                      textFormat=Qt.TextFormat.MarkdownText,
+                                      alignment=hdr_alignment)
+            self.album_selection = PlornAlbumComboBox()
+            album_grid.addWidget(self.album_label, 0, 0)
+            album_grid.addWidget(self.album_selection, 0, 1, 1, 5)
+            
+        else:
+            metrics = self.catalog_label.fontMetrics()
+            album_rect = metrics.boundingRect(f'{" ":>20}')
+            self.album_id_label = QLabel(f'***Album ID:***',
+                                         textFormat=Qt.TextFormat.MarkdownText,
+                                         alignment=hdr_alignment)
+            self.album_id_label.setMaximumWidth(2*album_rect.width())
+            self.album_id = QLabel('',
+                                   textFormat=Qt.TextFormat.MarkdownText,
+                                   alignment=hdr_alignment)
+            self.album_name_label = QLabel(f'***Album Name:***',
+                                          textFormat=Qt.TextFormat.MarkdownText,
+                                          alignment=hdr_alignment)
+            self.album_name_label.setMaximumWidth(2*album_rect.width())
+            self.album_name = QLabel('',
                                      textFormat=Qt.TextFormat.MarkdownText,
                                      alignment=hdr_alignment)
-        self.album_id_label.setMaximumWidth(2*album_rect.width())
-        self.album_id = QLabel('',
-                               textFormat=Qt.TextFormat.MarkdownText,
-                               alignment=hdr_alignment)
-        self.album_name_label = QLabel(f'***Album Name:***',
-                                       textFormat=Qt.TextFormat.MarkdownText,
-                                       alignment=hdr_alignment)
-        self.album_name_label.setMaximumWidth(2*album_rect.width())
-        self.album_name = QLabel('',
-                                 textFormat=Qt.TextFormat.MarkdownText,
-                                 alignment=hdr_alignment)
-        album_grid.addWidget(self.album_id_label, 0, 0)
-        album_grid.addWidget(self.album_id, 0, 1)
-        album_grid.addWidget(self.album_name_label, 1, 0)
-        album_grid.addWidget(self.album_name, 1, 1)
+            album_grid.addWidget(self.album_id_label, 0, 0)
+            album_grid.addWidget(self.album_id, 0, 1)
+            album_grid.addWidget(self.album_name_label, 1, 0)
+            album_grid.addWidget(self.album_name, 1, 1)
         layout.addLayout(album_grid, 1, 0, 1, 2)
 
         photo_layout = QGridLayout()
-        self.id_label = QLabel('Photo ID:', alignment=label_alignment)
-        photo_layout.addWidget(self.id_label, 0, 0)
-        self.id_text = QLabel('', alignment=hdr_alignment)
-        photo_layout.addWidget(self.id_text, 0, 1)
+        if not self.allow_edit:
+            self.id_label = QLabel('Photo ID:', alignment=label_alignment)
+            photo_layout.addWidget(self.id_label, 0, 0)
+            self.id_text = QLabel('', alignment=hdr_alignment)
+            photo_layout.addWidget(self.id_text, 0, 1)
         self.name_label = QLabel('Name:', alignment=label_alignment)
         photo_layout.addWidget(self.name_label, 1, 0)
         self.name_edit = QLineEdit()
@@ -348,7 +356,8 @@ class PlornPhotoDialog(QDialog):
         photo_layout.addWidget(self.dated_label, 3, 0)
         self.dated_edit = QLineEdit()
         self.dated_edit.setText(f'{" ":>40}')
-        rect = self.dated_edit.fontMetrics().boundingRect(self.dated_edit.text())
+        metrics = self.dated_edit.fontMetrics()
+        rect = metrics.boundingRect(self.dated_edit.text())
         self.dated_edit.setMinimumWidth(2*rect.width())
         self.dated_edit.setText('')
         self.dated_edit.setReadOnly(allow_edit)
@@ -429,6 +438,12 @@ class PlornPhotoDialog(QDialog):
         self.should_apply = True
         return QDialog.DialogCode.Accepted
 
+    def set_album_info(self, album_id, album_name):
+        if len(album_id) < 1 or len(album_name) < 1:
+            return
+        self.album_id.setText(f'{album_id:04}')
+        self.album_name.setText(f'{album_name}')
+
     def get_inputs(self):
         global module_logger
 
@@ -438,9 +453,6 @@ class PlornPhotoDialog(QDialog):
         info['album'] = self.name_edit.text()
         info['dated'] = self.dated_edit.text()
         info['notes'] = self.notes_edit.toPlainText()
-        info['count'] = 0
-        if hasattr(self, 'count_label'):
-            info['count'] = self.count.text()
         info['names'] = self.name_list.get_items()
         info['places'] = self.place_list.get_items()
         info['tags'] = self.tag_list.get_items()
