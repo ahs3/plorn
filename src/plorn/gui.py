@@ -725,7 +725,8 @@ class Plorn(QMainWindow):
         module_logger.debug('add_album: entered in gui')
         new_album_dlg = PlornAlbumDialog(tree=self.album_tree,
                                          title='New Album',
-                                         show_count=False)
+                                         select_album=False,
+                                         allow_edit=True)
         info = PlornAlbumDialog.ask(new_album_dlg)
         module_logger.debug(f'add_album: info is {str(info)}')
         if len(info) > 0:

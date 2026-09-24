@@ -277,6 +277,10 @@ class PlornAlbumDialog(QDialog):
         #self.name_edit.setText('')
         album_layout.addWidget(self.name_edit, 2, 1, 1, 8)
 
+        if self.allow_edit:
+            self.id_label.setHidden(True)
+            self.id_text.setHidden(True)
+
         if self.select_album:
             self.id_label.setHidden(True)
             self.id_text.setHidden(True)
