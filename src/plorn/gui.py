@@ -777,7 +777,7 @@ class Plorn(QMainWindow):
 
         module_logger.debug('gui.manage_photos: entered in gui')
         root = self.album_tree.model.invisibleRootItem()
-        pview = PlornAlbumPhotosView(root)
+        pview = PlornAlbumPhotosView(album_tree=root, select_album=True)
         if PlornAlbumPhotosView.ask(pview):
             module_logger.debug(f'gui.manage_photos: exec done')
         self.set_catalog_info()

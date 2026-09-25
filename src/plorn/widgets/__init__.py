@@ -621,20 +621,15 @@ class PlornCatalogView(QWidget):
             text = 'Must select an album to know which photos to manage.'
             button = QMessageBox.critical(self, title, text)
         else:
-            album_name = ''
             album_id = 0
-            album_row = -1
             for index in indices:
                 item = self.item_from_index(index)
                 if item.column() == CatalogColumns.ID:
                     album_id = int(item.text())
-                    album_row = item.row()
-                if item.column() == CatalogColumns.NAME:
-                    album_name = item.text()
 
             dlg = PlornAlbumPhotosView(album_tree=self.root,
-                                       album_id=album_id,
-                                       album_name=album_name)
+                                       select_album=False)
+            dlg.set_album_id(album_id)
             if PlornAlbumPhotosView.ask(dlg):
                 module_logger.debug(f'manage_photos_action: dlg exec done')
             self.catalogChanged.emit(0)

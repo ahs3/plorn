@@ -103,11 +103,10 @@ class PlornAlbumComboBox(QComboBox):
         module_logger.debug(f'selection_made: {self.itemText(index)}')
 
     def get_selection(self):
-        album = None
+        album_id = None
         if int(self.selected_album) > 0:
             album_id = self.album_ids[self.itemText(self.selected_album)]
-            album = PlornDbOperations.get_album_by_id(album_id)
-        return album
+        return album_id
 
 
 class PlornAlbumSelection(QDialog):
@@ -377,8 +376,7 @@ class PlornAlbumDialog(QDialog):
         info = {}
         info['apply'] = self.should_apply
         if self.select_album:
-            album = self.album_selection.get_selection()
-            info['id'] = album.get_id()
+            info['id'] = self.album_selection.get_selection()
         else:
             info['id'] = int(self.id_text.text())
         info['album'] = self.name_edit.text()
@@ -400,12 +398,10 @@ class PlornAlbumDialog(QDialog):
         if album_id < 0 and (not self.select_album):
             return
 
-        album = None
         if self.select_album:
-            album = self.album_selection.get_selection()
-        else:
-            album = PlornDbOperations.get_album_by_id(album_id)
+            album_id = self.album_selection.get_selection()
 
+        album = PlornDbOperations.get_album_by_id(album_id)
         self.id_text.setText(f'{album.get_id():04}')
         self.name_edit.setText(album.get_name())
         self.dated_edit.setText(album.get_dated())
@@ -565,8 +561,7 @@ class PlornAlbumPhotosView(QDialog):
         item.setEditable(False)
         return item
 
-    def __init__(self, album_tree=None, album_id=-1, album_name='',
-                 *args, **kwargs):
+    def __init__(self, album_tree=None, select_album=False, *args, **kwargs):
         global module_logger
         super().__init__(*args, **kwargs)
 
@@ -576,15 +571,18 @@ class PlornAlbumPhotosView(QDialog):
         self.db = QSqlDatabase.database(catalog)
         self.db.open()
         self.album_tree = album_tree
+        self.select_album = select_album
+
         self.album = None
         self.album_id = -1
-        if album_id != -1:
-            self.album_id = album_id
-            self.album = PlornDbOperations.get_album_by_id(int(album_id))
-            module_logger.debug('PlornAlbumPhotosView: found album')
-        self.album_name = ''
-        if album_name != '':
-            self.album_name = album_name
+
+        #if album_id != -1:
+        #    self.album_id = album_id
+        #    self.album = PlornDbOperations.get_album_by_id(int(album_id))
+        #    module_logger.debug('PlornAlbumPhotosView: found album')
+        #self.album_name = ''
+        #if album_name != '':
+        #    self.album_name = album_name
 
         self.setModal(True)
         self.setWindowTitle(f'Manage Photos in an Album')
@@ -604,24 +602,36 @@ class PlornAlbumPhotosView(QDialog):
                           Qt.AlignmentFlag.AlignVCenter
         data_alignment = Qt.AlignmentFlag.AlignLeft | \
                          Qt.AlignmentFlag.AlignVCenter
+
         album_layout = QGridLayout()
-        if self.album == -1:        # no album indicated
-            pass
+        if self.select_album:
+            lab1 = QLabel('Album:', alignment=label_alignment)
+            lab1.setMaximumWidth(150)
+            lab1.setFont(font)
+            album_layout.addWidget(lab1, 0, 0)
+
+            self.album_selection = PlornAlbumComboBox()
+            rect = lab1.fontMetrics().boundingRect(f'{" ":>40}')
+            self.album_selection.setMinimumWidth(rect.width())
+            self.album_selection.albumSelected.connect(self.set_album_id)
+            album_layout.addWidget(self.album_selection, 0, 1)
+
         else:
             lab1 = QLabel('Album ID:', alignment=label_alignment)
             lab1.setMaximumWidth(150)
             lab1.setFont(font)
             album_layout.addWidget(lab1, 0, 0)
-            lab2 = QLabel(f'{self.album_id:04}', alignment=data_alignment)
-            lab2.setMaximumWidth(150)
-            album_layout.addWidget(lab2, 0, 1)
+            self.album_id_label = QLabel('', alignment=data_alignment)
+            self.album_id_label.setMaximumWidth(150)
+            album_layout.addWidget(self.album_id_label, 0, 1)
             lab3 = QLabel('Name:', alignment=label_alignment)
             lab3.setMaximumWidth(150)
             lab3.setFont(font)
             album_layout.addWidget(lab3, 0, 2)
-            lab4 = QLabel(self.album_name, alignment=data_alignment)
-            lab4.setMaximumWidth(300)
-            album_layout.addWidget(lab4, 0, 3)
+            self.album_name_label = QLabel('', alignment=data_alignment)
+            self.album_name_label.setMaximumWidth(300)
+            album_layout.addWidget(self.album_name_label, 0, 3)
+
         layout.addLayout(album_layout, 0, 0)
 
         self.photos = QTableView()
@@ -656,20 +666,6 @@ class PlornAlbumPhotosView(QDialog):
         layout.addWidget(self.photos, 1, 0)
         layout.setColumnStretch(0, 1)
 
-        photo_list = PlornAlbumModel.photo_list(self.album_id)
-        for photo_id, photo_name, photo_dated, photo_path in photo_list:
-            msg  = 'PlornAlbumPhotosView: row '
-            msg += f'[{photo_id}, {photo_name}, {photo_dated}, {photo_path}'
-            module_logger.debug(msg)
-            id_item = self.build_item(f'{photo_id:04}')
-            name_item = self.build_item(photo_name)
-            dated_item = self.build_item(photo_dated)
-            path_item = self.build_item(photo_path)
-            row = [id_item, name_item, dated_item, path_item]
-            self.photos.model().appendRow(row)
-        index = self.photos.model().index(0, 0)
-        #self.photos.setCurrentIndex(index)
-
         self.current_image = QGraphicsView(self)
         self.show_current_image()
         layout.addWidget(self.current_image, 1, 1)
@@ -690,6 +686,31 @@ class PlornAlbumPhotosView(QDialog):
 
         self.setLayout(layout)
         module_logger.debug('PlornAlbumPhotosView: done')
+
+    def set_album_id(self, id):
+        if self.select_album:
+            self.album_id = self.album_selection.get_selection()
+        elif id != self.album_id:
+            self.album_id = id
+            album = PlornDbOperations.get_album_by_id(self.album_id)
+            self.album_id_label.setText(f'{self.album_id:04}')
+            self.album_name_label.setText(f'{album.get_name()}')
+        self.set_photo_list(id)
+
+    def set_photo_list(self, id):
+        self.photos.model().removeRows(0, self.photos.model().rowCount())
+        photo_list = PlornAlbumModel.photo_list(self.album_id)
+        for photo_id, photo_name, photo_dated, photo_path in photo_list:
+            msg  = 'PlornAlbumPhotosView: row '
+            msg += f'[{photo_id}, {photo_name}, {photo_dated}, {photo_path}'
+            module_logger.debug(msg)
+            id_item = self.build_item(f'{photo_id:04}')
+            name_item = self.build_item(photo_name)
+            dated_item = self.build_item(photo_dated)
+            path_item = self.build_item(photo_path)
+            row = [id_item, name_item, dated_item, path_item]
+            self.photos.model().appendRow(row)
+        index = self.photos.model().index(0, 0)
 
     def update_current_image(self, selected, deselected):
         global module_logger
