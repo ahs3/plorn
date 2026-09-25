@@ -599,8 +599,9 @@ class PlornCatalogView(QWidget):
         update_dlg.set_inputs(album_id=album_id)
         info = PlornAlbumDialog.ask(update_dlg)
         if 'apply' in info.keys() and info['apply']:
+            album = PlornDbOperations.get_album_by_id(info['id'])
             updates = PlornAlbum(info['album'],
-                                 id=album.get_id(),
+                                 id=info['id'],
                                  dated=info['dated'],
                                  notes=info['notes'],
                                  names=info['names'],

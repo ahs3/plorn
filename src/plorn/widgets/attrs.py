@@ -103,7 +103,9 @@ class PlornAttrSelection(QDialog):
         layout.addWidget(self.tree, 0, 0)
 
         root = self.tree.model().invisibleRootItem()
-        attr_items = PlornAttrModel.collect_attrs(self.table, db=self.db)
+        attr_items = PlornAttrModel.populate_attrs(root,
+                                                   table=self.table,
+                                                   db=self.db)
 
         self.bbox = QDialogButtonBox()
         self.bbox.addButton('Done', QDialogButtonBox.ButtonRole.RejectRole)

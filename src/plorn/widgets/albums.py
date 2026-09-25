@@ -254,28 +254,29 @@ class PlornAlbumDialog(QDialog):
                         Qt.AlignmentFlag.AlignVCenter
         label_alignment = Qt.AlignmentFlag.AlignRight | \
                           Qt.AlignmentFlag.AlignVCenter
+        metrics = self.catalog_label.fontMetrics()
+        rect = metrics.boundingRect(f'{" ":>40}')
+        width = 2 * rect.width()
 
         album_layout = QGridLayout()
         self.id_label = QLabel('Album ID:', alignment=label_alignment)
         album_layout.addWidget(self.id_label, 0, 0)
         self.id_text = QLabel('', alignment=hdr_alignment)
-        album_layout.addWidget(self.id_text, 0, 1, 1, 8)
+        self.id_text.setMinimumWidth(width)
+        album_layout.addWidget(self.id_text, 0, 1)
 
         self.select_label = QLabel('Album:', alignment=label_alignment)
         album_layout.addWidget(self.select_label, 1, 0)
         self.album_selection = PlornAlbumComboBox()
         self.album_selection.albumSelected.connect(self.set_inputs)
-        album_layout.addWidget(self.album_selection, 1, 1, 1, 8)
+        self.album_selection.setMinimumWidth(width)
+        album_layout.addWidget(self.album_selection, 1, 1)
 
         self.name_label = QLabel('Album Name:', alignment=label_alignment)
         album_layout.addWidget(self.name_label, 2, 0)
         self.name_edit = QLineEdit()
-        #self.name_edit.setText(f'{" ":>40}')
-        #metrics = self.name_edit.fontMetrics()
-        #rect = metrics.boundingRect(self.name_edit.text())
-        #self.name_edit.setMinimumWidth(2*rect.width())
-        #self.name_edit.setText('')
-        album_layout.addWidget(self.name_edit, 2, 1, 1, 8)
+        self.name_edit.setMinimumWidth(width)
+        album_layout.addWidget(self.name_edit, 2, 1)
 
         if self.allow_edit:
             self.id_label.setHidden(True)
@@ -296,20 +297,17 @@ class PlornAlbumDialog(QDialog):
         self.dated_label = QLabel('Dated:', alignment=label_alignment)
         info_layout.addWidget(self.dated_label, 0, 0)
         self.dated_edit = QLineEdit()
-        self.dated_edit.setText(f'{" ":>40}')
-        metrics = self.dated_edit.fontMetrics()
-        rect = metrics.boundingRect(self.dated_edit.text())
-        self.dated_edit.setMinimumWidth(2*rect.width())
-        self.dated_edit.setText('')
+        self.dated_edit.setMinimumWidth(width)
         info_layout.addWidget(self.dated_edit, 0, 1)
 
         self.notes_label = QLabel('<br><br><br><br>Notes:',
                                   alignment=label_alignment)
-        info_layout.addWidget(self.notes_label, 1, 0,
-                         alignment=Qt.AlignmentFlag.AlignTop)
+        info_layout.addWidget(self.notes_label, 1, 0)
         self.notes_edit = QTextEdit()
+        metrics = self.id_label.fontMetrics()
+        self.notes_edit.setMaximumWidth(width)
         info_layout.addWidget(self.notes_edit, 1, 1)
-        layout.addLayout(info_layout, 2, 0, 8, 1)
+        layout.addLayout(info_layout, 2, 0)
 
         if not self.allow_edit:
             count_layout = QGridLayout()
@@ -318,7 +316,7 @@ class PlornAlbumDialog(QDialog):
             count = QLineEdit()
             count.setReadOnly(True)
             count_layout.addWidget(count, 0, 1)
-            layout.addLayout(count_layout, 8, 0, 1, 1)
+            layout.addLayout(count_layout, 8, 0)
             if not hasattr(self, 'count_label'):
                 setattr(self, 'count_label', count_label)
             if not hasattr(self, 'count'):
@@ -336,7 +334,7 @@ class PlornAlbumDialog(QDialog):
             self.apply_button.setObjectName('add_album_apply_button')
         self.done_button.setDefault(True)
         self.bbox.clicked.connect(self.dlg_done)
-        layout.addWidget(self.bbox, 9, 1, 1, 2)
+        layout.addWidget(self.bbox, 9, 2, 1, 2)
 
         attr_layout = QGridLayout()
         self.name_list = PlornAttrListView('names', 'Name Attributes',
@@ -348,13 +346,19 @@ class PlornAlbumDialog(QDialog):
         self.tag_list = PlornAttrListView('tags', 'Tag Attributes',
                                           allow_edit=allow_edit)
         attr_layout.addWidget(self.tag_list, 3, 0)
-        layout.addLayout(attr_layout, 1, 1, 8, 1)
+        layout.addLayout(attr_layout, 1, 2, 8, 1)
 
         self.setLayout(layout)
         module_logger.debug('PlornAlbumDialog: init done')
 
     def check_inputs(self):
         global module_logger
+
+        if self.select_album and self.album_selection.get_selection() == None:
+            QMessageBox.warning(self, 'Album Error',
+                        'A album must be selected.')
+            self.should_apply = False
+            return QDialog.DialogCode.Rejected
 
         if len(self.name_edit.text().strip()) < 1:
             QMessageBox.warning(self, 'Album Name Error',
@@ -372,6 +376,11 @@ class PlornAlbumDialog(QDialog):
         module_logger.debug('PlornAlbumDialog: get_inputs entered')
         info = {}
         info['apply'] = self.should_apply
+        if self.select_album:
+            album = self.album_selection.get_selection()
+            info['id'] = album.get_id()
+        else:
+            info['id'] = int(self.id_text.text())
         info['album'] = self.name_edit.text()
         info['dated'] = self.dated_edit.text()
         info['notes'] = self.notes_edit.toPlainText()

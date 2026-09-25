@@ -791,11 +791,12 @@ class Plorn(QMainWindow):
                                title='Edit Album',
                                select_album=True,
                                allow_edit=True)
-        info = PlornViewAlbumDialog.ask(dlg)
+        info = PlornAlbumDialog.ask(dlg)
         if 'apply' in info.keys() and info['apply']:
             module_logger.debug('edit_album: APPLY info in gui')
+            album = PlornDbOperations.get_album_by_id(info['id'])
             updates = PlornAlbum(info['album'],
-                                 id=album.get_id(),
+                                 id=info['id'],
                                  dated=info['dated'],
                                  notes=info['notes'],
                                  names=info['names'],
