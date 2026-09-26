@@ -270,6 +270,7 @@ class PlornAlbumDialog(QDialog):
         self.album_selection.albumSelected.connect(self.set_inputs)
         self.album_selection.setMinimumWidth(width)
         album_layout.addWidget(self.album_selection, 1, 1)
+        self.album = None
 
         self.name_label = QLabel('Album Name:', alignment=label_alignment)
         album_layout.addWidget(self.name_label, 2, 0)
@@ -385,6 +386,8 @@ class PlornAlbumDialog(QDialog):
         info['count'] = 0
         if hasattr(self, 'count_label'):
             info['count'] = self.count.text()
+        else:
+            info['count'] = self.album.get_photo_count()
         info['names'] = self.name_list.get_items()
         info['places'] = self.place_list.get_items()
         info['tags'] = self.tag_list.get_items()
@@ -402,6 +405,7 @@ class PlornAlbumDialog(QDialog):
             album_id = self.album_selection.get_selection()
 
         album = PlornDbOperations.get_album_by_id(album_id)
+        self.album = album
         self.id_text.setText(f'{album.get_id():04}')
         self.name_edit.setText(album.get_name())
         self.dated_edit.setText(album.get_dated())
@@ -699,6 +703,9 @@ class PlornAlbumPhotosView(QDialog):
 
     def set_photo_list(self, id):
         self.photos.model().removeRows(0, self.photos.model().rowCount())
+        if self.current_image.scene():
+            for item in self.current_image.scene().items():
+                self.current_image.scene().removeItem(item)
         photo_list = PlornAlbumModel.photo_list(self.album_id)
         for photo_id, photo_name, photo_dated, photo_path in photo_list:
             msg  = 'PlornAlbumPhotosView: row '

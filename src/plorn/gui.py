@@ -800,6 +800,7 @@ class Plorn(QMainWindow):
                                  dated=info['dated'],
                                  notes=info['notes'],
                                  names=info['names'],
+                                 photo_count=info['count'],
                                  places=info['places'],
                                  tags=info['tags'])
             root = self.album_tree.model.invisibleRootItem()
