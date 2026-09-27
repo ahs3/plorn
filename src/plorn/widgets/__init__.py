@@ -41,6 +41,7 @@ from PyQt6.QtWidgets import (
 from plorn import (
     CatalogColumns,
     PlornAlbum,
+    PlornPhoto,
 )
 
 from plorn.config import PlornConfig
@@ -57,6 +58,7 @@ from plorn.widgets.albums import (
 )
 
 from plorn.widgets.photos import (
+    PlornPhotoDialog,
     PlornViewPhotoDialog,
 )
 
@@ -434,7 +436,7 @@ class PlornCatalogView(QWidget):
                 view_photo_action = menu.addAction('View Photo',
                                     lambda: self.view_photo_action())
                 add_child_action = menu.addAction('Add Photo',
-                                  lambda: self.add_photos_action(item.parent()))
+                                    lambda: self.add_photo_action())
                 edit_photo_action = menu.addAction('Edit Photo',
                                     lambda: self.edit_photo_action(item))
                 remove_action = menu.addAction('Remove Photo',
@@ -542,34 +544,6 @@ class PlornCatalogView(QWidget):
             info = PlornAlbumDialog.ask(view_dlg)
             view_dlg.close()
 
-    def view_photo_action(self):
-        global module_logger
-
-        module_logger.debug(f'view_photo_action: entered')
-        indices = self.selected_rows()
-        if len(indices) < 1:
-            title = 'View a Photo'
-            text = 'No photo has been selected for viewing.'
-            button = QMessageBox.critical(self, title, text)
-        else:
-            photo_name = ''
-            photo_id = 0
-            photo_row = -1
-            for index in indices:
-                item = self.item_from_index(index)
-                if item.column() == CatalogColumns.ID:
-                    photo_id = int(item.text())
-                    photo_row = item.row()
-                if item.column() == CatalogColumns.NAME:
-                    photo_name = item.text()
-            photo = PlornDbOperations.get_photo_by_id(photo_id)
-            view_dlg = PlornViewPhotoDialog(tree=self.tree,
-                                            title='View Photo',
-                                            allow_edit=False)
-            view_dlg.set_inputs(photo)
-            info = PlornViewPhotoDialog.ask(view_dlg)
-            view_dlg.close()
-
     def add_album_action(self):
         global module_logger
 
@@ -639,4 +613,81 @@ class PlornCatalogView(QWidget):
             self.catalogChanged.emit(0)
         module_logger.debug(f'manage_photos_action: done')
 
+    def view_photo_action(self):
+        global module_logger
+
+        module_logger.debug(f'view_photo_action: entered')
+        indices = self.selected_rows()
+        if len(indices) < 1:
+            title = 'View a Photo'
+            text = 'No photo has been selected for viewing.'
+            button = QMessageBox.critical(self, title, text)
+        else:
+            photo_name = ''
+            photo_id = 0
+            photo_row = -1
+            for index in indices:
+                item = self.item_from_index(index)
+                if item.column() == CatalogColumns.ID:
+                    photo_id = int(item.text())
+                    photo_row = item.row()
+                if item.column() == CatalogColumns.NAME:
+                    photo_name = item.text()
+            photo = PlornDbOperations.get_photo_by_id(photo_id)
+            view_dlg = PlornViewPhotoDialog(tree=self.tree,
+                                            title='View Photo',
+                                            allow_edit=False)
+            view_dlg.set_inputs(photo)
+            info = PlornViewPhotoDialog.ask(view_dlg)
+            view_dlg.close()
+
+    def add_photo_action(self):
+        global module_logger
+
+        module_logger.debug(f'add_photo_action: entered')
+        indices = self.selected_rows()
+        if len(indices) < 1:
+            title = 'View a Photo'
+            text = 'No photo has been selected for viewing.'
+            button = QMessageBox.critical(self, title, text)
+        else:
+            photo_name = ''
+            photo_id = 0
+            photo_row = -1
+            for index in indices:
+                item = self.item_from_index(index)
+                if item.column() == CatalogColumns.ID:
+                    photo_id = int(item.text())
+                    photo_row = item.row()
+                    parent = item.parent()
+                    album_id = int(parent.text())
+                    msg = f'add_photo_action: album_id {album_id}'
+                    module_logger.debug(msg)
+                if item.column() == CatalogColumns.NAME:
+                    photo_name = item.text()
+            dlg = PlornPhotoDialog(tree=self.tree,
+                                   title='Add Photo',
+                                   allow_edit=True)
+            dlg.set_album_info(album_id)
+            info = PlornPhotoDialog.ask(dlg)
+            module_logger.debug(f'add_photo_action: info is {info}')
+            if len(info) > 0:
+                photo = PlornPhoto(info['photo'],
+                                   id=None,
+                                   album_id=info['album_id'],
+                                   path=info['path'],
+                                   dated=info['dated'],
+                                   notes=info['notes'],
+                                   names=info['names'],
+                                   places=info['places'],
+                                   tags=info['tags'])
+                photo = PlornDbOperations.add_photo(photo)
+                root = self.tree.model().invisibleRootItem()
+                res = PlornAlbumModel.add_photo(root, photo)
+                if res == 'okay':
+                    module_logger.debug(f'add_photo: {info['photo']} was added')
+                else:
+                    module_logger.debug(f'gui.add_photo: no album to manage')
+                self.catalogChanged.emit(0)
+        module_logger.debug(f'gui.add_photo: done')
 

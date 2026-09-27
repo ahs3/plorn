@@ -63,6 +63,7 @@ from plorn import (
     CatalogColumns,
     PhotoFields,
     PlornAlbum,
+    PlornPhoto,
 )
 
 from plorn.config import PlornConfig
@@ -391,7 +392,7 @@ class Plorn(QMainWindow):
         edit_action.setObjectName('edit_photo_action')
         new_action.triggered.connect(self.edit_photo)
         photos.addAction(edit_action)
-        del_action = QAction('Delete', parent=self)
+        del_action = QAction('Remove Photo', parent=self)
         del_action.setObjectName('del_photo_action')
         new_action.triggered.connect(self.remove_photo)
         photos.addAction(del_action)
@@ -768,9 +769,9 @@ class Plorn(QMainWindow):
                             places=info['places'],
                             tags=info['tags'])
             root = self.album_tree.model.invisibleRootItem()
-            res = PlornAlbumModel.add_photo(root, album)
+            res = PlornAlbumModel.add_photo(root, photo)
             if res == 'okay':
-                module_logger.debug(f'add_photo: {info['name']} was added')
+                module_logger.debug(f'add_photo: {info['photo']} was added')
         else:
             module_logger.debug(f'gui.add_photo: no album to manage')
         self.set_catalog_info()

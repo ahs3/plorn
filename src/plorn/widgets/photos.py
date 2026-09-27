@@ -7,8 +7,8 @@
 
 import logging
 import os
-from PIL import Image as pilImage
-from PIL import ExifTags
+#from PIL import Image as pilImage
+#from PIL import ExifTags
 
 from PyQt6.QtCore import (
     QPoint,
@@ -51,6 +51,7 @@ from PyQt6.QtWidgets import (
     QTextEdit,
 )
 
+import plorn
 from plorn import (
     CatalogColumns,
     PlornAlbum,
@@ -351,6 +352,9 @@ class PlornPhotoDialog(QDialog):
         self.path_edit.setText('')
         self.path_edit.setReadOnly(allow_edit)
         photo_layout.addWidget(self.path_edit, 2, 1)
+        self.browse_button = QPushButton('Browse')
+        self.browse_button.clicked.connect(self.select_file)
+        photo_layout.addWidget(self.browse_button, 2, 2)
 
         self.dated_label = QLabel('Dated:', alignment=label_alignment)
         photo_layout.addWidget(self.dated_label, 3, 0)
@@ -412,21 +416,95 @@ class PlornPhotoDialog(QDialog):
         self.setLayout(layout)
         module_logger.debug('PlornPhotoDialog: init done')
 
+    def show_current_image(self):
+        global module_logger
+
+        module_logger.debug('show_current_image: entered')
+        pixmap = QPixmap()
+        path = self.path_edit.text()
+        if len(path) < 1:
+            return
+        fullpath = os.path.expandvars(os.path.expanduser(path))
+        pixmap.load(fullpath)
+        shrunk = pixmap.scaled(QSize(400, 400),
+                     aspectRatioMode=Qt.AspectRatioMode.KeepAspectRatio,
+                     transformMode=Qt.TransformationMode.SmoothTransformation)
+        for item in self.scene.items():
+            self.scene.removeItem(item)
+        self.scene.setSceneRect(QRectF(shrunk.rect()))
+        self.scene.addPixmap(shrunk)
+        self.gview.setScene(self.scene)
+        self.gview.show()
+        self.show_image.setEnabled(True)
+
     def show_full_image(self):
         global module_logger
 
         module_logger.debug('show_full_image: entered')
-        if len(self.id_text.text()) < 1:
+        if len(self.path_edit.text()) < 1:
             return
         module_logger.debug('show_full_image: open the dialog')
         dlg = PlornImageDialog(parent=self,
-                               id=self.id_text.text(),
+                               #id=self.id_text.text(),
                                name=self.name_edit.text(),
                                path=self.path_edit.text())
         dlg.show()
 
+    def select_file(self):
+        global module_logger
+
+        config = PlornConfig()
+        last_dir = config.get_last_directory_selected()
+        dlg = QFileDialog(parent=self,
+                          caption='Select Photo',
+                          directory=last_dir,
+                          filter='Images: (*.png *xpm, *jpg)')
+        dlg.setAcceptMode(QFileDialog.AcceptMode.AcceptOpen)
+        dlg.setFileMode(QFileDialog.FileMode.ExistingFile)
+        dlg.setViewMode(QFileDialog.ViewMode.Detail)
+        dlg.directoryEntered.connect(plorn.capture_last_directory)
+        filename = None
+        if dlg.exec():
+            filenames = dlg.selectedFiles()
+            if len(filenames) > 0:
+                filename = filenames[0]
+                module_logger.debug(f'select_file: {filename}')
+                img = QImage(filename)
+                if img.format == QImage.Format.Format_Invalid:
+                    QMessageBox.critical(self, 'Image Format Error',
+                                     'File chosen is not a valid image format.')
+                    return None
+                info = plorn.get_metadata(filename)
+                self.path_edit.setText(filename)
+                if self.name_edit.text() == '':
+                    self.name_edit.setText(os.path.basename(filename))
+                dated = self.dated_edit.text()
+                notes = self.notes_edit.toPlainText()
+                if len(dated) < 1:
+                    if 'dated' in info.keys() and len(info['dated']) > 0:
+                        dated = f'{info["dated"]}'.replace('Date and Time: ','')
+                        self.dated_edit.setText(dated)
+                if len(notes) > 0:
+                    notes += '\n'
+                if 'dated' in info.keys() and len(info['dated']) > 0:
+                    notes += f'{info["dated"]}'
+                if len(notes) > 0:
+                    notes += '\n'
+                if 'location' in info.keys() and len(info['location']) > 0:
+                    notes += f'{info["location"]}'
+                self.notes_edit.setPlainText(notes)
+                self.show_current_image()
+        return filename
+
     def check_inputs(self):
         global module_logger
+
+        if self.allow_edit:
+            if self.album_selection.get_selection() == None:
+                QMessageBox.warning(self, 'Album Selection Error',
+                            'An album must be selected.')
+                self.should_apply = False
+                return QDialog.DialogCode.Rejected
 
         if len(self.name_edit.text().strip()) < 1:
             QMessageBox.warning(self, 'Photo Name Error',
@@ -438,11 +516,27 @@ class PlornPhotoDialog(QDialog):
         self.should_apply = True
         return QDialog.DialogCode.Accepted
 
-    def set_album_info(self, album_id, album_name):
-        if len(album_id) < 1 or len(album_name) < 1:
+    def set_album_info(self, album_id, album_name=' '):
+        global module_logger
+
+        msg = f'set_album_info: id "{album_id}", name "{album_name}"'
+        module_logger.debug(msg)
+        if int(album_id) < 0 or len(album_name) < 1:
             return
-        self.album_id.setText(f'{album_id:04}')
-        self.album_name.setText(f'{album_name}')
+        if self.allow_edit:
+            txt = f'[{album_id:04}]'
+            index = self.album_selection.findText(txt,
+                                            flags=Qt.MatchFlag.MatchContains)
+            msg  = f'set_album_info: search for id "{txt}", '
+            msg += f' found at index {index}'
+            module_logger.debug(msg)
+            if index >= 0:
+                self.album_selection.setCurrentIndex(index)
+        else:
+            module_logger.debug(f'set_album_info: not editing')
+            self.album_id.setText(f'{album_id:04}')
+            self.album_name.setText(f'{album_name}')
+        module_logger.debug(f'set_album_info: done')
 
     def get_inputs(self):
         global module_logger
@@ -450,7 +544,12 @@ class PlornPhotoDialog(QDialog):
         module_logger.debug('PlornPhotoDialog: get_inputs entered')
         info = {}
         info['apply'] = self.should_apply
-        info['album'] = self.name_edit.text()
+        if self.allow_edit:
+            info['album_id'] = self.album_selection.get_selection()
+        else:
+            info['album_id'] = self.album_id.text()
+        info['photo'] = self.name_edit.text()
+        info['path']  = self.path_edit.text()
         info['dated'] = self.dated_edit.text()
         info['notes'] = self.notes_edit.toPlainText()
         info['names'] = self.name_list.get_items()

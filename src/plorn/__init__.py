@@ -13,12 +13,16 @@ import os
 import shutil
 import traceback
 
+from PIL import Image as pilImage
+from PIL import ExifTags
+
 import faulthandler
 faulthandler.enable()
 
 module_logger = logging.getLogger('plorn')
 module_logger.setLevel(logging.INFO)
 
+from plorn.config import PlornConfig
 config = ''                 # global config info to be filled in later
 
 def DUMP_STACK():
@@ -375,4 +379,92 @@ class PlornTag(PlornAttr):
 
     def set_db_table_name(self, name):
         pass
+
+###################################################################
+#
+#   weird helper functions used in several places
+#
+def capture_last_directory(directory):
+    global module_logger
+
+    module_logger.debug(f'capture_last_directory: dir {directory}')
+    config = PlornConfig()
+    config.set_last_directory_selected(directory)
+    msg = f'capture_last_directory: {config.get_last_directory_selected()}'
+    module_logger.debug(msg)
+
+def get_metadata(path):
+    global module_logger
+    '''
+    Get EXIF metadata from the image if we can.  NB: we scarf up
+    everything we can, just in case, but may not use it (that's
+    what garbage collection is for ...?)
+    '''
+    module_logger.debug(f'get_metadata: entered for {path}')
+
+    def format_dms(degrees, minutes, seconds, direction):
+        degree_symbol = u'\N{DEGREE SIGN}'
+        value  = float(degrees)
+        value += float(float(minutes) / 60.0)
+        value += float(float(seconds) / 3600.0)
+        return f'{value:.6}{degree_symbol} {direction}'
+
+    info = {}
+    try:
+        with pilImage.open(path) as img:
+            info['format'] = f'Image Format: {img.format}'
+            exif = img.getexif()
+            for tag, value in exif.items():
+                text = ExifTags.TAGS[tag]
+                info[text] = value
+            exif_ifd = exif.get_ifd(ExifTags.IFD.Exif)
+            for tag, value in exif_ifd.items():
+                text = ExifTags.TAGS[tag]
+                info[text] = value
+            gps_ifd = exif.get_ifd(ExifTags.IFD.GPSInfo)
+            for tag, value in gps_ifd.items():
+                text = ExifTags.GPSTAGS[tag]
+                info[text] = value
+        img.close()
+    except (IOError, AttributeError, KeyError, IndexError) as e:
+        return {}
+
+    if 'DateTime' in info:
+        dt = info['DateTime'].split()
+        date = dt[0].replace(':', '-')
+        tm = dt[1]
+        dated = f'{date}  {tm}'
+        msg = f'Date and Time: {date}  {tm}'
+        if 'OffsetTime' in info:
+            msg += f'{info["OffsetTime"]}'
+        info['dated'] = msg
+
+    if 'GPSInfo' in info:
+        gps_ifd = exif.get_ifd(ExifTags.IFD.GPSInfo)
+        loc = ''
+        if len(gps_ifd) > 0:
+            lat_deg = None
+            lat_min = None
+            lat_sec = None
+            long_deg = None
+            long_min = None
+            long_sec = None
+            if ExifTags.GPS.GPSLatitude in gps_ifd:
+                lat_deg, lat_min, lat_sec = info['GPSLatitude']
+                lat_dir = info['GPSLatitudeRef']
+            if ExifTags.GPS.GPSLongitude in gps_ifd:
+                long_deg, long_min, long_sec = info['GPSLongitude']
+                long_dir = info['GPSLongitudeRef']
+            if (lat_deg != None and lat_min!= None and \
+                    lat_sec!= None ) and \
+                    (long_deg!= None  and long_min!= None \
+                    and long_sec!= None ):
+                lat = format_dms(lat_deg, lat_min, lat_sec, lat_dir)
+                long = format_dms(long_deg, long_min, long_sec, long_dir)
+                loc += f'Latitude, Longitude: {lat}, {long}'
+                info['location'] = loc
+
+    module_logger.debug(f'get_metadata: done, info {info}')
+    return info
+
 
