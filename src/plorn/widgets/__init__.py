@@ -395,6 +395,15 @@ class PlornCatalogView(QWidget):
         module_logger.debug('switch_model done: album view')
         return res
 
+    def is_album(self, index):
+        res = False
+        if self.model.itemFromIndex(index).parent() == None:
+            res = True
+        return res
+
+    def is_photo(self, index):
+        return not self.is_album(index)
+
     def context_menu(self, position):
         global module_logger
 
@@ -478,17 +487,12 @@ class PlornCatalogView(QWidget):
             item = self.tree.model().itemFromIndex(idx)
             #module_logger.debug(f'view_object: column {item.column()}')
             if item.column() == CatalogColumns.ID:
-                id = int(item.text())
-            elif item.column() == CatalogColumns.COUNT:
-                if len(item.text()) >= 1:
-                    found_count = True
-            elif item.column() == CatalogColumns.PATH:
-                if len(item.text()) >= 1:
-                    found_path = True
-        if found_count and not found_path:          # object is an album
+                id_idx = ids
+                break
+        if self.tree.is_album(id_idx):          # object is an album
             #module_logger.debug(f'view_object: it is an album')
             self.view_album(id)
-        elif found_path and not found_count:        # object is a photo
+        elif self.tree.is_photo(id_idx):        # object is a photo
             #module_logger.debug(f'view_object: it is a photo')
             self.view_photo(id)
         module_logger.debug(f'view_object: done for "{value}"')

@@ -690,6 +690,10 @@ class Plorn(QMainWindow):
             title = 'View a Photo'
             text = 'No photo has been selected for viewing.'
             button = QMessageBox.critical(self, title, text)
+        elif self.album_tree.is_album(indices[0]):
+            title = 'View a Photo'
+            text = 'An album has been selected for viewing, not a photo.'
+            button = QMessageBox.critical(self, title, text)
         else:
             photo_name = ''
             photo_id = 0
@@ -850,7 +854,8 @@ class Plorn(QMainWindow):
 
     def slide_show(self, album_item=None):
         global module_logger
-        pass
+        QMessageBox.information(self, 'Album Slide Show',
+                    'This feature is still under construction.')
 
     def edit_photo(self, item):
         pass
