@@ -385,10 +385,8 @@ class PlornAlbumDialog(QDialog):
         info['dated'] = self.dated_edit.text()
         info['notes'] = self.notes_edit.toPlainText()
         info['count'] = 0
-        if hasattr(self, 'count_label'):
+        if not self.allow_edit:
             info['count'] = self.count.text()
-        else:
-            info['count'] = self.album.get_photo_count()
         info['names'] = self.name_list.get_items()
         info['places'] = self.place_list.get_items()
         info['tags'] = self.tag_list.get_items()

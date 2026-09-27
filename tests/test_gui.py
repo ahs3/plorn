@@ -66,7 +66,6 @@ from plorn.widgets import (
 
 from plorn.widgets.albums import (
     PlornAlbumDialog,
-    PlornViewAlbumDialog,
 )
 
 
@@ -1012,12 +1011,13 @@ def test_add_album1(initial_db, monkeypatch):
     assert tree != None
     assert tree.model.rowCount() == 0
 
-    dlg = PlornAlbumDialog(tree=tree)
+    dlg = PlornAlbumDialog(tree=tree, select_album=True)
     tree_root = tree.model.invisibleRootItem()
     album = random_string(tree_root)
     dated = datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%d')
     notes = random_string(tree_root)
 
+    dlg.album_selection.setCurrentIndex(1)
     dlg.name_edit.setText(album)
     dlg.dated_edit.setText(dated)
     dlg.notes_edit.insertPlainText(notes)
@@ -1041,12 +1041,13 @@ def test_add_album2(initial_db, monkeypatch):
     assert tree != None
     assert tree.model.rowCount() == 0
 
-    dlg = PlornAlbumDialog(tree=tree)
+    dlg = PlornAlbumDialog(tree=tree, select_album=True)
     tree_root = tree.model.invisibleRootItem()
     album = random_string(tree_root)
     dated = datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%d')
     notes = random_string(tree_root)
 
+    dlg.album_selection.setCurrentIndex(1)
     dlg.name_edit.setText(album)
     dlg.dated_edit.setText(dated)
     dlg.notes_edit.insertPlainText(notes)
@@ -1235,7 +1236,6 @@ def test_remove_album1(initial_db, monkeypatch):
     assert tag_attr.get_id() != 0
     album.set_tag_list([tag_attr])
 
-    #album = PlornDbOperations.add_album(album)
     res = PlornAlbumModel.add_album(tree_root, album, db=info['db'])
     assert res, 'album did not get added'
     assert album.get_id() != 0
@@ -1255,6 +1255,8 @@ def test_remove_album1(initial_db, monkeypatch):
     indices = [id_index, name_index]
     monkeypatch.setattr(PlornCatalogView,'selected_rows',lambda *args: indices)
 
+    monkeypatch.setattr(QMessageBox,'question',
+                        lambda *args: QMessageBox.StandardButton.Yes)
     root.remove_album()
     assert tree.model.rowCount() + 1 == row_count
     album = PlornDbOperations.get_album_by_id(id)
@@ -1314,8 +1316,9 @@ def test_view_album1(initial_db, monkeypatch):
     items = tree.model.findItems(album.get_name(), column=2)
     assert len(items) > 0
 
-    dlg = PlornViewAlbumDialog(tree=tree, title='View Album', allow_edit=False)
-    dlg.set_inputs(album)
+    dlg = PlornAlbumDialog(tree=tree, title='View Album', allow_edit=False,
+                           select_album=False)
+    dlg.set_inputs(album.get_id())
     assert album.get_name() == dlg.name_edit.text()
     assert album.get_dated() == dlg.dated_edit.text()
     assert album.get_notes() == dlg.notes_edit.toPlainText()
@@ -1364,22 +1367,19 @@ def test_update_album1(initial_db, monkeypatch):
     assert len(album.get_tag_list()) > 0
 
     #-- invoke the edit dialog, change some things and save them
-    dlg = PlornViewAlbumDialog(tree=tree, title='Edit Album', allow_edit=True)
-    dlg.set_inputs(album)
+    dlg = PlornAlbumDialog(tree=tree, title='Edit Album', allow_edit=True,
+                           select_album=False)
+    dlg.set_inputs(album_id)
     assert dlg.name_edit.text() == album_name
     assert dlg.dated_edit.text() == dated
     assert dlg.notes_edit.toPlainText() == notes
-    assert dlg.count.text() == str(count)
 
     new_dated = datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%d')
     new_notes = random_string(tree_root)
-    new_count = 54
     dlg.dated_edit.setText(new_dated)
     dlg.notes_edit.setPlainText(new_notes)
-    dlg.count.setText(str(new_count))
     assert dlg.dated_edit.text() == new_dated
     assert dlg.notes_edit.toPlainText() == new_notes
-    assert dlg.count.text() == str(new_count)
 
     bbox = dlg.findChild(QDialogButtonBox, 'album_dlg_bbox')
     assert bbox != None
