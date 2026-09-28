@@ -14,7 +14,7 @@ import sys
 
 MAJOR = 0
 MINOR = 37
-BUGFIX = 15
+BUGFIX = 16
 __version__ = str(MAJOR) + '.' + str(MINOR) + '.' + str(BUGFIX)
 
 module_logger = logging.getLogger('plorn.config')
@@ -231,6 +231,7 @@ class PlornConfig:
         if self.config.get('DEFAULT', lds, fallback=None) == None:
             self.config['DEFAULT'][lds] = os.environ['HOME']
             self.write_config()
+            return
         return self.config['DEFAULT'][lds]
 
     def set_last_directory_selected(self, directory):

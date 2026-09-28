@@ -354,3 +354,34 @@ def test_set_catalog(plorn_test_env, monkeypatch):
     assert datadir == '/tmp/foobar'
     assert dbname == 'omg.db'
 
+def test_set_last_directory_selected(plorn_test_env, monkeypatch):
+    tmpdir, cfgdir, datadir = plorn_test_env
+    monkeypatch.setenv('HOME', tmpdir)
+    fname = os.path.join(cfgdir, 'plorn.cfg')
+    write_test_config(fname, bogus_config_data)
+    cfg = PlornConfig()
+    catalog, datadir, dbname = cfg.get_current_catalog()
+    assert catalog == 'Plorn'
+    assert datadir == cfg.get_datadir()
+    assert dbname == 'default.catalog'
+    assert cfg.get_last_directory_selected() == None
+
+    #-- there is no such directory
+    cfg.set_last_directory_selected('/some/place/else')
+    cfg.reread()
+
+    catalog, datadir, dbname = cfg.get_current_catalog()
+    assert catalog == 'Plorn'
+    assert datadir == cfg.get_datadir()
+    assert dbname == 'default.catalog'
+    assert cfg.get_last_directory_selected() != '/some/place/else'
+
+    cfg.set_last_directory_selected(tmpdir)
+    cfg.reread()
+
+    catalog, datadir, dbname = cfg.get_current_catalog()
+    assert catalog == 'Plorn'
+    assert datadir == cfg.get_datadir()
+    assert dbname == 'default.catalog'
+    assert cfg.get_last_directory_selected() == tmpdir
+
