@@ -73,6 +73,11 @@ from plorn.widgets.albums import (
 #
 #   basic main window tests
 #
+def test_main(initial_db, monkeypatch):
+    info = initial_db
+    assert info['app'] != None
+    assert info['root'] != None
+
 def test_left_header(initial_db, monkeypatch):
     info = initial_db
     monkeypatch.setenv('HOME', info['homedir'])
