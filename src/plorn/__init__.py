@@ -312,6 +312,17 @@ class PlornPhoto(PlornBaseObj):
         val += f', path: \'{self.path}\''
         val += f', dated: \'{self.dated}\''
         val += f', notes: \'{self.notes}\''
+        for ii in self.name_list:
+            val += f' "{ii.get_value()}",'
+        val += ']'
+        val += f', place_list: n={len(self.place_list)}, ['
+        for ii in self.place_list:
+            val += f' "{ii.get_value()}",'
+        val += ']'
+        val += f', tag_list: n={len(self.tag_list)}, ['
+        for ii in self.tag_list:
+            val += f' "{ii.get_value()}",'
+        val += ']'
         return val
 
 

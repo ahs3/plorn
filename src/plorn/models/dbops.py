@@ -226,17 +226,17 @@ class PlornDbOperations:
         query = QSqlQuery(f'SELECT * FROM config;', db=_current_db)
         return query.next()
 
-    def album_exists(self, album):
-        sql = f'SELECT * FROM albums WHERE name = \'{album.get_name()}\''
-        res = self.cursor.execute(sql)
-        rows = res.fetchone()
-        return rows != None
+#    def album_exists(self, album):
+#        sql = f'SELECT * FROM albums WHERE name = \'{album.get_name()}\''
+#        res = self.cursor.execute(sql)
+#        rows = res.fetchone()
+#        return rows != None
 
-    def photo_exists(self, photo):
-        sql = f'SELECT * FROM photos WHERE id = \'{photo.get_id()}\''
-        res = self.cursor.execute(sql)
-        rows = res.fetchone()
-        return rows != None
+#    def photo_exists(self, photo):
+#        sql = f'SELECT * FROM photos WHERE id = \'{photo.get_id()}\''
+#        res = self.cursor.execute(sql)
+#        rows = res.fetchone()
+#        return rows != None
 
     @staticmethod
     def add_album_name_list(album):
@@ -260,6 +260,34 @@ class PlornDbOperations:
     def remove_album_name_list(album):
         global module_logger, _current_album
         sql = f'DELETE FROM album_names WHERE album_id = {album.get_id()};'
+        return QSqlQuery(sql, db=_current_db)
+
+    @staticmethod
+    def add_photo_name_list(photo):
+        global module_logger, _current_album
+
+        res = False
+        if len(photo.get_name_list()) > 0:
+            photo_id = photo.get_id()
+            sql  = 'INSERT INTO photo_names (name_id, photo_id) VALUES '
+            for ii in photo.get_name_list():
+                msg  = f'static add_photo_name list '
+                msg += f'{ii.get_value()}: {ii.get_id()}, {photo_id}'
+                module_logger.debug(msg)
+                sql += f'({ii.get_id()}, {photo_id}), '
+            idx = sql.rfind(',')
+            sql = sql[0:idx]
+            sql += ';'
+            msg  = f'static add_photo_name list sql "{sql}"'
+            module_logger.debug(msg)
+            query = QSqlQuery(sql, db=_current_db)
+            res = query.isValid()
+        return res
+
+    @staticmethod
+    def remove_photo_name_list(photo):
+        global module_logger, _current_album
+        sql = f'DELETE FROM photo_names WHERE photo_id = {photo.get_id()};'
         return QSqlQuery(sql, db=_current_db)
 
     @staticmethod
@@ -287,6 +315,30 @@ class PlornDbOperations:
         return QSqlQuery(sql, db=_current_db)
 
     @staticmethod
+    def add_photo_place_list(photo):
+        global module_logger, _current_album
+
+        res = False
+        if len(photo.get_place_list()) > 0:
+            photo_id = photo.get_id()
+            sql  = 'INSERT INTO photo_places (place_id, photo_id) VALUES '
+            for ii in photo.get_place_list():
+                module_logger.debug(f'static add_photo_place list {ii.get_value()}: {ii.get_id()}, {photo_id}')
+                sql += f'({ii.get_id()}, {photo_id}), '
+            idx = sql.rfind(',')
+            sql = sql[0:idx]
+            sql += ';'
+            query = QSqlQuery(sql, db=_current_db)
+            res = query.isValid()
+        return res
+
+    @staticmethod
+    def remove_photo_place_list(photo):
+        global module_logger, _current_album
+        sql = f'DELETE FROM photo_places WHERE photo_id = {photo.get_id()};'
+        return QSqlQuery(sql, db=_current_db)
+
+    @staticmethod
     def add_album_tag_list(album):
         global _current_db
 
@@ -310,56 +362,29 @@ class PlornDbOperations:
         sql = f'DELETE FROM album_tags WHERE album_id = {album.get_id()};'
         return QSqlQuery(sql, db=_current_db)
 
-    def add_photo_name_list(self, photo):
-        res = None
-        if len(photo.get_name_list()) > 0:
-            photo_id = photo.get_id()
-            sql  = 'INSERT INTO photo_names (name_id, photo_id) VALUES '
-            for ii in photo.get_name_list():
-                #print(f'   {ii.get_value()}: {ii.get_id()}, {photo_id}')
-                sql += f'({ii.get_id()}, {photo_id}), '
-            idx = sql.rfind(',')
-            sql = sql[0:idx]
-            res = self.cursor.execute(sql)
-        return res
+    @staticmethod
+    def add_photo_tag_list(photo):
+        global module_logger, _current_album
 
-    def remove_photo_name_list(self, photo):
-        sql = f'DELETE FROM photo_names WHERE photo_id = \'{photo.get_id()}\''
-        return self.cursor.execute(sql)
-
-    def add_photo_place_list(self, photo):
-        res = None
-        if len(photo.get_place_list()) > 0:
-            photo_id = photo.get_id()
-            sql  = 'INSERT INTO photo_places (place_id, photo_id) VALUES '
-            for ii in photo.get_place_list():
-                #print(f'   {ii.get_value()}: {ii.get_id()}, {photo_id}')
-                sql += f'({ii.get_id()}, {photo_id}), '
-            idx = sql.rfind(',')
-            sql = sql[0:idx]
-            res = self.cursor.execute(sql)
-        return res
-
-    def remove_photo_place_list(self, photo):
-        sql = f'DELETE FROM photo_places WHERE photo_id = \'{photo.get_id()}\''
-        return self.cursor.execute(sql)
-
-    def add_photo_tag_list(self, photo):
-        res = None
+        res = False
         if len(photo.get_tag_list()) > 0:
             photo_id = photo.get_id()
             sql  = 'INSERT INTO photo_tags (tag_id, photo_id) VALUES '
             for ii in photo.get_tag_list():
-                #print(f'   {ii.get_value()}: {ii.get_id()}, {photo_id}')
+                module_logger.debug(f'static add_photo_tag list {ii.get_value()}: {ii.get_id()}, {photo_id}')
                 sql += f'({ii.get_id()}, {photo_id}), '
             idx = sql.rfind(',')
             sql = sql[0:idx]
-            res = self.cursor.execute(sql)
+            sql += ';'
+            query = QSqlQuery(sql, db=_current_db)
+            res = query.isValid()
         return res
 
-    def remove_photo_tag_list(self, photo):
-        sql = f'DELETE FROM photo_tags WHERE photo_id = \'{photo.get_id()}\''
-        return self.cursor.execute(sql)
+    @staticmethod
+    def remove_photo_tag_list(photo):
+        global module_logger, _current_album
+        sql = f'DELETE FROM photo_tags WHERE photo_id = {photo.get_id()};'
+        return QSqlQuery(sql, db=_current_db)
 
     @staticmethod
     def add_album(album):
@@ -394,8 +419,8 @@ class PlornDbOperations:
         module_logger.debug('static add_album: done')
         return album
 
-    def get_album(self, album_id):
-        return self.get_album_by_id(album_id)
+#    def get_album(self, album_id):
+#        return self.get_album_by_id(album_id)
 
     @staticmethod
     def get_album_by_name(album_name):
@@ -465,38 +490,38 @@ class PlornDbOperations:
     def remove_album(album):
         return PlornDbOperations.remove_album_by_id(album.get_id())
 
-    def add_name_to_album_by_id(self, name_id, album_id):
-        sql  = 'INSERT INTO album_names '
-        sql += '(name_id, album_id) '
-        sql += f'VALUES ({name_id}, {album_id})'
-        res = self.cursor.execute(sql)
+#    def add_name_to_album_by_id(self, name_id, album_id):
+#        sql  = 'INSERT INTO album_names '
+#        sql += '(name_id, album_id) '
+#        sql += f'VALUES ({name_id}, {album_id})'
+#        res = self.cursor.execute(sql)
 
-    def remove_name_from_album_by_id(self, name_id, album_id):
-        sql  = 'DELETE FROM album_names'
-        sql += f' WHERE name_id = {name_id} AND album_id = {album_id}'
-        res = self.cursor.execute(sql)
+#    def remove_name_from_album_by_id(self, name_id, album_id):
+#        sql  = 'DELETE FROM album_names'
+#        sql += f' WHERE name_id = {name_id} AND album_id = {album_id}'
+#        res = self.cursor.execute(sql)
 
-    def add_place_to_album_by_id(self, place_id, album_id):
-        sql  = 'INSERT INTO album_places '
-        sql += '(place_id, album_id) '
-        sql += f'VALUES ({place_id}, {album_id})'
-        res = self.cursor.execute(sql)
+#    def add_place_to_album_by_id(self, place_id, album_id):
+#        sql  = 'INSERT INTO album_places '
+#        sql += '(place_id, album_id) '
+#        sql += f'VALUES ({place_id}, {album_id})'
+#        res = self.cursor.execute(sql)
 
-    def remove_place_from_album_by_id(self, place_id, album_id):
-        sql  = 'DELETE FROM album_places'
-        sql += f' WHERE place_id = {place_id} AND album_id = {album_id}'
-        res = self.cursor.execute(sql)
+#    def remove_place_from_album_by_id(self, place_id, album_id):
+#        sql  = 'DELETE FROM album_places'
+#        sql += f' WHERE place_id = {place_id} AND album_id = {album_id}'
+#        res = self.cursor.execute(sql)
 
-    def add_tag_to_album_by_id(self, tag_id, album_id):
-        sql  = 'INSERT INTO album_tags '
-        sql += '(tag_id, album_id) '
-        sql += f'VALUES ({tag_id}, {album_id})'
-        res = self.cursor.execute(sql)
+#    def add_tag_to_album_by_id(self, tag_id, album_id):
+#        sql  = 'INSERT INTO album_tags '
+#        sql += '(tag_id, album_id) '
+#        sql += f'VALUES ({tag_id}, {album_id})'
+#        res = self.cursor.execute(sql)
 
-    def remove_tag_from_album_by_id(self, tag_id, album_id):
-        sql  = 'DELETE FROM album_tags'
-        sql += f' WHERE tag_id = {tag_id} AND album_id = {album_id}'
-        res = self.cursor.execute(sql)
+#    def remove_tag_from_album_by_id(self, tag_id, album_id):
+#        sql  = 'DELETE FROM album_tags'
+#        sql += f' WHERE tag_id = {tag_id} AND album_id = {album_id}'
+#        res = self.cursor.execute(sql)
 
     @staticmethod
     def update_album(album, updated_album):
@@ -530,7 +555,7 @@ class PlornDbOperations:
         if query.next():
             row['id'] = query.value(PhotoFields.ID)
             row['album_id'] = query.value(PhotoFields.ALBUM_ID)
-            row['name'] = query.value(PhotoFields.NAME)
+            row['photo'] = query.value(PhotoFields.NAME)
             row['path'] = query.value(PhotoFields.PATH)
             row['dated'] = query.value(PhotoFields.DATED)
             row['notes'] = query.value(PhotoFields.NOTES)
@@ -545,7 +570,7 @@ class PlornDbOperations:
         global module_logger, _current_db
 
         row = PlornDbOperations.get_photo_row_by_id(photo_id)
-        p = PlornPhoto(row['name'], id=row['id'],
+        p = PlornPhoto(row['photo'], id=row['id'],
                                    album_id=row['album_id'],
                                    path=row['path'], dated=row['dated'],
                                    notes=row['notes'])
@@ -554,25 +579,34 @@ class PlornDbOperations:
         p.set_tag_list(row['tags'])
         return p
 
-    def get_photo(self, photo_id):
-        return self.get_photo_by_id(photo_id)
+#    def get_photo(self, photo_id):
+#        return self.get_photo_by_id(photo_id)
 
     @staticmethod
-    def get_photos_by_album_and_path(album_id, path):
+    def get_photo_by_album_and_path(album_id, path):
         global module_logger, _current_db
 
         sql  = 'SELECT * FROM photos WHERE '
         sql += f'path = "{path}" AND album_id = "{album_id}";'
         query = QSqlQuery(sql, db=_current_db)
         if query.next():
-            return PlornPhoto(query.value(PhotoFields.NAME),
-                              id=query.value(PhotoFields.ID),
-                              album_id=query.value(PhotoFields.ALBUM_ID),
-                              dated=query.value(PhotoFields.DATED),
-                              notes=query.value(PhotoFields.NOTES),
-                              path=query.value(PhotoFields.PATH))
-        else:
-            return None
+            photo_id = query.value(PhotoFields.ID)
+            photo = PlornPhoto(query.value(PhotoFields.NAME),
+                               id=photo_id,
+                               album_id=query.value(PhotoFields.ALBUM_ID),
+                               path=query.value(PhotoFields.PATH),
+                               dated=query.value(PhotoFields.DATED),
+                               notes=query.value(PhotoFields.NOTES))
+            names = PlornDbOperations.get_names_for_photo_by_id(photo_id)
+            photo.set_name_list(names)
+            places = PlornDbOperations.get_places_for_photo_by_id(photo_id)
+            photo.set_place_list(places)
+            tags = PlornDbOperations.get_tags_for_photo_by_id(photo_id)
+            photo.set_tag_list(tags)
+            return photo
+
+        return None
+            
 
     @staticmethod
     def increment_photo_count(album):
@@ -598,18 +632,26 @@ class PlornDbOperations:
         sql += f' "{photo.get_dated()}", "{photo.get_notes()}");'
         query = QSqlQuery(sql, db=_current_db)
         PlornDbOperations.increment_photo_count(album)
+
         sql  = f'SELECT * FROM photos WHERE path = "{photo.get_path()}" '
         sql += f'AND album_id = "{photo.get_album_id()}";'
         query = QSqlQuery(sql, db=_current_db)
         if query.next():
-            return PlornPhoto(query.value(PhotoFields.NAME),
-                              id=query.value(PhotoFields.ID),
-                              album_id=query.value(PhotoFields.ALBUM_ID),
-                              path=query.value(PhotoFields.PATH),
-                              dated=query.value(PhotoFields.DATED),
-                              notes=query.value(PhotoFields.NOTES))
+            id = query.value(PhotoFields.ID)
+            photo.set_id(id)
+            module_logger.debug('static add_photo: adding attr lists')
+            PlornDbOperations.add_photo_name_list(photo)
+            PlornDbOperations.add_photo_place_list(photo)
+            PlornDbOperations.add_photo_tag_list(photo)
+            module_logger.debug(f'static add_photo: attr lists done, photo {str(photo)}')
+
         else:
-            return None
+            msg  = f'cannot add photo {photo.get_name()}'
+            msg += f'\n{query.lastError().text()}'
+            raise PlornDbException(msg)
+
+        module_logger.debug('static add_photo: done')
+        return photo
 
     @staticmethod
     def remove_photo(photo_id, path=''):

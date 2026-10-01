@@ -759,6 +759,7 @@ class Plorn(QMainWindow):
         info = PlornPhotoDialog.ask(new_photo_dlg)
         module_logger.debug(f'add_photo: info is {str(info)}')
         if len(info) > 0:
+            module_logger.debug(f'add_photo: from dlg, {info}')
             photo = PlornPhoto(info['photo'],
                             id=None,
                             album_id=info['album_id'],

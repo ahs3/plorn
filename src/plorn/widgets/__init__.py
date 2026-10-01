@@ -489,12 +489,13 @@ class PlornCatalogView(QWidget):
             item = self.tree.model().itemFromIndex(idx)
             #module_logger.debug(f'view_object: column {item.column()}')
             if item.column() == CatalogColumns.ID:
-                id_idx = ids
+                id_idx = idx
+                id = int(item.text())
                 break
-        if self.tree.is_album(id_idx):          # object is an album
+        if self.is_album(id_idx):          # object is an album
             #module_logger.debug(f'view_object: it is an album')
             self.view_album(id)
-        elif self.tree.is_photo(id_idx):        # object is a photo
+        elif self.is_photo(id_idx):        # object is a photo
             #module_logger.debug(f'view_object: it is a photo')
             self.view_photo(id)
         module_logger.debug(f'view_object: done for "{value}"')

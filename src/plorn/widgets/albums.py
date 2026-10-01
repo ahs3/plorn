@@ -810,7 +810,7 @@ class PlornAlbumPhotosView(QDialog):
                 res = PlornAlbumModel.add_photo(
                             self.album_tree.model().invisibleRootItem(), photo)
                 if res == 'okay':
-                    photo = PlornDbOperations.get_photos_by_album_and_path( \
+                    photo = PlornDbOperations.get_photo_by_album_and_path( \
                                                 self.album_id, name)
                     id_item = self.build_item(f'{photo.get_id():04}')
                     name_item = self.build_item(photo.get_name())

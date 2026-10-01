@@ -340,7 +340,7 @@ class PlornPhotoDialog(QDialog):
         rect = self.name_edit.fontMetrics().boundingRect(self.name_edit.text())
         self.name_edit.setMinimumWidth(2*rect.width())
         self.name_edit.setText('')
-        self.name_edit.setReadOnly(allow_edit)
+        self.name_edit.setReadOnly(not self.allow_edit)
         photo_layout.addWidget(self.name_edit, 1, 1)
 
         self.path_label = QLabel('Path:', alignment=label_alignment)
@@ -350,7 +350,7 @@ class PlornPhotoDialog(QDialog):
         rect = self.path_edit.fontMetrics().boundingRect(self.path_edit.text())
         self.path_edit.setMinimumWidth(2*rect.width())
         self.path_edit.setText('')
-        self.path_edit.setReadOnly(allow_edit)
+        self.path_edit.setReadOnly(not self.allow_edit)
         photo_layout.addWidget(self.path_edit, 2, 1)
         self.browse_button = QPushButton('Browse')
         self.browse_button.clicked.connect(self.select_file)
@@ -364,7 +364,7 @@ class PlornPhotoDialog(QDialog):
         rect = metrics.boundingRect(self.dated_edit.text())
         self.dated_edit.setMinimumWidth(2*rect.width())
         self.dated_edit.setText('')
-        self.dated_edit.setReadOnly(allow_edit)
+        self.dated_edit.setReadOnly(not self.allow_edit)
         photo_layout.addWidget(self.dated_edit, 3, 1)
 
         self.notes_label = QLabel('<br><br><br><br>Notes:',
@@ -372,7 +372,7 @@ class PlornPhotoDialog(QDialog):
         photo_layout.addWidget(self.notes_label, 4, 0,
                          alignment=Qt.AlignmentFlag.AlignTop)
         self.notes_edit = QTextEdit()
-        self.notes_edit.setReadOnly(allow_edit)
+        self.notes_edit.setReadOnly(not self.allow_edit)
         photo_layout.addWidget(self.notes_edit, 4, 1)
         layout.addLayout(photo_layout, 2, 0, 1, 2)
 
@@ -475,9 +475,9 @@ class PlornPhotoDialog(QDialog):
                                      'File chosen is not a valid image format.')
                     return None
                 info = plorn.get_metadata(filename)
-                self.path_edit.setText(filename)
                 if self.name_edit.text() == '':
                     self.name_edit.setText(os.path.basename(filename))
+                self.path_edit.setText(filename)
                 dated = self.dated_edit.text()
                 notes = self.notes_edit.toPlainText()
                 if len(dated) < 1:
