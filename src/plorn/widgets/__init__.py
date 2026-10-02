@@ -374,6 +374,12 @@ class PlornCatalogView(QWidget):
     def has_focus(self):
         return self.tree.hasFocus()
 
+    def root_index(self):
+        return self.tree.rootIndex()
+
+    def set_current_index(self, index):
+        self.tree.setCurrentIndex(index)
+
     def switch_model(self):
         global module_logger
 
@@ -438,9 +444,9 @@ class PlornCatalogView(QWidget):
                 add_child_action = menu.addAction('Add Photo',
                                     lambda: self.add_photo_action())
                 edit_photo_action = menu.addAction('Edit Photo',
-                                    lambda: self.edit_photo_action(item))
+                                    lambda: self.edit_photo_action())
                 remove_action = menu.addAction('Remove Photo',
-                                    lambda: self.remove_photo_action(item))
+                                    lambda: self.remove_photo_action())
 
         menu.addSeparator()
         expand_action = menu.addAction('Expand All', self.tree.expandAll)
@@ -691,4 +697,39 @@ class PlornCatalogView(QWidget):
                     module_logger.debug(f'gui.add_photo: no album to manage')
                 self.catalogChanged.emit(0)
         module_logger.debug(f'gui.add_photo: done')
+
+    def remove_photo_action(self):
+        global module_logger
+
+        module_logger.debug(f'remove_photo_action: entered')
+        indices = self.selected_rows()
+        if len(indices) < 1:
+            title = 'Remove a Photo'
+            text = 'No photo has been selected to remove.'
+            button = QMessageBox.critical(self, title, text)
+        else:
+            photo_name = ''
+            photo_id = 0
+            photo_row = -1
+            for index in indices:
+                item = self.item_from_index(index)
+                if item.column() == CatalogColumns.ID:
+                    photo_id = int(item.text())
+                    photo_row = item.row()
+                    parent = item.parent()
+                    album_id = int(parent.text())
+                    msg = f'remove_photo_action: album_id {album_id}'
+                    module_logger.debug(msg)
+                if item.column() == CatalogColumns.NAME:
+                    photo_name = item.text()
+
+            msg  = f'Remove Photo ID {photo_id:04},\n'
+            msg += f'named "{photo_name}"?'
+            button = QMessageBox.question(self, 'Confirm Photo Removal', msg)
+            if button == QMessageBox.StandardButton.Yes:
+                root = self.tree.model().invisibleRootItem()
+                res = PlornAlbumModel.remove_photo(root, photo_id)
+                self.catalogChanged.emit(0)
+
+        module_logger.debug(f'gui.remove_photo: done')
 

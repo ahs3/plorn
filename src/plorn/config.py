@@ -14,7 +14,7 @@ import sys
 
 MAJOR = 0
 MINOR = 37
-BUGFIX = 19
+BUGFIX = 20
 __version__ = str(MAJOR) + '.' + str(MINOR) + '.' + str(BUGFIX)
 
 module_logger = logging.getLogger('plorn.config')
