@@ -419,6 +419,11 @@ class Plorn(QMainWindow):
 
     def _tools_menu(self, mb):
         tools = mb.addMenu('&Tools')
+
+        search_action = QAction('Search Catalog', parent=self)
+        search_action.triggered.connect(self.search_catalog)
+        tools.addAction(search_action)
+
         tables_menu = tools.addMenu('Raw Database Tables')
         tables_menu.aboutToShow.connect(self.update_table_list)
         tables_menu.triggered.connect(self.raw_table_views)
@@ -426,8 +431,10 @@ class Plorn(QMainWindow):
             setattr(self, 'raw_tables_menu', tables_menu)
 
         dbcheck_action = QAction('Check Catalog Structures', parent=self)
+        dbcheck_action.triggered.connect(self.dbcheck_action)
         tools.addAction(dbcheck_action)
         pref_action = QAction('Preferences', parent=self)
+        pref_action.triggered.connect(self.preferences_action)
         tools.addAction(pref_action)
 
         return tools
@@ -435,6 +442,7 @@ class Plorn(QMainWindow):
     def _help_menu(self, mb):
         helpmenu = mb.addMenu('&Help')
         help_action = QAction('Help', parent=self)
+        help_action.triggered.connect(self.help_action)
         helpmenu.addAction(help_action)
         about_action = QAction('About', parent=self)
         about_action.setObjectName('about_action')
@@ -547,10 +555,6 @@ class Plorn(QMainWindow):
 
     def exit_action(self):
         self.close()
-
-    def about_action(self):
-        mbox = PlornAboutDialog()
-        mbox.ask(self)
 
     def new_catalog_action(self):
         global module_logger
@@ -889,6 +893,11 @@ class Plorn(QMainWindow):
         tag_view.exec()
         module_logger.debug('tag_attr_action done')
 
+    def search_catalog(self):
+        global module_logger
+        QMessageBox.information(self, 'Search Catalog',
+                    'This feature is still under construction.')
+
     def update_table_list(self):
         global module_logger
 
@@ -927,6 +936,25 @@ class Plorn(QMainWindow):
             res = dlg.exec()
         module_logger.debug('raw_table_views done')
         
+    def dbcheck_action(self):
+        global module_logger
+        QMessageBox.information(self, 'Database Validity Checks',
+                    'This feature is still under construction.')
+
+    def preferences_action(self):
+        global module_logger
+        QMessageBox.information(self, 'Preferences',
+                    'This feature is still under construction.')
+
+    def help_action(self):
+        global module_logger
+        QMessageBox.information(self, 'Plorn Help',
+                    'This feature is still under construction.')
+
+    def about_action(self):
+        mbox = PlornAboutDialog()
+        mbox.ask(self)
+
 
 #-- the plorn GUI
 def user_interface():
