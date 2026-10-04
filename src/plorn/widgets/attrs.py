@@ -253,3 +253,20 @@ class PlornAttrListView(QWidget):
         module_logger.debug(f'get_items: res {str(res)}')
         return res
 
+    def set_items(self, attr_list):
+        global module_logger
+
+        module_logger.debug('set_items: entered')
+        for attr in attr_list:
+            id = attr.get_id()
+            fullattr = PlornDbOperations.get_full_attr(table=self.table, id=id)
+            module_logger.debug(f'set_items: full attr {fullattr}')
+            value = ', '.join(fullattr)
+            item = QStandardItem(value)
+            item.setData([id, attr.get_parent_id(), attr.get_value()])
+            item.setEditable(False)
+            if len(self.attr_list.model().findItems(value)) < 1:
+                self.attr_list.model().appendRow(item)
+        module_logger.debug(f'set_items: done')
+        return
+

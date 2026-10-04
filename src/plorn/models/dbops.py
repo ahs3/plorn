@@ -681,30 +681,34 @@ class PlornDbOperations:
             res = _current_db.commit()
         return res
 
-    def update_photo(self, photo, updated_photo):
-        self.remove_photo_name_list(photo)
-        self.add_photo_name_list(updated_photo)
-        self.remove_photo_place_list(photo)
-        self.add_photo_place_list(updated_photo)
-        self.remove_photo_tag_list(photo)
-        self.add_photo_tag_list(updated_photo)
+    @staticmethod
+    def update_photo(photo, updated_photo):
+        global module_logger, _current_db
+
+        module_logger.debug('update_photo: entered')
+        PlornDbOperations.remove_photo_name_list(photo)
+        PlornDbOperations.add_photo_name_list(updated_photo)
+        PlornDbOperations.remove_photo_place_list(photo)
+        PlornDbOperations.add_photo_place_list(updated_photo)
+        PlornDbOperations.remove_photo_tag_list(photo)
+        PlornDbOperations.add_photo_tag_list(updated_photo)
 
         sql  = f'UPDATE photos'
-        sql += f' SET name = \'{updated_photo.get_name()}\','
-        sql += f' path = \'{updated_photo.get_path()}\','
-        sql += f' dated = \'{updated_photo.get_dated()}\','
-        sql += f' notes = \'{updated_photo.get_notes()}\''
-        sql += f' WHERE id = \'{photo.get_id()}\''
-        res = self.cursor.execute(sql)
-        self.db.commit()
-
-        sql  = 'SELECT * FROM photos'
-        sql += f' WHERE id = \'{updated_photo.get_id()}\''
-        res = self.cursor.execute(sql)
-        row = res.fetchone()
-        msg = f'updated photo: from {photo.get_name()}'
-        msg += f' to {row['id']}'
-        return self.get_photo_by_id(photo.get_id())
+        sql += f' SET name = "{updated_photo.get_name()}",'
+        sql += f' path = "{updated_photo.get_path()}",'
+        sql += f' dated = "{updated_photo.get_dated()}",'
+        sql += f' notes = "{updated_photo.get_notes()}"'
+        sql += f' WHERE id = "{photo.get_id()}";'
+        query = QSqlQuery(sql, db=_current_db)
+        if query.next():
+            sql  = 'SELECT * FROM photos'
+            sql += f' WHERE id = "{updated_photo.get_id()}";'
+            query = QSqlQuery(sql, db=_current_db)
+            if query.next():
+                msg = f'updated photo: from {photo.get_name()}'
+                msg += f' to {row['id']}'
+                module_logger.debug(msg)
+        return PlornDbOperations.get_photo_by_id(photo.get_id())
 
     def name_exists(self, name, parent_id=0):
         sql = f'SELECT * FROM names WHERE name = \'{name}\''

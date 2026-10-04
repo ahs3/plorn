@@ -385,7 +385,7 @@ class PlornPhotoDialog(QDialog):
             doit=self.bbox.addButton('Apply',
                                      QDialogButtonBox.ButtonRole.ApplyRole)
             self.apply_button = doit
-            self.apply_button.setObjectName('add_album_apply_button')
+            self.apply_button.setObjectName('add_photo_apply_button')
         self.done_button.setDefault(True)
         self.bbox.clicked.connect(self.dlg_done)
         layout.addWidget(self.bbox, 4, 3, 1, 2)
@@ -557,6 +557,22 @@ class PlornPhotoDialog(QDialog):
         info['tags'] = self.tag_list.get_items()
         module_logger.debug(f'PlornPhotoDialog: get_inputs returns {info}')
         return info
+
+    def set_inputs(self, photo):
+        global module_logger
+
+        module_logger.debug('PlornPhotoDialog: set_inputs entered')
+        self.album_selection.set_selection(photo.get_album_id())
+        self.name_edit.setText(photo.get_name())
+        self.path_edit.setText(photo.get_path())
+        self.dated_edit.setText(photo.get_dated())
+        self.notes_edit.setPlainText(photo.get_notes())
+        self.name_list.set_items(photo.get_name_list())
+        self.place_list.set_items(photo.get_place_list())
+        self.tag_list.set_items(photo.get_tag_list())
+        self.show_current_image()
+        module_logger.debug(f'PlornPhotoDialog: set_inputs done')
+        return
 
     def dlg_done(self, button):
         global module_logger

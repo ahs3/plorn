@@ -654,8 +654,8 @@ class PlornCatalogView(QWidget):
         module_logger.debug(f'add_photo_action: entered')
         indices = self.selected_rows()
         if len(indices) < 1:
-            title = 'View a Photo'
-            text = 'No photo has been selected for viewing.'
+            title = 'Add a Photo'
+            text = 'No photo has been selected for context.'
             button = QMessageBox.critical(self, title, text)
         else:
             photo_name = ''
@@ -697,6 +697,56 @@ class PlornCatalogView(QWidget):
                     module_logger.debug(f'gui.add_photo: no album to manage')
                 self.catalogChanged.emit(0)
         module_logger.debug(f'gui.add_photo: done')
+
+    def edit_photo_action(self):
+        global module_logger
+
+        module_logger.debug(f'edit_photo_action: entered')
+        indices = self.selected_rows()
+        if len(indices) < 1:
+            title = 'Edit a Photo'
+            text = 'No photo has been selected for editing.'
+            button = QMessageBox.critical(self, title, text)
+        else:
+            photo_id = 0
+            for index in indices:
+                item = self.item_from_index(index)
+                if item.column() == CatalogColumns.ID:
+                    photo_id = int(item.text())
+                    photo_row = item.row()
+
+            orig_photo = PlornDbOperations.get_photo_by_id(photo_id)
+            if orig_photo == None:
+                title = 'Edit Photo'
+                text  = f'There is no photo with ID {photo_id:04} '
+                test += f'named "{photo_name}."'
+                button = QMessageBox.critical(self, title, text)
+            else:
+                photo_dlg = PlornPhotoDialog(tree=self.tree,
+                                             title='Edit Photo',
+                                             allow_edit=True)
+                photo_dlg.set_inputs(orig_photo)
+                info = PlornPhotoDialog.ask(photo_dlg)
+                module_logger.debug(f'edit_photo: info is {str(info)}')
+                if len(info) > 0:
+                    module_logger.debug(f'edit_photo: from dlg, {info}')
+                    updated_photo = PlornPhoto(info['photo'],
+                                               id=orig_photo.get_id(),
+                                               album_id=info['album_id'],
+                                               path=info['path'],
+                                               dated=info['dated'],
+                                               notes=info['notes'],
+                                               names=info['names'],
+                                               places=info['places'],
+                                               tags=info['tags'])
+                    root = self.tree.model().invisibleRootItem()
+                    res = PlornAlbumModel.update_photo(root,
+                                                       orig_photo,
+                                                       updated_photo)
+                    if res == 'okay':
+                        msg = f'edit_photo: {info['photo']} was updated'
+                        module_logger.debug(msg)
+        module_logger.debug('edit_photo: done in gui')
 
     def remove_photo_action(self):
         global module_logger

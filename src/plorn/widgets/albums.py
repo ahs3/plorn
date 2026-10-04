@@ -109,6 +109,24 @@ class PlornAlbumComboBox(QComboBox):
             album_id = self.album_ids[self.itemText(self.selected_album)]
         return album_id
 
+    def set_selection(self, album_id):
+        global module_logger
+
+        module_logger.debug(f'set_selection: album {album_id:04}')
+        for txt, aid in self.album_ids.items():
+            module_logger.debug(f'set_selection: txt, id {txt}, {aid}')
+            if int(aid) == int(album_id):
+                module_logger.debug(f'set_selection: found {aid}')
+                index = self.findText(txt)
+                if index >= 0:
+                    module_logger.debug(f'set_selection: set index {index}')
+                    self.selected_album = index
+                    self.albumSelected.emit(0)
+                    self.setCurrentIndex(index)
+                    break
+        module_logger.debug(f'set_selection: done {album_id:04}')
+        return
+
 
 class PlornAlbumSelection(QDialog):
     @classmethod

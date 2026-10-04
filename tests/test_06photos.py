@@ -40,6 +40,7 @@ from PyQt6.QtWidgets import (
 from plorn import (
     AlbumFields,
     AttrFields,
+    CatalogColumns,
     ConfigFields,
     PlornAlbum,
     PlornName,
@@ -385,16 +386,198 @@ def test_remove_photo1(initial_db, monkeypatch):
     monkeypatch.setattr(PlornPhotoDialog, 'ask',
                         lambda *args: dlginfo)
     root.add_photo()
-    pindex = tree.model.index(0, 0, album_index)
-    assert pindex.isValid()
-    tree.set_current_index(pindex)
+
+    photo = PlornDbOperations.get_photo_by_album_and_path(album_id, path)
+    assert photo != None
+    items = tree.model.findItems(f'{album_id:04}', column=CatalogColumns.ID)
+    assert len(items) > 0
+    album_item = items[0]
+    assert album_item.hasChildren()
+    album_children = album_item.rowCount()
+    row = -1
+    index = None
+    for ii in range(album_item.rowCount()):
+        child = album_item.child(ii)
+        if int(child.text()) == int(photo.get_id()):
+            index = tree.model.indexFromItem(child)
+            row = ii
+            break
+    assert index != None
+    assert index.isValid()
+    tree.set_current_index(index)
 
     monkeypatch.setattr(QMessageBox, 'question',
                         lambda *args: QMessageBox.StandardButton.Yes)
     root.remove_photo()
-    pindex = tree.model.index(0, 0, album_index)
+    assert album_children == album_item.rowCount() + 1
+    pindex = tree.model.index(row, 0, album_index)
     assert not pindex.isValid()
 
     photo = PlornDbOperations.get_photo_by_album_and_path(album_id, path)
     assert photo == None
+
+def test_edit_photo1(initial_db, monkeypatch):
+    '''
+    play with the dialog for editing photos
+    '''
+    info = initial_db
+    monkeypatch.setenv('HOME', info['homedir'])
+    root = info['root']
+    tree = root.album_tree
+    assert tree != None
+    assert tree.model != None
+    assert root.menuBar() != None
+    tree_root = tree.model.invisibleRootItem()
+    assert tree_root != None
+    album = add_an_album(tree_root)
+    tree.add_album(album.get_name(), album.get_dated(), album.get_notes())
+
+    photo_name  = random_string(tree_root)
+    path  = random_string(tree_root)
+    dated = datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%d')
+    notes = random_string(tree_root)
+    name = random_string(tree_root)
+    name_attr = PlornName(name)
+    name_attr = PlornDbOperations.add_name(name_attr)
+    place = random_string(tree_root)
+    place_attr = PlornPlace(place)
+    place_attr = PlornDbOperations.add_place(place_attr)
+    tag = random_string(tree_root)
+    tag_attr = PlornTag(tag)
+    tag_attr = PlornDbOperations.add_tag(tag_attr)
+
+    orig_photo = PlornPhoto(photo_name, id=None, album_id=album.get_id(),
+                       path=path, dated=dated, notes=notes,
+                       names=[name_attr], places=[place_attr], tags=[tag_attr])
+    orig_photo = PlornDbOperations.add_photo(orig_photo)
+    assert orig_photo != None
+    assert orig_photo.get_id() > 0
+
+    dlg = PlornPhotoDialog(tree=tree, title='Edit Photo', allow_edit=True)
+    assert dlg != None
+    dlg.set_inputs(orig_photo)
+
+    #-- see if we can set all the inputs (the image will be a null pixmap)
+    info = dlg.get_inputs()
+    assert len(info) > 0
+    assert info['photo'] == orig_photo.get_name()
+    assert info['album_id'] == orig_photo.get_album_id()
+    assert info['path'] == orig_photo.get_path()
+    assert info['dated'] == orig_photo.get_dated()
+    assert info['notes'] == orig_photo.get_notes()
+    assert info['names'][0].get_value() == name_attr.get_value()
+    assert info['places'][0].get_value() == place_attr.get_value()
+    assert info['tags'][0].get_value() == tag_attr.get_value()
+
+    #-- change a couple and see if they took
+    photo_name = random_string(tree_root)
+    dlg.name_edit.setText(photo_name)
+    dated = random_string(tree_root)
+    dlg.dated_edit.setText(dated)
+
+    info = dlg.get_inputs()
+    assert len(info) > 0
+    assert info['photo'] == photo_name
+    assert info['album_id'] == orig_photo.get_album_id()
+    assert info['path'] == orig_photo.get_path()
+    assert info['dated'] == dated
+    assert info['notes'] == orig_photo.get_notes()
+    assert info['names'][0].get_value() == name_attr.get_value()
+    assert info['places'][0].get_value() == place_attr.get_value()
+    assert info['tags'][0].get_value() == tag_attr.get_value()
+
+def test_edit_photo2(initial_db, monkeypatch):
+    '''
+    use the menubar to make sure we can invoke the edit photo dialog
+    and modify a photo with attributes
+    '''
+    info = initial_db
+    monkeypatch.setenv('HOME', info['homedir'])
+    root = info['root']
+    tree = root.album_tree
+    assert tree != None
+    assert tree.model != None
+    assert root.menuBar() != None
+    tree_root = tree.model.invisibleRootItem()
+    assert tree_root != None
+    album = add_an_album(tree_root)
+    tree.add_album(album.get_name(), album.get_dated(), album.get_notes())
+
+    photo_name  = random_string(tree_root)
+    path  = random_string(tree_root)
+    dated = datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%d')
+    notes = random_string(tree_root)
+    name = random_string(tree_root)
+    name_attr = PlornName(name)
+    name_attr = PlornDbOperations.add_name(name_attr)
+    place = random_string(tree_root)
+    place_attr = PlornPlace(place)
+    place_attr = PlornDbOperations.add_place(place_attr)
+    tag = random_string(tree_root)
+    tag_attr = PlornTag(tag)
+    tag_attr = PlornDbOperations.add_tag(tag_attr)
+
+    orig_photo = PlornPhoto(photo_name, id=None, album_id=album.get_id(),
+                       path=path, dated=dated, notes=notes,
+                       names=[name_attr], places=[place_attr], tags=[tag_attr])
+    PlornAlbumModel.add_photo(tree_root, orig_photo)
+    photo = PlornDbOperations.get_photo_by_album_and_path(album.get_id(), path)
+    assert photo != None
+    assert photo.get_id() > 0
+    assert photo.get_id() == orig_photo.get_id()
+    assert photo.get_name() == orig_photo.get_name()
+    assert photo.get_album_id() == orig_photo.get_album_id()
+    assert photo.get_path() == orig_photo.get_path()
+    assert photo.get_dated() == orig_photo.get_dated()
+    assert photo.get_notes() == orig_photo.get_notes()
+
+    #-- now force the update to occur
+    album_id = orig_photo.get_album_id()
+    items = tree.model.findItems(f'{album_id:04}', column=CatalogColumns.ID)
+    assert len(items) > 0
+    album_item = items[0]
+    assert album_item.hasChildren()
+    album_children = album_item.rowCount()
+    row = -1
+    index = None
+    for ii in range(album_item.rowCount()):
+        child = album_item.child(ii)
+        if int(child.text()) == int(orig_photo.get_id()):
+            index = tree.model.indexFromItem(child)
+            row = ii
+            break
+    assert index != None
+    assert index.isValid()
+    tree.set_current_index(index)
+
+    photo_name = random_string(tree_root)
+    dated = random_string(tree_root)
+    info['should_apply'] = True
+    info['photo'] = photo_name
+    info['album_id'] = photo.get_album_id()
+    info['path'] = photo.get_path()
+    info['dated'] = dated
+    info['notes'] = photo.get_notes()
+    info['names'] = photo.get_name_list()
+    info['places'] = photo.get_place_list()
+    info['tags'] = photo.get_tag_list()
+    monkeypatch.setattr(PlornPhotoDialog, 'ask', lambda *args: info)
+    root.edit_photo()
+
+    del photo
+    photo = PlornDbOperations.get_photo_by_id(orig_photo.get_id())
+    assert photo != None
+    assert photo.get_name() == photo_name
+    assert photo.get_path() == orig_photo.get_path()
+    assert photo.get_dated() == dated
+    assert photo.get_notes() == orig_photo.get_notes()
+    assert len(photo.get_name_list()) > 0
+    name = orig_photo.get_name_list()[0].get_value()
+    assert photo.get_name_list()[0].get_value() == name
+    assert len(photo.get_place_list()) > 0
+    place = orig_photo.get_place_list()[0].get_value()
+    assert photo.get_place_list()[0].get_value() == place
+    assert len(photo.get_tag_list()) > 0
+    tag = orig_photo.get_tag_list()[0].get_value()
+    assert photo.get_tag_list()[0].get_value() == tag
 

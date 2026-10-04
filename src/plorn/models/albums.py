@@ -407,7 +407,7 @@ class PlornAlbumModel:
             return 'db is invalid'
     
         album = PlornDbOperations.update_album(album, updates)
-        module_logger.debug(f'add_album: updated album {str(album)}')
+        module_logger.debug(f'update_album: updated album {str(album)}')
         assert album != None and album.get_id() != 0
     
         row_data = [album.get_id(),
@@ -587,6 +587,44 @@ class PlornAlbumModel:
             row_items[0].appendRow([id_item, row_item, name_item,
                                     dated_item, count_item, path_item])
         module_logger.debug(f'add_photo: okay and done')
+        return 'okay'
+        
+    @staticmethod
+    def update_photo(root, photo, updates, db=None):
+        global module_logger
+    
+        msg  = f'update_photo: {str(photo)}'
+        module_logger.debug(msg)
+    
+        if db == None:
+            config = PlornConfig()
+            catalog, dirname, dbname = config.get_current_catalog()
+            db = QSqlDatabase.database(connectionName=catalog)
+            msg  = f'update_photo: using db connection {catalog}'
+            module_logger.debug(msg)
+    
+        if not db.isOpen():
+            msg  = 'update_photo: cannot open database'
+            module_logger.debug(msg)
+            return 'cannot open db'
+    
+        if not db.isValid():
+            msg  = 'update_photo: database is not valid'
+            module_logger.debug(msg)
+            return 'db is invalid'
+    
+        photo = PlornDbOperations.update_photo(photo, updates)
+        module_logger.debug(f'update_photo: updated photo {str(photo)}')
+        assert photo != None and photo.get_id() != 0
+    
+        row_data = [photo.get_id(),
+                    photo.get_album_id(),
+                    photo.get_name(),
+                    photo.get_path(),
+                    photo.get_dated(),
+                    photo.get_notes()]
+        PlornAlbumModel._PHOTO_DATA[photo.get_id()] = row_data
+        module_logger.debug(f'update_photo: okay and done')
         return 'okay'
         
     @staticmethod

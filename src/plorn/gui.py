@@ -821,7 +821,7 @@ class Plorn(QMainWindow):
             if photo == None:
                 title = 'View a Photo'
                 text  = f'There is no photo with ID {photo_id:04} '
-                test += f'named "{album_name}."'
+                test += f'named "{photo_name}."'
                 button = QMessageBox.critical(self, title, text)
             else:
                 dlg = PlornViewPhotoDialog(tree=self.album_tree,
@@ -863,8 +863,66 @@ class Plorn(QMainWindow):
         self.set_catalog_info()
         module_logger.debug('add_photo: done in gui')
 
-    def edit_photo(self, item):
-        pass
+    def edit_photo(self):
+        global module_logger
+
+        module_logger.debug('edit_photo: entered in gui')
+        indices = self.album_tree.selected_rows()
+        msg = f'view_photo: {len(indices)/5} selection(s) in gui'
+        module_logger.debug(msg)
+        if len(indices) < 1:
+            title = 'Edit Photo'
+            text = 'No photo has been selected for editing.'
+            button = QMessageBox.critical(self, title, text)
+        elif self.album_tree.is_album(indices[0]):
+            title = 'Edit Photo'
+            text = 'An album has been selected for editing, not a photo.'
+            button = QMessageBox.critical(self, title, text)
+        else:
+            photo_name = ''
+            photo_id = 0
+            photo_row = -1
+            for index in indices:
+                item = self.album_tree.item_from_index(index)
+                if item.column() == CatalogColumns.ID:
+                    photo_id = int(item.text())
+                    photo_row = item.row()
+                if item.column() == CatalogColumns.NAME:
+                    photo_name = item.text()
+
+            orig_photo = PlornDbOperations.get_photo_by_id(photo_id)
+            if orig_photo == None:
+                title = 'Edit Photo'
+                text  = f'There is no photo with ID {photo_id:04} '
+                test += f'named "{photo_name}."'
+                button = QMessageBox.critical(self, title, text)
+            else:
+                photo_dlg = PlornPhotoDialog(tree=self.album_tree,
+                                             title='Edit Photo',
+                                             allow_edit=True)
+                photo_dlg.set_inputs(orig_photo)
+                info = PlornPhotoDialog.ask(photo_dlg)
+                module_logger.debug(f'edit_photo: info is {str(info)}')
+                if len(info) > 0:
+                    module_logger.debug(f'edit_photo: from dlg, {info}')
+                    updated_photo = PlornPhoto(info['photo'],
+                                               id=orig_photo.get_id(),
+                                               album_id=info['album_id'],
+                                               path=info['path'],
+                                               dated=info['dated'],
+                                               notes=info['notes'],
+                                               names=info['names'],
+                                               places=info['places'],
+                                               tags=info['tags'])
+                    root = self.album_tree.model.invisibleRootItem()
+                    res = PlornAlbumModel.update_photo(root,
+                                                       orig_photo,
+                                                       updated_photo)
+                    if res == 'okay':
+                        msg = f'edit_photo: {info['photo']} was updated'
+                        module_logger.debug(msg)
+        self.set_catalog_info()
+        module_logger.debug('edit_photo: done in gui')
 
     def remove_photo(self):
         global module_logger
