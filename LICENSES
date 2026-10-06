@@ -14,12 +14,12 @@ The file plorn_app.png is a copy of a photograph owned by the Charles
 Dickens Museum, 48-49 Doughty Street, London WC1N 2LX, England (see
 https://www.dickensmuseum.com).  This was a colorized version of a
 portrait of Edward Bullwer Lytton "Plorn" Dickens from their curated
-archives, which I have converted back to a sepia tone (because I like
+archives, which I have converted to a sepia tone (because I like
 it) and shrunk to make it more usable with X11 (the original was far
 too large).  The image has been licensed to the Plorn project only for
 non-commercial use and distribution.  If you wish to re-use the
-photograph, you may do so as part of the Plorn application or a copy
-of it; any other use must be approved by the Charles Dickens Museum.
+photograph, you may do so only as part of the Plorn application or a
+copy of it; any other use must be approved by the Charles Dickens Museum.
 
 When re-using the image of Plorn with this project, the following text
 must be included:
@@ -30,28 +30,4 @@ must be included:
    of this application must also include this notice of the Museum's
    permission.  Any other use of this image must be granted explicit
    approval by the Charles Dickens Museum, London.
-
-The photo album icon (album.png) and picture icon (picture.png) are:
-
-	Album icon created by Freepik, at www.flaticon.com
-	https://www.flaticon.com/free-icons/album
-
-	Picture icon created by Freepik, at www.flaticon.com
-	https://www.flaticon.com/free-icons/picture
-
-The red X icon used in the search results (checkbox.png) is from:
-	
-	https://www.flaticon.com/free-icons/incorrect
-	Incorrect icons created by heisenberg_jr - Flaticon
-
-The green check mark (tick mark) in the search results (red-x.png) is
-borrowed from the Linux Mint desktop icons and is distributed under
-the terms of GPL-3.0-or later, as is this project.
-
-The plus and minus icons used when adding or removing attributes (files
-list-add.png and list-remove.png) are borrowed from the GNOME project,
-and are re-used under the terms of GPL-3.0-or-later, as is this project.
-
-Other licenses may be specified as well for certain files for purposes of
-illustration or where third-party components are used.
 
