@@ -25,7 +25,10 @@ root_logger.addHandler(fh)
 module_logger = logging.getLogger('plorn')
 module_logger.setLevel(logging.INFO)
 
-#-- the plorn GUI
-if __name__ == '__main__':
+def main():
     plorn_app, plorn_root = user_interface()
     sys.exit(plorn_app.exec())
+
+#-- the plorn GUI
+if __name__ == '__main__':
+    main()

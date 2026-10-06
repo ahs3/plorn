@@ -1,11 +1,11 @@
 #######################################################################
-# Copyright (c) 2025, Albert H. Stone, III <ahs3@ahs3.net>
+# Copyright (c) 2026, Albert H. Stone, III <ahs3@ahs3.net>
 # SPDX-License-Identifier: GPL-3.0-or-later
-# SPDX-FileCopyrightText: 2025 Albert H. Stone, III <ahs3@ahs3.net>
+# SPDX-FileCopyrightText: 2026 Albert H. Stone, III <ahs3@ahs3.net>
 #######################################################################
 [build-system]
-requires = ["pdm-backend"]
-build-backend = "pdm.backend"
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "plorn"
@@ -14,12 +14,11 @@ authors = [{ name="Al Stone", email="ahs3@ahs3.net" }]
 description = "Build catalogs of albums and photos"
 readme = "README.md"
 requires-python = ">=3.14"
-license = "GPL-3.0-or-later"
-license-files = [ "COPYING", "COPYRIGHT", "LICENSES", ]
+license = "GPL-3.0-or-later AND CC-BY-4.0"
+license-files = [ "COPYING", "LICENSES", ]
 dependencies = [
     "filetype",
     "pillow",
-    "pySide6",
     "pytest",
     "pytest-qt",
     "pyqt6",
@@ -31,15 +30,14 @@ classifiers = [
 keywords = ["GUI", "Genealogy", "Photos", "Albums"]
 
 [project.scripts]
-plorn = "plorn.gui:user_interface"
+plorn = "plorn.__main__:main"
 
 [project.urls]
-Homepage = "https://github.com/ahs3/plorn"
-Documentation = "https://github.com/ahs3/plorn/README.md"
-Repository = "https://github.com/ahs3/plorn.git"
-Issues = "https://github.com/ahs3/plorn/issues"
+Homepage = "https://codeberg.org/ahs3/plorn"
+Documentation = "https://codeberg.org/ahs3/plorn/README.md"
+Repository = "https://codeberg.org/ahs3/plorn.git"
+Issues = "https://codeberg.org/ahs3/plorn/issues"
 
-[tool.pdm.version]
-source = "file"
-path = "src/plorn/config.py"
+[tool.setuptools.dynamic]
+version = {attr = "plorn.config.__version__"}
 
