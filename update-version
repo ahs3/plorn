@@ -29,6 +29,7 @@ bugfix = -1
 majidx = -1
 minidx = -1
 bugidx = -1
+versionidx = -1
 idx = 0
 for ii in lines:
     if len(ii) > 0:
@@ -43,6 +44,8 @@ for ii in lines:
             if data[0].strip() == 'BUGFIX' and bugfix < 0:
                 bugfix = int(data[1].strip())
                 bugidx = idx
+            if data[0].strip() == '__version__':
+                versionidx = idx
     idx += 1
 
 if args.major:
@@ -70,6 +73,9 @@ if minidx >= 0:
     lines[minidx] = f'MINOR = {minor}\n'
 if bugidx >= 0:
     lines[bugidx] = f'BUGFIX = {bugfix}\n'
+if versionidx >= 0:
+    new_version = str(major) + '.' + str(minor) + '.' + str(bugfix)
+    lines[versionidx] = f'__version__ = "{new_version}"\n'
 
 with open('src/plorn/config.py', 'w') as fd:
     for ii in lines:
