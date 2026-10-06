@@ -434,14 +434,14 @@ class PlornSearchResults(ttk.Toplevel):
         self.tfont = font.nametofont('TkDefaultFont')
         self.db = plorn.db.open()
 
-        found = os.path.join(os.path.dirname(__file__), 'checkbox.png')
-        with pilImage.open(found) as img:
-            img.thumbnail((25,25), pilImage.Resampling.LANCZOS)
-            self.found_icon = ImageTk.PhotoImage(image=img)
-        not_found = os.path.join(os.path.dirname(__file__), 'red-x.png')
-        with pilImage.open(not_found) as img:
-            img.thumbnail((25,25), pilImage.Resampling.LANCZOS)
-            self.notfound_icon = ImageTk.PhotoImage(image=img)
+        #found = os.path.join(os.path.dirname(__file__), 'checkbox.png')
+        #with pilImage.open(found) as img:
+        #    img.thumbnail((25,25), pilImage.Resampling.LANCZOS)
+        #    self.found_icon = ImageTk.PhotoImage(image=img)
+        #not_found = os.path.join(os.path.dirname(__file__), 'red-x.png')
+        #with pilImage.open(not_found) as img:
+        #    img.thumbnail((25,25), pilImage.Resampling.LANCZOS)
+        #    self.notfound_icon = ImageTk.PhotoImage(image=img)
 
         self.title('Search Results')
         self.geometry('1200x650')

@@ -7,6 +7,9 @@
 
 TODO
 ====
+-- When viewing a photo, add forward/backward buttons to cycle through
+   the photos in an album
+
 -- Add a "move to/copy to" to move or copy photos to another album
 
 -- Add config options to ask or not ask for confirmation when removing
