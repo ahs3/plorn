@@ -6,7 +6,6 @@
 #######################################################################
 
 import copy
-import filetype
 import getpass
 import logging
 import os

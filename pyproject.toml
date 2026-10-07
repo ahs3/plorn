@@ -17,7 +17,6 @@ requires-python = ">=3.14"
 license = "GPL-3.0-or-later AND CC-BY-4.0"
 license-files = [ "COPYING", "LICENSES", ]
 dependencies = [
-    "filetype",
     "pillow",
     "pytest",
     "pytest-qt",

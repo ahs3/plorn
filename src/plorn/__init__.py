@@ -6,7 +6,6 @@
 
 import copy
 from enum import IntEnum
-import filetype
 import getpass
 import logging
 import os
