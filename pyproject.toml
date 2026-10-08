@@ -16,17 +16,15 @@ readme = "README.md"
 requires-python = ">=3.14"
 license = "GPL-3.0-or-later AND CC-BY-4.0"
 license-files = [ "COPYING", "LICENSES", ]
-dependencies = [
-    "pillow",
-    "pytest",
-    "pytest-qt",
-    "pyqt6",
-]
+dependencies = [ "pillow", "pyqt6", ]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
 ]
 keywords = ["GUI", "Genealogy", "Photos", "Albums"]
+
+[project.optional-dependencies]
+dev = [ "pytest", "pytest-qt", ]
 
 [project.scripts]
 plorn = "plorn.__main__:main"
@@ -39,4 +37,7 @@ Issues = "https://codeberg.org/ahs3/plorn/issues"
 
 [tool.setuptools.dynamic]
 version = {attr = "plorn.config.__version__"}
+
+[tool.setuptools.package-data]
+plorn = ["plorn_app.png"]
 

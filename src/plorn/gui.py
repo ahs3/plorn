@@ -122,7 +122,8 @@ class PlornAboutDialog(QMessageBox):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         config = PlornConfig()
-        photo_path = os.path.join('./src/plorn', config.get_default_photo())
+        photo_path = os.path.join(os.path.dirname(__file__),
+                                  config.get_default_photo())
         pmap = QPixmap(photo_path)
         icon = pmap.scaledToHeight(300)
         self.setIconPixmap(icon)
@@ -265,9 +266,9 @@ class Plorn(QMainWindow):
         self.origin = QPoint(200, 200)
         self.size = QSize(int(geometry.width()*0.8), int(geometry.height()*0.7))
         self.setGeometry(QRect(self.origin, self.size))
-        self.setWindowIcon(QIcon(config.get_default_photo()))
         self.setSizePolicy(PlornSizePolicy())
-        photo_path = os.path.join('./src/plorn', config.get_default_photo())
+        photo_path = os.path.join(os.path.dirname(__file__),
+                                  config.get_default_photo())
         self.setWindowIcon(QIcon(photo_path))
 
         #-- menubar
