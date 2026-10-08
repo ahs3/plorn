@@ -18,9 +18,11 @@
 
 <a id="what-is-a-plorn"></a>
 ## What Is a Plorn?
+<div>
 <div style="float: right">
     <figure>
-        <img src="src/plorn/plorn_app.png"
+        <img 
+        src="https://github.com/ahs3/plorn/blob/5d452416d7fd6072d04611f6fdbf3d66ee7a8783/src/plorn/plorn_app.png"
         alt="Photo of Plorn, courtesy of the Charles Dickens Museum, London"
         height=320 width=200>
         <figcaption>Photo of Plorn,<br>courtesy Charles Dickens Museum,<br>
@@ -28,6 +30,7 @@
         </figcaption>
     </figure>
 </div>
+<div>
 A long time ago, I read a biography of Charles Dickens and was introduced
 to his youngest son, Edward Bullwer Lytton Dickens, named after one of 
 Charles' best friends.  For some reason, Edward was given the nickname
@@ -35,6 +38,7 @@ Charles' best friends.  For some reason, Edward was given the nickname
 stuck in my wee brain; over time, I've ended up using it for things that
 needed a name but I didn't know what they really were.  Surprisingly,
 this happens a lot with software projects.  And that's what happened here.
+</div>
 
 In my office are stacks of boxes collected from relatives that contain
 an astonishing number of photographs, some in albums, some loose, but
