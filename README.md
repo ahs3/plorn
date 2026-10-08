@@ -45,7 +45,7 @@ name stuck.
 <div style="float: right">
     <figure>
         <img 
-        src="https://github.com/ahs3/plorn/blob/5d452416d7fd6072d04611f6fdbf3d66ee7a8783/src/plorn/plorn_app.png"
+        src="src/plorn/plorn_app.png"
         alt="Photo of Plorn, courtesy of the Charles Dickens Museum, London"
         height=320 width=200>
         <figcaption>Photo of Plorn,<br>courtesy Charles Dickens Museum,<br>
