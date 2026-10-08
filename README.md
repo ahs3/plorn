@@ -18,7 +18,30 @@
 
 <a id="what-is-a-plorn"></a>
 ## What Is a Plorn?
-<div>
+<table border=0>
+<tr>
+<td width="55%">
+<p>A long time ago, I read a biography of Charles Dickens and was introduced
+to his youngest son, Edward Bullwer Lytton Dickens, named after one of 
+Charles' best friends.  For some reason, Edward was given the nickname
+"Plorn" by his father.  For further unknown reasons, the word "plorn"
+stuck in my wee brain; over time, I've ended up using it for things that
+needed a name but I didn't know what they really were.  Surprisingly,
+this happens a lot with software projects.  And that's what happened here.
+</p>
+
+<p>In my office are stacks of boxes collected from relatives that contain
+an astonishing number of photographs, some in albums, some loose, but
+most of them just tossed into a box.  What I needed was some way
+to organize them all.  I also needed some way to find them again whilst
+doing genealogical research into my family history.  So, I started
+working on a tool to do what I wanted; since I didn't know what it
+was going to turn out to be or how it was going to work I ended up
+calling it "plorn" as I often do with such things.  This time, the
+name stuck.
+</p>
+</td>
+<td>
 <div style="float: right">
     <figure>
         <img 
@@ -30,25 +53,9 @@
         </figcaption>
     </figure>
 </div>
-<div>
-A long time ago, I read a biography of Charles Dickens and was introduced
-to his youngest son, Edward Bullwer Lytton Dickens, named after one of 
-Charles' best friends.  For some reason, Edward was given the nickname
-"Plorn" by his father.  For further unknown reasons, the word "plorn"
-stuck in my wee brain; over time, I've ended up using it for things that
-needed a name but I didn't know what they really were.  Surprisingly,
-this happens a lot with software projects.  And that's what happened here.
-</div>
-
-In my office are stacks of boxes collected from relatives that contain
-an astonishing number of photographs, some in albums, some loose, but
-most of them just tossed into a box.  What I needed was some way
-to organize them all.  I also needed some way to find them again whilst
-doing genealogical research into my family history.  So, I started
-working on a tool to do what I wanted; since I didn't know what it
-was going to turn out to be or how it was going to work I ended up
-calling it "plorn" as I often do with such things.  This time, the
-name stuck.
+</td>
+</tr>
+</table>
 
 Being of a somewhat lazy nature, I tried a bunch of existing open
 source tools before starting on `plorn`.  All of them had one or more
